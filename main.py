@@ -27,20 +27,20 @@ def main():
     data[200:300] += 1
     data += np.sin(np.linspace(0, 100, 1000))
 
-    fc.setInput(dataIn=data)
+    #fc.setInput(dataIn=data)
 
-    pw1Node = fc.createNode('PlotWidget', pos=(0, -150))
-    pw1Node.setPlot(pw1)
+    #pw1Node = fc.createNode('PlotWidget', pos=(0, -150))
+    #pw1Node.setPlot(pw1)
 
-    pw2Node = fc.createNode('PlotWidget', pos=(150, -150))
-    pw2Node.setPlot(pw2)
+    #pw2Node = fc.createNode('PlotWidget', pos=(150, -150))
+    #pw2Node.setPlot(pw2)
 
-    fNode = fc.createNode('GaussianFilter', pos=(0, 0))
-    fNode.ctrls['sigma'].setValue(5)
-    fc.connectTerminals(fc['dataIn'], fNode['In'])
-    fc.connectTerminals(fc['dataIn'], pw1Node['In'])
-    fc.connectTerminals(fNode['Out'], pw2Node['In'])
-    fc.connectTerminals(fNode['Out'], fc['dataOut'])
+    #fNode = fc.createNode('GaussianFilter', pos=(0, 0))
+    #fNode.ctrls['sigma'].setValue(5)
+    #fc.connectTerminals(fc['dataIn'], fNode['In'])
+    #fc.connectTerminals(fc['dataIn'], pw1Node['In'])
+    #fc.connectTerminals(fNode['Out'], pw2Node['In'])
+    #fc.connectTerminals(fNode['Out'], fc['dataOut'])
 
 
     # Create an in-process kernel
@@ -50,7 +50,7 @@ def main():
     kernel_manager.start_kernel()
     kernel = kernel_manager.kernel
     kernel.gui = 'qt4'
-    kernel.shell.push(dict(win=win, layout=layout, pw1=pw1, pw2=pw2, fc=fc, data=data))
+    kernel.shell.push(dict(win=win, layout=layout))
 
     kernel_client = kernel_manager.client()
     kernel_client.start_channels()
