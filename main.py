@@ -10,6 +10,37 @@ from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 import numpy as np
 
+
+from ubitrack.core import math, measurement, util
+from ubitrack.facade import facade
+
+class ProcessData(object):
+    def __init__(self, hp, hpc, tp, pw, buffer_size=1024):
+        self.hp = hp
+        self.hpc = hpc
+        self.tp = tp
+        self.pw = pw
+
+        self.data =  np.zeros((buffer_size, 3))
+        self.plot_handler0 = pw.plot(pen=(255,0,0), y=self.data[:,0])
+        self.plot_handler1 = pw.plot(pen=(0,255,0), y=self.data[:,1])
+        self.plot_handler2 = pw.plot(pen=(0,0,255), y=self.data[:,2])
+
+    def tick(self, *args, **kw):
+        ts = measurement.now()
+        hp = self.hp.get(ts).get().translation()
+        hpc = self.hpc.get(ts).get().translation()
+        tp = self.tp.get(ts).get().translation()
+
+        self.data = np.concatenate((self.data[:1,:], self.data[:-1,:]), 0)
+        self.data[0,0] = np.linalg.norm(tp - hp)
+        self.data[0,1] = np.linalg.norm(hp - hpc)
+        self.data[0,2] = np.linalg.norm(tp - hpc)
+
+        self.plot_handler0.setData(self.data[:,0])
+        self.plot_handler1.setData(self.data[:,1])
+        self.plot_handler2.setData(self.data[:,2])
+
 def main():
 
     app = guisupport.get_app_qt4()
@@ -23,25 +54,19 @@ def main():
     pw1 = pg.PlotWidget()
     layout.addWidget(pw1, 0, 0)
 
-    data = np.random.normal(size=1000)
-    data[200:300] += 1
-    data += np.sin(np.linspace(0, 100, 1000))
 
-    #fc.setInput(dataIn=data)
+    util.initLogging("log4cpp.conf")
+    df = facade.AdvancedFacade("/usr/local/lib/ubitrack")
 
-    #pw1Node = fc.createNode('PlotWidget', pos=(0, -150))
-    #pw1Node.setPlot(pw1)
+    df.loadDataflow("/home/mvl/vhar_calibration/calib_linux/haptic_workspace_accuracy_test.dfg", True)
 
-    #pw2Node = fc.createNode('PlotWidget', pos=(150, -150))
-    #pw2Node.setPlot(pw2)
 
-    #fNode = fc.createNode('GaussianFilter', pos=(0, 0))
-    #fNode.ctrls['sigma'].setValue(5)
-    #fc.connectTerminals(fc['dataIn'], fNode['In'])
-    #fc.connectTerminals(fc['dataIn'], pw1Node['In'])
-    #fc.connectTerminals(fNode['Out'], pw2Node['In'])
-    #fc.connectTerminals(fNode['Out'], fc['dataOut'])
+    ps_haptic_pose = df.getApplicationPullSinkPose("haptic_pose")
+    ps_haptic_pose_calib = df.getApplicationPullSinkPose("haptic_pose_calib")
+    ps_tracker_pose = df.getApplicationPullSinkPose("tracker_pose")
 
+    pd = ProcessData(ps_haptic_pose, ps_haptic_pose_calib, ps_tracker_pose, pw1)
+    df.startDataflow()
 
     # Create an in-process kernel
     # >>> print_process_id()
@@ -50,7 +75,10 @@ def main():
     kernel_manager.start_kernel()
     kernel = kernel_manager.kernel
     kernel.gui = 'qt4'
-    kernel.shell.push(dict(win=win, layout=layout))
+    kernel.shell.push(dict(win=win, layout=layout, pw1=pw1, df=df,
+                           ps_haptic_pose=ps_haptic_pose,
+                           ps_haptic_pose_calib=ps_haptic_pose_calib,
+                           ps_tracker_pose=ps_tracker_pose))
 
     kernel_client = kernel_manager.client()
     kernel_client.start_channels()
@@ -68,6 +96,12 @@ def main():
     #control.show()
 
     layout.addWidget(control, 2, 0, 1, 2)
+
+
+    updater = QtCore.QTimer(win)
+    updater.timeout.connect(pd.tick)
+    updater.setInterval(33)
+    updater.start()
 
 
     win.show()
