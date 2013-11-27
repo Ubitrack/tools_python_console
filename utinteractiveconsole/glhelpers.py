@@ -6,7 +6,9 @@ from pyqtgraph.Qt import QtCore, QtGui, QtOpenGL
 from pyqtgraph import Vector
 import numpy as np
 
-
+from ubitrack.core import math, calibration
+from ubitrack.vision import vision
+from ubitrack.visualization import visualization
 
 
 __all__ = ['GLBackgroundImage']
@@ -47,7 +49,9 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
 
     ShareWidget = None
 
-    def __init__(self, parent=None):
+    def __init__(self, camera_sink=None, pose_sink=None, intrinsic_sink=None,
+                 cam_width=640, cam_height=480, cam_near=0.01, cam_far=10.0, parent=None):
+
         if VirtualCameraWidget.ShareWidget is None:
             ## create a dummy widget to allow sharing objects (textures, shaders, etc) between views
             VirtualCameraWidget.ShareWidget = QtOpenGL.QGLWidget()
@@ -56,14 +60,24 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
 
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
-        self.opts = {
-            'center': Vector(0,0,0),  ## will always appear at the center of the widget
-            'distance': 10.0,         ## distance of camera from center
-            'fov':  60,               ## horizontal field of view in degrees
-            'elevation':  30,         ## camera's angle of elevation in degrees
-            'azimuth': 45,            ## camera's azimuthal angle in degrees
-                                      ## (rotation around z-axis 0 points along x-axis)
-        }
+        self.camera_sink = camera_sink
+        self.pose_sink = pose_sink
+        self.intrinsic_sink = intrinsic_sink
+
+        self.bgtexture = visualization.BackgroundImage() if camera_sink is not None else None
+        self.camera_pose = None
+        self.camera_intrinsics = None
+
+        # subscribe to sinks (howto do this ?)
+
+        self.camera_width = float(cam_width)
+        self.camera_height = float(cam_height)
+        self.camera_near = float(cam_near)
+        self.camera_far = float(cam_far)
+
+        self.screen_width = cam_width
+        self.screen_height = cam_height
+
         self.items = []
         self.noRepeatKeys = [QtCore.Qt.Key_Right, QtCore.Qt.Key_Left, QtCore.Qt.Key_Up, QtCore.Qt.Key_Down, QtCore.Qt.Key_PageUp, QtCore.Qt.Key_PageDown]
         self.keysPressed = {}
@@ -97,6 +111,8 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
 
     def resizeGL(self, w, h):
         glViewport(0, 0, w, h)
+        self.screen_width = w
+        self.screen_height = h
         #self.update()
 
 
@@ -105,7 +121,10 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
         ## Create the projection matrix
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-
+        if self.camera_intrinsics is not None:
+            # calculate when data arrives ..
+            proj = calibration.projectionMatrix3x3ToOpenGL(0., self.camera_width, 0., self.camera_height, self.camera_near, self.camera_far, self.camera_intrinsics)
+            glMultMatrixd(proj)
 
         # XXX use code from Ubitrack Projection
 
@@ -113,6 +132,11 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
     def setModelview(self):
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
+
+        if self.camera_pose is not None:
+            # calculate when data arrives ..
+            pose = self.camera_pose.invert().toMatrix()
+            glMultMatrixd(pose)
 
         # XXX use code from Ubitrack VirtualCamera
 
@@ -122,7 +146,12 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
         self.setProjection()
         self.setModelview()
         glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT )
+
+        if self.bgtexture is not None:
+            self.bgtexture.draw(self.screen_width, self.screen_height)
+
         self.drawItemTree()
+
 
     def drawItemTree(self, item=None):
         if item is None:
