@@ -10,6 +10,7 @@ from ubitrack.core import math, calibration
 from ubitrack.vision import vision
 from ubitrack.visualization import visualization
 
+from utinteractiveconsole import uthelpers
 
 __all__ = ['GLBackgroundImage']
 
@@ -44,6 +45,16 @@ class GLBackgroundImage(GLGraphicsItem):
 
 class VirtualCameraWidget(QtOpenGL.QGLWidget):
     """
+example:
+
+from utinteractiveconsole.uthelpers import PushSinkAdapter
+sink = df.getApplicationPushSinkVisionImage("pattern_40")
+psa = PushSinkAdapter(sink)
+from utinteractiveconsole.glhelpers import VirtualCameraWidget
+vcw = VirtualCameraWidget(psa)
+vcw.show()
+
+
 
     """
 
@@ -68,7 +79,13 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
         self.camera_pose = None
         self.camera_intrinsics = None
 
-        # subscribe to sinks (howto do this ?)
+        if self.camera_sink and isinstance(self.camera_sink, uthelpers.PushSinkAdapter):
+            def new_img_handler(ts):
+                self.bgtexture.imageIn(self.camera_sink.value)
+                self.updateGL()
+
+            self.camera_sink.connect(new_img_handler)
+
 
         self.camera_width = float(cam_width)
         self.camera_height = float(cam_height)
@@ -207,10 +224,23 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
         pass
 
     def keyPressEvent(self, ev):
-        pass
+        if ev.key() in self.noRepeatKeys:
+            ev.accept()
+            if ev.isAutoRepeat():
+                return
+            self.keysPressed[ev.key()] = 1
+            self.evalKeyState()
 
     def keyReleaseEvent(self, ev):
-        pass
+        if ev.key() in self.noRepeatKeys:
+            ev.accept()
+            if ev.isAutoRepeat():
+                return
+            try:
+                del self.keysPressed[ev.key()]
+            except:
+                self.keysPressed = {}
+            self.evalKeyState()
 
     def checkOpenGLVersion(self, msg):
         ## Only to be called from within exception handler.
@@ -223,3 +253,22 @@ class VirtualCameraWidget(QtOpenGL.QGLWidget):
             raise
 
 
+    def evalKeyState(self):
+        speed = 2.0
+        if len(self.keysPressed) > 0:
+            for key in self.keysPressed:
+                if key == QtCore.Qt.Key_Right:
+                    pass
+                elif key == QtCore.Qt.Key_Left:
+                    pass
+                elif key == QtCore.Qt.Key_Up:
+                    pass
+                elif key == QtCore.Qt.Key_Down:
+                    pass
+                elif key == QtCore.Qt.Key_PageUp:
+                    pass
+                elif key == QtCore.Qt.Key_PageDown:
+                    pass
+                self.keyTimer.start(16)
+        else:
+            self.keyTimer.stop()
