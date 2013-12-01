@@ -20,6 +20,7 @@ setup(name = "utinteractiveconsole",
         'pyqtgraph',
         'pyopengl',
         'stevedore',
+        'lxml',
       ),
       zip_safe=False,
       long_description = """\

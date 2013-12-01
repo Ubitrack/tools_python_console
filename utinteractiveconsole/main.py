@@ -15,7 +15,7 @@ from stevedore import extension
 import logging
 
 log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 class UTInteractiveConsoleWindow(QtGui.QMainWindow):
@@ -58,7 +58,8 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
         #self.setGeometry(300, 300, 300, 200)
         self.setWindowTitle('Ubitrack Interactive Console')
 
-        self.context = dict(win=self, df=self.df, app=self.app, layout=self.layout, args=self.args, options=self.options)
+        self.context = dict(win=self, df=self.df, app=self.app, layout=self.layout,
+                            args=self.args, options=self.options, extensions=self.extensions)
 
 
     def initREPL(self):
@@ -101,7 +102,6 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
         results = self.extension_manager.map(register, self)
 
         for name, result in results:
-            self.extensions[name] = result
             if result.widget is not None:
                 self.connect(result.widget, QtCore.SIGNAL('extensionChanged()'), self.updateExtensionInfo)
 
@@ -119,8 +119,11 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
 
 
     def updateExtensionInfo(self):
-        for name, ext in self.extensions.items():
-            print name, ext.get_name(), ext.get_ports()
+
+        for cat_name, cat in self.extensions.items():
+            for name, ext in cat.items():
+                print cat_name, name, ext.get_name()
+                print ext.get_ports()
 
 
     def registerExtension(self, name, inst, category="default", menu_items=None, add_globals=None):

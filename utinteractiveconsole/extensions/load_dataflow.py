@@ -1,8 +1,16 @@
 __author__ = 'jack'
 import os, sys
 from pyqtgraph.Qt import QtCore, QtGui
-from utinteractiveconsole.extensions import ExtensionBase
+from lxml import etree
 
+from utinteractiveconsole.extensions import (ExtensionBase, PortInfo, InPort,
+                                             OutPort, PORT_TYPE_SOURCE, PORT_TYPE_SINK,
+                                             PORT_MODE_PUSH, PORT_MODE_PULL)
+from ubitrack.dataflow import graph
+from ubitrack.core import util
+
+import logging
+log = logging.getLogger(__name__)
 
 class LoadDataflowWidget(QtGui.QWidget):
 
@@ -13,6 +21,8 @@ class LoadDataflowWidget(QtGui.QWidget):
         self.initUI()
 
         self.is_loaded = False
+        self.dataflow_graph = None
+        self.all_patterns = {}
 
     def initUI(self):
         grid = QtGui.QGridLayout()
@@ -69,17 +79,77 @@ class LoadDataflowWidget(QtGui.QWidget):
             self.df.clearDataflow()
 
         self.is_loaded = False
+        self.dataflow_graph = None
         self.emit(QtCore.SIGNAL('extensionChanged()'))
         self.hide()
 
     def load_dataflow(self, fname):
         name = fname[0].encode(sys.getdefaultencoding())
+        self.parseUTQL(name)
         if self.df is not None:
             self.df.loadDataflow(name, True)
             self.setWindowTitle('Dataflow: %s' % os.path.basename(name))
             self.is_loaded = True
             self.emit(QtCore.SIGNAL('extensionChanged()'))
             self.show()
+
+    def parseUTQL(self, name):
+        try:
+            self.dataflow_graph = graph.readUTQLDocument(util.streambuf(open(name, "r"), 1024))
+        except Exception, e:
+            log.exception(e)
+            self.dataflow_graph = None
+
+        if self.dataflow_graph is not None:
+            dfg = self.dataflow_graph
+            self.all_patterns = {}
+            for k,pat in dfg.SubgraphById.items():
+                config = {}
+                xml = pat.DataflowConfiguration.getXML()
+                try:
+                    doc = etree.XML(xml)
+                    config["class"] = doc.xpath("/root/DataflowConfiguration/UbitrackLib")[0].get("class")
+                    config["attrs"] = dict((e["name"], e["value"]) for e in doc.xpath("/root/DataflowConfiguration/Attribute"))
+                except Exception, e:
+                    log.exception(e)
+                self.all_patterns[k] = config
+
+
+    def get_ports(self):
+        if not self.is_loaded:
+            return []
+
+        ports = []
+        for k, cfg in self.all_patterns.items():
+            mode = None
+            port_type = None
+            data_type = None
+            queued = False
+            type_name = None
+
+            if "class" in cfg:
+                if cfg["class"].startswith("ApplicationPushSink"):
+                    port_type = PORT_TYPE_SINK
+                    mode = PORT_MODE_PUSH
+                    queued = True
+                    type_name = cfg["class"][19:]
+                elif cfg["class"].startswith("ApplicationPullSink"):
+                    port_type = PORT_TYPE_SINK
+                    mode = PORT_MODE_PULL
+                    type_name = cfg["class"][19:]
+                elif cfg["class"].startswith("ApplicationPushSource"):
+                    port_type = PORT_TYPE_SOURCE
+                    mode = PORT_MODE_PUSH
+                    type_name = cfg["class"][21:]
+                elif cfg["class"].startswith("ApplicationPullSource"):
+                    port_type = PORT_TYPE_SOURCE
+                    mode = PORT_MODE_PULL
+                    type_name = cfg["class"][21:]
+
+            if port_type is not None and mode is not None:
+                ports.append(PortInfo(k, port_type, mode, data_type, queued))
+        return ports
+
 
 
 class LoadDataflow(ExtensionBase):
@@ -103,7 +173,7 @@ class LoadDataflow(ExtensionBase):
         return "Dataflow"
 
     def get_ports(self):
-        return []
+        return self.widget.get_ports()
 
     def get_port(self, name):
         raise ValueError("tbd")

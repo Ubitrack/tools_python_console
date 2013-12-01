@@ -3,7 +3,7 @@ import abc
 from collections import namedtuple
 from pyqtgraph.Qt import QtCore, QtGui
 
-PortInfo = namedtuple("PortInfo", ["port_type", "mode", "data_type", "queued"])
+PortInfo = namedtuple("PortInfo", ["name", "port_type", "mode", "data_type", "queued"])
 
 PORT_TYPE_SOURCE = 0
 PORT_TYPE_SINK = 1
