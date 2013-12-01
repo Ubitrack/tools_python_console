@@ -7,6 +7,8 @@ from ubitrack.vision import vision
 from ubitrack.visualization import visualization
 
 
+class NoValueException(ValueError):
+    pass
 
 
 class PushSinkAdapter(QtCore.QObject):
@@ -30,6 +32,11 @@ class PushSinkAdapter(QtCore.QObject):
         return super(PushSinkAdapter, self).connect(self, QtCore.SIGNAL('dataReady(long)'), handler, QtCore.Qt.QueuedConnection)
 
 
+    def get(self, ts=None):
+        if (ts is not None and ts != self._time) or self._value is None:
+            raise NoValueException
+        return self._value
+
     @property
     def value(self):
         return self._value
@@ -38,4 +45,24 @@ class PushSinkAdapter(QtCore.QObject):
     @property
     def time(self):
         return self._time
+
+
+
+
+
+class PullSinkAdapter(QtCore.QObject):
+
+    def __init__(self, sink):
+        super(PullSinkAdapter, self).__init__()
+        self.sink = sink
+
+
+    def get(self, ts=None):
+        if ts is None:
+            raise NoValueException
+        try:
+            return self.sink.get(ts)
+        except Exception, e:
+            #log ?
+            raise NoValueException
 

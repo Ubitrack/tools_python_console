@@ -61,7 +61,8 @@ vcw.show()
     ShareWidget = None
 
     def __init__(self, camera_sink=None, pose_sink=None, intrinsic_sink=None,
-                 cam_width=640, cam_height=480, cam_near=0.01, cam_far=10.0, parent=None):
+                 cam_width=640, cam_height=480, cam_near=0.01, cam_far=10.0,
+                 camera_intrinsics=None, parent=None):
 
         if VirtualCameraWidget.ShareWidget is None:
             ## create a dummy widget to allow sharing objects (textures, shaders, etc) between views
@@ -71,21 +72,40 @@ vcw.show()
 
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
-        self.camera_sink = camera_sink
-        self.pose_sink = pose_sink
-        self.intrinsic_sink = intrinsic_sink
 
         self.bgtexture = visualization.BackgroundImage() if camera_sink is not None else None
+        self.camera_intrinsics = camera_intrinsics
         self.camera_pose = None
-        self.camera_intrinsics = None
 
-        if self.camera_sink and isinstance(self.camera_sink, uthelpers.PushSinkAdapter):
+
+        # XXX Interfaces and Adapters should be used here !!!
+        # have a look at Martjin Faasens reg module (or zope.interface .. but think about py3)
+        if camera_sink is not None and isinstance(camera_sink, uthelpers.PushSinkAdapter):
+            self.camera_sink = camera_sink
+
             def new_img_handler(ts):
-                self.bgtexture.imageIn(self.camera_sink.value)
-                self.updateGL()
+                try:
+                    self.bgtexture.imageIn(self.camera_sink.get(ts))
+
+                    if self.pose_sink is not None:
+                        self.camera_pose = self.pose_sink.get(ts)
+
+                    if self.intrinsic_sink is not None:
+                        self.camera_intrinsics = self.intrinsic_sink.get(ts)
+
+                except uthelpers.NoValueException, e:
+                    # log ?
+                    pass
+                finally:
+                    self.updateGL()
 
             self.camera_sink.connect(new_img_handler)
 
+        if pose_sink is not None and isinstance(pose_sink, uthelpers.PullSinkAdapter):
+            self.pose_sink = pose_sink
+
+        if intrinsic_sink is not None and isinstance(intrinsic_sink, uthelpers.PullSinkAdapter):
+            self.intrinsic_sink = intrinsic_sink
 
         self.camera_width = float(cam_width)
         self.camera_height = float(cam_height)
@@ -102,6 +122,8 @@ vcw.show()
         self.keyTimer.timeout.connect(self.evalKeyState)
 
         self.makeCurrent()
+
+
 
     def addItem(self, item):
         self.items.append(item)
@@ -139,11 +161,8 @@ vcw.show()
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         if self.camera_intrinsics is not None:
-            # calculate when data arrives ..
             proj = calibration.projectionMatrix3x3ToOpenGL(0., self.camera_width, 0., self.camera_height, self.camera_near, self.camera_far, self.camera_intrinsics)
             glMultMatrixd(proj)
-
-        # XXX use code from Ubitrack Projection
 
 
     def setModelview(self):
@@ -151,12 +170,8 @@ vcw.show()
         glLoadIdentity()
 
         if self.camera_pose is not None:
-            # calculate when data arrives ..
             pose = self.camera_pose.invert().toMatrix()
             glMultMatrixd(pose)
-
-        # XXX use code from Ubitrack VirtualCamera
-
 
 
     def paintGL(self):
