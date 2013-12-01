@@ -1,0 +1,3 @@
+[utinteractiveconsole.extension]
+load_dataflow = utinteractiveconsole.extensions.load_dataflow:LoadDataflow
+

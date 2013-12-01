@@ -108,8 +108,8 @@ class LoadDataflowWidget(QtGui.QWidget):
                 xml = pat.DataflowConfiguration.getXML()
                 try:
                     doc = etree.XML(xml)
-                    config["class"] = doc.xpath("/root/DataflowConfiguration/UbitrackLib")[0].get("class")
-                    config["attrs"] = dict((e["name"], e["value"]) for e in doc.xpath("/root/DataflowConfiguration/Attribute"))
+                    config["class"] = doc.xpath("/root/DataflowConfiguration/UbitrackLib")[0].attrib["class"]
+                    config["attrs"] = dict((e.attrib["name"], e.attrib["value"]) for e in doc.xpath("/root/DataflowConfiguration/Attribute"))
                 except Exception, e:
                     log.exception(e)
                 self.all_patterns[k] = config
@@ -123,7 +123,6 @@ class LoadDataflowWidget(QtGui.QWidget):
         for k, cfg in self.all_patterns.items():
             mode = None
             port_type = None
-            data_type = None
             queued = False
             type_name = None
 
@@ -147,7 +146,7 @@ class LoadDataflowWidget(QtGui.QWidget):
                     type_name = cfg["class"][21:]
 
             if port_type is not None and mode is not None:
-                ports.append(PortInfo(k, port_type, mode, data_type, queued))
+                ports.append(PortInfo(k, port_type, mode, type_name, queued))
         return ports
 
 
