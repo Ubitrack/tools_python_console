@@ -1,0 +1,78 @@
+from enaml.layout.api import grid
+from enaml.widgets.api import (
+    Label, Container, PushButton, Slider, Timer, Field, Window
+)
+
+enamldef PlaybackControl(Container):
+    attr data
+
+    alias cur_pos
+
+    constraints = [
+        grid(
+            [pb_fb,  pb_play,  pb_ff],
+            [pb_pause,  pb_stop,  lbl_pos],
+            [cur_pos, cur_pos, cur_pos],
+            column_align='width',
+            row_align='v_center',
+        ),
+    ]
+    PushButton: pb_fb:
+        text = '<<'
+        clicked ::
+            if cur_pos.value - 10 > cur_pos.minimum:
+                cur_pos.value -= 10
+            else:
+                cur_pos.value = cur_pos.minimum
+
+    PushButton: pb_play:
+        text = 'Play'
+        clicked ::
+            timer.start()
+
+    PushButton: pb_pause:
+        text = 'Pause'
+        clicked ::
+            timer.stop()
+
+    PushButton: pb_stop:
+        text = 'Stop'
+        clicked ::
+            timer.stop()
+            cur_pos.value = 0
+
+    PushButton: pb_ff:
+        text = '>>'
+        clicked ::
+            if cur_pos.value + 10 < cur_pos.maximum:
+                cur_pos.value += 10
+            else:
+                cur_pos.value = cur_pos.maximum
+
+    Field: lbl_pos:
+        text << u'{}'.format(cur_pos.value)
+        read_only = True
+
+    Slider: cur_pos:
+        tick_interval = 1
+        minimum = 0
+        maximum << len(data.items) if data is not None else 0
+
+    Timer: timer:
+        interval << data.interval if data is not None else 1000
+        timeout ::
+            if cur_pos.value < cur_pos.maximum:
+                cur_pos.value += 1
+            else:
+                cur_pos.value = cur_pos.minimum
+
+
+enamldef PlaybackControlWindow(Window): main:
+    attr data
+    title << "Playback Control"
+
+    alias panel: pbc
+
+    PlaybackControl: pbc:
+        data = main.data
+

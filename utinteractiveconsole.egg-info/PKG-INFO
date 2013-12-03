@@ -18,3 +18,4 @@ Classifier: Topic :: Software Development :: Libraries :: Python Modules
 Requires: pyqtgraph
 Requires: pyopengl
 Requires: stevedore
+Requires: lxml
