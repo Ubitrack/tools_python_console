@@ -11,3 +11,7 @@ utinteractiveconsole.egg-info/not-zip-safe
 utinteractiveconsole.egg-info/top_level.txt
 utinteractiveconsole/extensions/__init__.py
 utinteractiveconsole/extensions/load_dataflow.py
+utinteractiveconsole/ui/__init__.py
+utinteractiveconsole/ui/playback_control.py
+utinteractiveconsole/ui/virtualcamera.py
+utinteractiveconsole/ui/views/__init__.py

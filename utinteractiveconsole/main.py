@@ -1,11 +1,12 @@
 __author__ = 'mvl'
 import os, sys
 
+from enaml.qt import QtCore, QtGui
+from enaml.qt.qt_application import QtApplication
+
 from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
 from IPython.qt.inprocess import QtInProcessKernelManager
 from IPython.lib import guisupport
-
-from pyqtgraph.Qt import QtGui, QtCore
 
 from ubitrack.core import util
 from ubitrack.facade import facade
@@ -36,6 +37,7 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
         self.initREPL()
         self.initExtensions()
 
+
     def initUI(self):
         log.info("Init UI")
         self.cw = QtGui.QWidget()
@@ -46,7 +48,7 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
         exitAction = QtGui.QAction(QtGui.QIcon('exit.png'), '&Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(QtGui.qApp.quit)
+        exitAction.triggered.connect(QtGui.QApplication.quit)
 
         self.statusBar()
 
@@ -76,7 +78,7 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
         def stop():
             self.kernel_client.stop_channels()
             self.kernel_manager.shutdown_kernel()
-            self.app.exit()
+            QtGui.QApplication.quit()
 
         self.control = RichIPythonWidget()
         self.control.kernel_manager = self.kernel_manager
@@ -141,6 +143,11 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
 
 
 def main():
+
+    default_componenents_path = "/usr/local/lib/ubitrack"
+    if sys.platform.startswith("win32") and "UBITRACK_PATH" in os.environ:
+        default_componenents_path = os.path.join(os.environ["UBITRACK_PATH"], "ubitrack")
+
     parser = OptionParser()
     parser.add_option("-a", "--autostart",
                   action="store_false", dest="autostart", default=True,
@@ -151,7 +158,7 @@ def main():
                   help="log4cpp config file")
 
     parser.add_option("-c", "--components_path",
-                  action="store", dest="components_path", default="/usr/local/lib/ubitrack",
+                  action="store", dest="components_path", default=default_componenents_path,
                   help="path to UbiTrack components")
 
     (options, args) = parser.parse_args()
@@ -163,7 +170,9 @@ def main():
     else:
         filename = args[0]
 
-    app = guisupport.get_app_qt4()
+    # not optimal, since it mixes ipython/pyqtgraph/enaml wrappers %-/
+    #app = guisupport.get_app_qt4()
+    app = QtApplication()
 
     util.initLogging(options.logconfig)
     df = facade.AdvancedFacade(options.components_path)
@@ -178,7 +187,7 @@ def main():
 
     win.show()
 
-    guisupport.start_event_loop_qt4(app)
+    guisupport.start_event_loop_qt4(app._qapp)
 
 
 if __name__ == '__main__':
