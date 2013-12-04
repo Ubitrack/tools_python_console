@@ -105,6 +105,7 @@ class QtGLViewWidget(RawWidget):
 
     __slots__ = '__weakref__'
 
+
     #: The scene that should be displayed
     scene = d_(ForwardTyped(lambda: Scene3D))
 
@@ -129,6 +130,7 @@ class QtGLViewWidget(RawWidget):
 
     #: .
     hug_width = set_default('weak')
+    hug_height = set_default('weak')
 
     #--------------------------------------------------------------------------
     # Initialization API
@@ -141,8 +143,25 @@ class QtGLViewWidget(RawWidget):
         widget = MyGLViewWidget(parent)
 
         widget.sigUpdate.connect(self._update_model)
+
         for attr in ['azimuth', 'distance', 'fov', 'center', 'elevation']:
             widget.opts[attr] = getattr(self, attr)
+
+        if self.scene.grid:
+            widget.addItem(self.scene.grid)
+        if self.scene.orientation_axes:
+            widget.addItem(self.scene.orientation_axes)
+
+        for item in self.scene.items:
+            widget.addItem(item.item)
+
+        def _handle_update(change):
+            if change['type'] == 'create':
+                return
+            self.on_update()
+
+        self.scene.observe("needs_update", _handle_update)
+
 
         return widget
 
@@ -156,6 +175,8 @@ class QtGLViewWidget(RawWidget):
         self._guard &= VIEW_SYNC_FLAG
         widget = self.get_widget()
         for (key, value) in widget.opts.items():
+            if not key in ['azimuth', 'distance', 'fov', 'center', 'elevation']:
+                continue
             setattr(self, key, value)
         self._guard &= ~VIEW_SYNC_FLAG
 
@@ -190,13 +211,13 @@ class QtGLViewWidget(RawWidget):
         for item in widget.items:
             widget.removeItem(item)
 
-        if self.scene._grid:
-            self.add_item(self.scene._grid)
-        if self.scene._orientation_axis:
-            self.add_item(self.scene._orientation_axis)
+        if self.scene.grid:
+            widget.addItem(self.scene.grid)
+        if self.scene.orientation_axes:
+            widget.addItem(self.scene.orientation_axes)
 
         for item in items:
-            widget.addItem(item._item)
+            widget.addItem(item.item)
 
         self._guard &= ~ITEM_CHANGE_FLAG
 
@@ -216,7 +237,6 @@ class QtGLViewWidget(RawWidget):
         widget.opts[change['name']] = change['value']
         widget.update()
 
-
     @observe('scene')
     def _update_scene(self, change):
         """ An observer which sends state change to the proxy.
@@ -226,11 +246,7 @@ class QtGLViewWidget(RawWidget):
         if change['type'] == 'create':
             return
         self._guard |= ITEM_CHANGE_FLAG
-        for item in change['oldvalue']:
-            widget.removeItem(item._item)
-
-        for item in change['value']:
-            widget.addItem(item._item)
+        self.on_update_items()
         self._guard &= ~ITEM_CHANGE_FLAG
 
 
@@ -246,12 +262,12 @@ class GLAxisItem(Atom):
     transform = Coerced(np.ndarray, coercer=np.ndarray)
 
      #: GLAxisItem instance.
-    _item = Value()
+    item = Value()
 
     def _default_transform(self):
         return np.eye(4)
 
-    def _default__item(self):
+    def _default_item(self):
         """ Create a GLAxisItem item with our current attributes.
 
         """
@@ -264,8 +280,8 @@ class GLAxisItem(Atom):
 
         """
         if change['name'] == 'transform':
-            self._item.resetTransform()
-            self._item.applyTransform(QtGui.QMatrix4x4(change['value'].flatten()), False)
+            self.item.resetTransform()
+            self.item.applyTransform(QtGui.QMatrix4x4(change['value'].flatten()), False)
 
 
 class Scene3D(Atom):
@@ -280,19 +296,21 @@ class Scene3D(Atom):
     items = List(Typed(GLAxisItem, ()))
 
     #: GLGridItem instance
-    _grid = Value()
+    grid = Value()
 
     #: GLAxisItem instance.
-    _orientation_axes = Value()
+    orientation_axes = Value()
+
+    needs_update = d_(Bool(False))
 
     #: Cyclic notification guard flags.
     _guard = Int(0)
 
-    def _default__grid(self, parent=None):
+    def _default_grid(self, parent=None):
         print "create grid"
         return gl.GLGridItem()
 
-    def _default__orientation_axes(self, parent=None):
+    def _default_orientation_axes(self, parent=None):
         print "create origin"
         return gl.GLAxisItem()
 

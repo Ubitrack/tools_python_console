@@ -16,7 +16,7 @@ from stevedore import extension
 import logging
 
 log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 class UTInteractiveConsoleWindow(QtGui.QMainWindow):
