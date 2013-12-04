@@ -139,7 +139,6 @@ class QtGLViewWidget(RawWidget):
         """ Create the QListView widget.
 
         """
-        print "create glwidget"
         widget = MyGLViewWidget(parent)
 
         widget.sigUpdate.connect(self._update_model)
@@ -161,7 +160,6 @@ class QtGLViewWidget(RawWidget):
             self.on_update()
 
         self.scene.observe("needs_update", _handle_update)
-
 
         return widget
 
@@ -271,7 +269,6 @@ class GLAxisItem(Atom):
         """ Create a GLAxisItem item with our current attributes.
 
         """
-        print "create axisitem"
         return gl.GLAxisItem()
 
     @observe('transform')
@@ -307,11 +304,9 @@ class Scene3D(Atom):
     _guard = Int(0)
 
     def _default_grid(self, parent=None):
-        print "create grid"
         return gl.GLGridItem()
 
     def _default_orientation_axes(self, parent=None):
-        print "create origin"
         return gl.GLAxisItem()
 
 
