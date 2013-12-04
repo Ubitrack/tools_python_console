@@ -153,6 +153,10 @@ def main():
                   action="store_false", dest="autostart", default=True,
                   help="automatically start dataflow?")
 
+    parser.add_option("-f", "--facade",
+                  action="store_true", dest="facade", default=False,
+                  help="automatically load facade?")
+
     parser.add_option("-l", "--logconfig",
                   action="store", dest="logconfig", default="log4cpp.conf",
                   help="log4cpp config file")
@@ -172,14 +176,17 @@ def main():
 
     # not optimal, since it mixes ipython/pyqtgraph/enaml wrappers %-/
     #app = guisupport.get_app_qt4()
+    QtGui.QApplication.setGraphicsSystem('raster')
     app = QtApplication()
 
     util.initLogging(options.logconfig)
-    df = facade.AdvancedFacade(options.components_path)
+    df = None
+    if options.facade:
+        df = facade.AdvancedFacade(options.components_path)
 
     win = UTInteractiveConsoleWindow(app, df, options, args)
 
-    if filename is not None:
+    if filename is not None and df is not None:
         df.loadDataflow(filename, True)
         if options.autostart:
             df.startDataflow()

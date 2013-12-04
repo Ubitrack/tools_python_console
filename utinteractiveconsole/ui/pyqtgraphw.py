@@ -10,7 +10,13 @@ Based on GLScatterPlotItem.py example from PyQtGraph
 License: MIT
 
 """
+import sys
 from enaml.qt import QtCore, QtGui
+
+if sys.platform.startswith("linux") or sys.platform.startswith("darwin"):
+    from pyqtgraph import setConfigOptions
+    setConfigOptions(useOpenGL=True)
+
 import pyqtgraph.opengl as gl
 import numpy as np
 import pyqtgraph as pg
@@ -248,12 +254,8 @@ class QtGLViewWidget(RawWidget):
         self._guard &= ~ITEM_CHANGE_FLAG
 
 
-
-
-class GLAxisItem(Atom):
-    """ An Axis Item Manager.
-
-    Shows a coordinate root.
+class GLGraphicsItem(Atom):
+    """ A Gereric GraphicsItem Manager.
 
     """
     #: (4,4) array of floats specifying a transform.
@@ -262,16 +264,13 @@ class GLAxisItem(Atom):
      #: GLAxisItem instance.
     item = Value()
 
+    visible = Bool(True)
+
     def _default_transform(self):
         return np.eye(4)
 
-    def _default_item(self):
-        """ Create a GLAxisItem item with our current attributes.
 
-        """
-        return gl.GLAxisItem()
-
-    @observe('transform')
+    @observe('transform', 'visible')
     def _item_change(self, change):
         """ Pass changes to point properties to the GLScatterPlot object.
 
@@ -279,6 +278,70 @@ class GLAxisItem(Atom):
         if change['name'] == 'transform':
             self.item.resetTransform()
             self.item.applyTransform(QtGui.QMatrix4x4(change['value'].flatten()), False)
+        elif change['name'] == 'visible':
+            if change['value']:
+                self.item.show()
+            else:
+                self.item.hide()
+
+
+class GLAxisItem(GLGraphicsItem):
+    """ An Axis Item Manager.
+
+    Shows a coordinate root.
+
+    """
+
+    size = Value((0.2, 0.2, 0.5))
+
+
+    def _default_item(self):
+        """ Create a GLAxisItem item with our current attributes.
+
+        """
+        return gl.GLAxisItem(size=QtGui.QVector3D(*self.size))
+
+    @observe('size')
+    def _data_change(self, change):
+        """ Pass changes to point properties to the GLScatterPlot object.
+
+        """
+        if change['name'] == 'size':
+            self.item.setSize(size=QtGui.QVector3D(*change["value"]))
+
+
+class GLScatterPlotItem(GLGraphicsItem):
+    """ An ScatterPlot Item Manager.
+
+    Shows a scatter plot.
+
+    """
+
+    #: (N,3) array of floats specifying point locations.
+    pos = Coerced(np.ndarray, coercer=np.ndarray)
+
+    #: (N,4) array of floats (0.0-1.0) specifying pot colors
+    #: OR a tuple of floats specifying a single color for all spots.
+    color = Value([1.0, 1.0, 1.0, 0.5])
+
+    #: (N,) array of floats specifying spot sizes or a value for all spots.
+    size = Value(5)
+
+
+    def _default_item(self):
+        """ Create a GLAxisItem item with our current attributes.
+
+        """
+        return gl.GLScatterPlotItem(pos=self.pos, color=self.color,
+                                    size=self.size)
+
+    @observe('color', 'pos', 'size')
+    def _data_change(self, change):
+        """ Pass changes to point properties to the GLScatterPlot object.
+
+        """
+        kwargs = {change['name']: change['value']}
+        self.item.setData(**kwargs)
 
 
 class Scene3D(Atom):
@@ -290,7 +353,7 @@ class Scene3D(Atom):
     __slots__ = '__weakref__'
 
     #: GLGraphicsItem manager
-    items = List(Typed(GLAxisItem, ()))
+    items = List(Typed(GLGraphicsItem, ()))
 
     #: GLGridItem instance
     grid = Value()
