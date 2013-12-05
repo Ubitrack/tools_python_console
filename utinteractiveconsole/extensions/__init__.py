@@ -71,6 +71,15 @@ class ExtensionBase(object):
         self.context = context
         self.widget = None
 
+    def update_optparse(self, parser):
+        """Register optparse arguments.
+
+        :param parser: add cmdline options.
+        :type parser: obj
+        :returns: None.
+        """
+
+
     @abc.abstractmethod
     def register(self, mgr):
         """Register extension at manager.

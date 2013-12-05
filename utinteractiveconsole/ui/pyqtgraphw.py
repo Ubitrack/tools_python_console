@@ -27,6 +27,7 @@ from enaml.layout.geometry import Size
 from enaml.widgets.api import RawWidget
 from enaml.core.declarative import d_
 
+from OpenGL import GLU
 
 
 #: Cyclic guard flags
@@ -99,11 +100,6 @@ class MyGLViewWidget(gl.GLViewWidget):
 
 
 
-
-
-
-
-
 class QtGLViewWidget(RawWidget):
     """ A Qt4 implementation of an Enaml GLViewWidget.
 
@@ -153,9 +149,9 @@ class QtGLViewWidget(RawWidget):
             widget.opts[attr] = getattr(self, attr)
 
         if self.scene.grid:
-            widget.addItem(self.scene.grid)
+            widget.addItem(self.scene.grid.item)
         if self.scene.orientation_axes:
-            widget.addItem(self.scene.orientation_axes)
+            widget.addItem(self.scene.orientation_axes.item)
 
         for item in self.scene.items:
             widget.addItem(item.item)
@@ -216,9 +212,9 @@ class QtGLViewWidget(RawWidget):
             widget.removeItem(item)
 
         if self.scene.grid:
-            widget.addItem(self.scene.grid)
+            widget.addItem(self.scene.grid.item)
         if self.scene.orientation_axes:
-            widget.addItem(self.scene.orientation_axes)
+            widget.addItem(self.scene.orientation_axes.item)
 
         for item in items:
             widget.addItem(item.item)
@@ -290,20 +286,49 @@ class GLAxisItem(GLGraphicsItem):
 
     Shows a coordinate root.
 
+    x=blue
+    y=yellow
+    z=green
+
     """
 
-    size = Value((0.2, 0.2, 0.5))
+    size = Value((1.0, 1.0, 1.0))
 
 
     def _default_item(self):
-        """ Create a GLAxisItem item with our current attributes.
+        """ Create an item with our current attributes.
 
         """
         return gl.GLAxisItem(size=QtGui.QVector3D(*self.size))
 
     @observe('size')
     def _data_change(self, change):
-        """ Pass changes to point properties to the GLScatterPlot object.
+        """ Pass changes to point properties to the object.
+
+        """
+        if change['name'] == 'size':
+            self.item.setSize(size=QtGui.QVector3D(*change["value"]))
+
+
+class GLGridItem(GLGraphicsItem):
+    """ An Grid Item Manager.
+
+    Shows a coordinate root.
+
+    """
+
+    size = Value((1.0, 1.0, 1.0))
+
+
+    def _default_item(self):
+        """ Create a GLGridItem item with our current attributes.
+
+        """
+        return gl.GLGridItem(size=QtGui.QVector3D(*self.size))
+
+    @observe('size')
+    def _data_change(self, change):
+        """ Pass changes to point properties to the GlGridItem object.
 
         """
         if change['name'] == 'size':
@@ -367,10 +392,10 @@ class Scene3D(Atom):
     _guard = Int(0)
 
     def _default_grid(self, parent=None):
-        return gl.GLGridItem()
+        return GLGridItem()
 
     def _default_orientation_axes(self, parent=None):
-        return gl.GLAxisItem()
+        return GLAxisItem()
 
 
 

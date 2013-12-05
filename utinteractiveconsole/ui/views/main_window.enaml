@@ -1,0 +1,59 @@
+import sys, os
+if sys.platform == 'win32':
+    from enaml import winutil
+
+from enaml.qt import QtCore, QtGui
+
+from enaml.widgets.api import (Container, Label, Window, Field, DockArea, DockItem, MenuBar, Menu, Action,
+                               ActionGroup, StatusBar, StatusItem, ToolBar)
+from enaml.stdlib.dock_area_styles import available_styles
+from enaml.layout.api import (
+    HSplitLayout, VSplitLayout, TabLayout, InsertItem, hbox, vbox, spacer
+)
+
+from utinteractiveconsole.ui.ipywidget import IPythonWidget
+
+enamldef MainToolBar(ToolBar):
+    Action:
+        text = '&Exit'
+        triggered ::
+            QtGui.QApplication.quit()
+
+
+enamldef MainDockArea(DockArea): dockarea:
+    attr context
+
+    alias console
+
+    layout = HSplitLayout(
+        TabLayout(
+            'console',
+        ),
+    )
+
+    DockItem:
+        name = 'console'
+        title = 'Console'
+        closable = False
+        Container: console:
+            IPythonWidget:
+                context := dockarea.context
+
+
+
+enamldef Main(Window): main:
+    attr appstate
+
+    alias tbar
+    alias area
+
+    Container:
+        constraints = [vbox(tbar, area, spacing=0)]
+        MainToolBar: tbar:
+            pass
+        MainDockArea: area:
+            context := main.appstate.context
+            dock_event ::
+                print change
+
+

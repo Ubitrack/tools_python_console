@@ -153,7 +153,29 @@ class LoadDataflowWidget(QtGui.QWidget):
 
 class LoadDataflow(ExtensionBase):
 
+    def update_optparse(self, parser):
+        print "init parser options"
+        default_componenents_path = "/usr/local/lib/ubitrack"
+        if sys.platform.startswith("win32") and "UBITRACK_PATH" in os.environ:
+            default_componenents_path = os.path.join(os.environ["UBITRACK_PATH"], "ubitrack")
+
+        parser.add_option("-a", "--autostart",
+                      action="store_false", dest="autostart", default=True,
+                      help="automatically start dataflow?")
+
+        parser.add_option("-f", "--facade",
+                      action="store_true", dest="facade", default=False,
+                      help="automatically load facade?")
+
+        parser.add_option("-c", "--components_path",
+                      action="store", dest="components_path", default=default_componenents_path,
+                      help="path to UbiTrack components")
+
     def register(self, mgr):
+
+        print "load_dataflow is disabled"
+        return self
+
         win = self.context.get("win")
         if self.widget is None:
             self.widget = LoadDataflowWidget(win)
