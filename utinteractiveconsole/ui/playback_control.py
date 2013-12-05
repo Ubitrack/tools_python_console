@@ -1,7 +1,7 @@
 __author__ = 'MVL'
 
 
-from atom.api import Atom, List, Float, Int, observe
+from atom.api import Atom, List, Float, Int, Value, observe
 import enaml
 
 
@@ -20,9 +20,14 @@ class Records(Atom):
 
     current_position = Int(0)
 
-    #@observe("current_position")
-    #def debug_curpos(self, change):
-    #    print "curpos: %s, value: %s" % (self.current_position, self.items[self.current_position])
+    current_value = Value()
+
+    @observe("current_position")
+    def _select_curval(self, change):
+        idx = change["value"]
+        if idx < len(self.items):
+            self.current_value = self.items[idx]
+
 
 
 

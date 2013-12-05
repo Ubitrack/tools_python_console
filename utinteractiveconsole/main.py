@@ -31,7 +31,6 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
         self.extension_manager = None
         self.extensions = {}
         self.extensions_menuitems = []
-        self.extensions_globals = []
 
         self.initUI()
         self.initREPL()
@@ -137,7 +136,8 @@ class UTInteractiveConsoleWindow(QtGui.QMainWindow):
         if menu_items is not None:
             self.extensions_menuitems.append((name, category, menu_items))
         if add_globals is not None:
-            self.extensions_globals.append(add_globals)
+            for k,v in add_globals.items():
+                self.context[k] = v
 
 
 
