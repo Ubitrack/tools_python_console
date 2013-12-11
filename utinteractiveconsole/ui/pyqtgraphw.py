@@ -11,6 +11,7 @@ License: MIT
 
 """
 import sys
+from OpenGL.GL import *
 from enaml.qt import QtCore, QtGui
 
 if sys.platform.startswith("linux") or sys.platform.startswith("darwin"):
@@ -97,6 +98,107 @@ class MyGLViewWidget(gl.GLViewWidget):
             super(MyGLViewWidget, self).mouseMoveEvent(ev)
 
 
+
+class MyGLAxisItem(gl.GLGraphicsItem.GLGraphicsItem):
+    """
+    **Bases:** :class:`GLGraphicsItem <pyqtgraph.opengl.GLGraphicsItem>`
+
+    Displays three lines indicating origin and orientation of local coordinate system.
+
+    """
+
+    def __init__(self, size=None, linewidth=None, colors=None, antialias=True, glOptions='translucent'):
+        gl.GLGraphicsItem.GLGraphicsItem.__init__(self)
+        if size is None:
+            size = QtGui.QVector3D(1, 1, 1)
+        if linewidth is None:
+            linewidth = 1.0
+        if colors is None:
+            colors = [(1, 0, 0, 0.6),  # x red
+                      (0, 1, 0, 0.6),  # y green
+                      (0, 0, 1, 0.6),  # z blue
+            ]
+        self.antialias = antialias
+        self.setSize(size=size)
+        self.setLinewidth(linewidth)
+        self.setColors(colors)
+        self.setGLOptions(glOptions)
+
+    def setSize(self, x=None, y=None, z=None, size=None):
+        """
+        Set the size of the axes (in its local coordinate system; this does not affect the transform)
+        Arguments can be x,y,z or size=QVector3D().
+        """
+        if size is not None:
+            x = size.x()
+            y = size.y()
+            z = size.z()
+        self.__size = [x, y, z]
+        self.update()
+
+    def size(self):
+        return self.__size[:]
+
+
+    def setLinewidth(self, linewidth):
+        """
+        Set the linewidth of the axes (in its local coordinate system; this does not affect the transform)
+        Arguments can be x,y,z or size=QVector3D().
+        """
+        self.__linewidth = linewidth
+        self.update()
+
+    def linewidth(self):
+        return self.__linewidth
+
+
+    def setColors(self, colors):
+        """
+        Set the colors of the axes (in its local coordinate system; this does not affect the transform)
+        Arguments can be x,y,z or size=QVector3D().
+        """
+        self.__colors = colors
+        self.update()
+
+    def colors(self):
+        return self.__colors[:]
+
+
+    def paint(self):
+
+        #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        #glEnable( GL_BLEND )
+        #glEnable( GL_ALPHA_TEST )
+        self.setupGLState()
+
+        glPushAttrib(GL_LINE_BIT)
+
+        glLineWidth(self.linewidth())
+
+        colors = self.colors()
+
+        if self.antialias:
+            glEnable(GL_LINE_SMOOTH)
+            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+
+        glBegin(GL_LINES)
+        x, y, z = self.size()
+
+        glColor4f(*colors[2])  # z is green
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, 0, z)
+
+        glColor4f(*colors[1])  # y is yellow
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, y, 0)
+
+        glColor4f(*colors[0])  # x is blue
+        glVertex3f(0, 0, 0)
+        glVertex3f(x, 0, 0)
+
+        glEnd()
+
+        glPopAttrib(GL_LINE_BIT)
 
 
 
@@ -293,21 +395,30 @@ class GLAxisItem(GLGraphicsItem):
     """
 
     size = Value((1.0, 1.0, 1.0))
+    linewidth = Value(1.0)
+    colors = Value([(1, 0, 0, 0.6),  # x red
+                   (0, 1, 0, 0.6),  # y green
+                   (0, 0, 1, 0.6),  # z blue
+                    ])
 
 
     def _default_item(self):
         """ Create an item with our current attributes.
 
         """
-        return gl.GLAxisItem(size=QtGui.QVector3D(*self.size))
+        return MyGLAxisItem(size=QtGui.QVector3D(*self.size), linewidth=self.linewidth, colors=self.colors)
 
-    @observe('size')
+    @observe('size', 'linewidth', 'colors')
     def _data_change(self, change):
         """ Pass changes to point properties to the object.
 
         """
         if change['name'] == 'size':
             self.item.setSize(size=QtGui.QVector3D(*change["value"]))
+        elif change['name'] == 'linewidth':
+            self.item.setLinewidth(change["value"])
+        elif change['name'] == 'colors':
+            self.item.setColors(change["value"])
 
 
 class GLGridItem(GLGraphicsItem):
