@@ -1,6 +1,6 @@
 from enaml.layout.api import grid, spacer
 from enaml.widgets.api import (
-    Label, Container, PushButton, Slider, Timer, SpinBox, Field, Window
+    Label, Container, PushButton, Slider, Timer, SpinBox, Field, Window, DualSlider
 )
 import math
 
@@ -12,8 +12,8 @@ enamldef PlaybackControl(Container):
 
     constraints = [
         grid(
-            [pb_fb, pb_back, pb_play, pb_forward, pb_ff, speed_ctrl, None],
-            [pb_pause,  pb_stop,  lbl_pos, step_size, cur_pos, cur_pos, cur_pos],
+            [pb_fb, pb_back, pb_play, pb_forward, pb_ff, pb_range],
+            [pb_pause,  pb_stop,  lbl_pos, step_size, speed_ctrl, cur_pos],
             column_align='width',
             row_align='v_center',
         ),
@@ -21,19 +21,19 @@ enamldef PlaybackControl(Container):
     PushButton: pb_fb:
         text = '<<'
         clicked ::
-            step = cur_pos.maximum / 20
-            if cur_pos.value - step > cur_pos.minimum:
+            step = (pb_range.high_value - pb_range.low_value) / 20
+            if cur_pos.value - step > pb_range.low_value:
                 cur_pos.value -= step
             else:
-                cur_pos.value = cur_pos.minimum
+                cur_pos.value = pb_range.low_value
 
     PushButton: pb_back:
         text = '<'
         clicked ::
-            if cur_pos.value - step_size.value > cur_pos.minimum:
+            if cur_pos.value - step_size.value > pb_range.low_value:
                 cur_pos.value -= step_size.value
             else:
-                cur_pos.value = cur_pos.minimum
+                cur_pos.value = pb_range.low_value
 
     PushButton: pb_play:
         text = 'Play'
@@ -54,19 +54,19 @@ enamldef PlaybackControl(Container):
     PushButton: pb_ff:
         text = '>>'
         clicked ::
-            step = cur_pos.maximum / 20
-            if cur_pos.value + step < cur_pos.maximum:
+            step = (pb_range.high_value - pb_range.low_value) / 20
+            if cur_pos.value + step < pb_range.high_value:
                 cur_pos.value += step
             else:
-                cur_pos.value = cur_pos.maximum
+                cur_pos.value = pb_range.high_value
 
     PushButton: pb_forward:
         text = '>'
         clicked ::
-            if cur_pos.value + step_size.value < cur_pos.maximum:
+            if cur_pos.value + step_size.value < pb_range.high_value:
                 cur_pos.value += step_size.value
             else:
-                cur_pos.value = cur_pos.maximum
+                cur_pos.value = pb_range.high_value
 
     Field: lbl_pos:
         text << u'{}'.format(cur_pos.value)
@@ -84,6 +84,11 @@ enamldef PlaybackControl(Container):
         maximum = +25
         value = 0
 
+    DualSlider: pb_range:
+        tick_interval = 1
+        minimum = 0
+        maximum << (len(data.items) - 1) if data is not None else 0
+
     SpinBox: step_size:
         minimum = 1
         maximum = 100
@@ -92,10 +97,10 @@ enamldef PlaybackControl(Container):
     Timer: timer:
         interval << int(data.interval * (2.0**(-speed_ctrl.value/5.0))) if data is not None else 1000
         timeout ::
-            if cur_pos.value + step_size.value < cur_pos.maximum:
+            if cur_pos.value + step_size.value < pb_range.high_value:
                 cur_pos.value += step_size.value
             else:
-                cur_pos.value = cur_pos.minimum
+                cur_pos.value = pb_range.low_value
 
 
 enamldef PlaybackControlWindow(Window): main:
