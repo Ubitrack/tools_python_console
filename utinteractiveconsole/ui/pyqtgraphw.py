@@ -30,6 +30,8 @@ from enaml.core.declarative import d_
 
 from OpenGL import GLU
 
+import logging
+log = logging.getLogger(__name__)
 
 #: Cyclic guard flags
 VIEW_SYNC_FLAG = 0x1
@@ -166,39 +168,42 @@ class MyGLAxisItem(gl.GLGraphicsItem.GLGraphicsItem):
 
     def paint(self):
 
-        #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        #glEnable( GL_BLEND )
-        #glEnable( GL_ALPHA_TEST )
-        self.setupGLState()
+        try:
+            #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            #glEnable( GL_BLEND )
+            #glEnable( GL_ALPHA_TEST )
+            self.setupGLState()
 
-        glPushAttrib(GL_LINE_BIT)
+            glPushAttrib(GL_LINE_BIT)
 
-        glLineWidth(self.linewidth())
+            glLineWidth(self.linewidth())
 
-        colors = self.colors()
+            colors = self.colors()
 
-        if self.antialias:
-            glEnable(GL_LINE_SMOOTH)
-            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+            if self.antialias:
+                glEnable(GL_LINE_SMOOTH)
+                glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
 
-        glBegin(GL_LINES)
-        x, y, z = self.size()
+            glBegin(GL_LINES)
+            x, y, z = self.size()
 
-        glColor4f(*colors[2])  # z is green
-        glVertex3f(0, 0, 0)
-        glVertex3f(0, 0, z)
+            glColor4f(*colors[2])  # z is green
+            glVertex3f(0, 0, 0)
+            glVertex3f(0, 0, z)
 
-        glColor4f(*colors[1])  # y is yellow
-        glVertex3f(0, 0, 0)
-        glVertex3f(0, y, 0)
+            glColor4f(*colors[1])  # y is yellow
+            glVertex3f(0, 0, 0)
+            glVertex3f(0, y, 0)
 
-        glColor4f(*colors[0])  # x is blue
-        glVertex3f(0, 0, 0)
-        glVertex3f(x, 0, 0)
+            glColor4f(*colors[0])  # x is blue
+            glVertex3f(0, 0, 0)
+            glVertex3f(x, 0, 0)
 
-        glEnd()
+            glEnd()
 
-        glPopAttrib(GL_LINE_BIT)
+            glPopAttrib()
+        except Exception, e:
+            log.exception(e)
 
 
 
