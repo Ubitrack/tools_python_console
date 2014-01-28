@@ -165,7 +165,8 @@ vcw.show()
         glLoadIdentity()
 
         if self.camera_pose is not None:
-            pose = self.camera_pose.invert().toMatrix()
+            pose = self.camera_pose.toMatrix()
+            print pose
             glMultMatrixd(pose)
 
 
