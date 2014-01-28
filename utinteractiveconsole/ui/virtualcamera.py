@@ -4,7 +4,7 @@
 #-------------------------------------------------------------------------------
 #  Imports:
 #-------------------------------------------------------------------------------
-from atom.api import (Bool, List, observe, set_default, Unicode, Enum, Int, Atom, Member)
+from atom.api import (Bool, List, observe, set_default, Unicode, Enum, Int, Atom, Value, Typed)
 
 from enaml.widgets.api import RawWidget
 from enaml.core.declarative import d_
@@ -20,20 +20,34 @@ import numpy as np
 from ubitrack.core import math, calibration
 from ubitrack.vision import vision
 from ubitrack.visualization import visualization
+from utinteractiveconsole import uthelpers
 
 import logging
 log = logging.getLogger(__name__)
 
 
+
+
 class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
     """
+example:
+
+from utinteractiveconsole.uthelpers import PushSinkAdapter
+sink = df.getApplicationPushSinkVisionImage("pattern_40")
+psa = PushSinkAdapter(sink)
+from utinteractiveconsole.virtualcamera import QtVirtualCameraWidget
+vcw = QtVirtualCameraWidget(psa)
+vcw.show()
+
+
+
     """
 
     ShareWidget = None
 
-    def __init__(self, bgtexture=None, camera_pose=None, camera_intrinsics=None,
+    def __init__(self, camera_sink=None, pose_sink=None, intrinsic_sink=None,
                  cam_width=640, cam_height=480, cam_near=0.01, cam_far=10.0,
-                 parent=None):
+                 camera_intrinsics=None, parent=None):
 
         if QtVirtualCameraWidget.ShareWidget is None:
             ## create a dummy widget to allow sharing objects (textures, shaders, etc) between views
@@ -43,9 +57,42 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
 
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
-        self.bgtexture = bgtexture
+
+        self.bgtexture = visualization.BackgroundImage() if camera_sink is not None else None
         self.camera_intrinsics = camera_intrinsics
-        self.camera_pose = camera_pose
+        self.camera_pose = None
+
+
+        # XXX Interfaces and Adapters should be used here !!!
+        # have a look at Martjin Faasens reg module (or zope.interface .. but think about py3)
+        if camera_sink is not None and isinstance(camera_sink, uthelpers.PushSinkAdapter):
+            self.camera_sink = camera_sink
+
+            def new_img_handler(ts):
+                try:
+                    self.bgtexture.imageIn(self.camera_sink.get(ts))
+
+                    if self.pose_sink is not None:
+                        self.camera_pose = self.pose_sink.get(ts).get()
+
+                    if self.intrinsic_sink is not None:
+                        self.camera_intrinsics = self.intrinsic_sink.get(ts).get()
+
+                except uthelpers.NoValueException, e:
+                    # log ?
+                    pass
+                except Exception, e:
+                    log.exception(e)
+                finally:
+                    self.updateGL()
+
+            self.camera_sink.connect(new_img_handler)
+
+        if pose_sink is not None and isinstance(pose_sink, uthelpers.PullSinkAdapter):
+            self.pose_sink = pose_sink
+
+        if intrinsic_sink is not None and isinstance(intrinsic_sink, uthelpers.PullSinkAdapter):
+            self.intrinsic_sink = intrinsic_sink
 
         self.camera_width = float(cam_width)
         self.camera_height = float(cam_height)
@@ -56,8 +103,6 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
         self.screen_height = cam_height
 
         self.items = []
-
-
         self.noRepeatKeys = [QtCore.Qt.Key_Right, QtCore.Qt.Key_Left, QtCore.Qt.Key_Up, QtCore.Qt.Key_Down, QtCore.Qt.Key_PageUp, QtCore.Qt.Key_PageDown]
         self.keysPressed = {}
         self.keyTimer = QtCore.QTimer()
@@ -77,6 +122,7 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
                 self.checkOpenGLVersion('Error while adding item %s to GLViewWidget.' % str(item))
 
         item._setView(self)
+        #print "set view", item, self, item.view()
         self.update()
 
     def removeItem(self, item):
@@ -93,25 +139,6 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
             self.addItem(item)
 
 
-    def setCameraParameters(self, cam_width, cam_height, cam_near, cam_far):
-        self.camera_width = float(cam_width)
-        self.camera_height = float(cam_height)
-        self.camera_near = float(cam_near)
-        self.camera_far = float(cam_far)
-
-    def updateCameraIntrinsics(self, camera_intrinsics):
-        self.camera_intrinsics = camera_intrinsics.get()
-
-    def updateCameraPose(self, camera_pose):
-        self.camera_pose = camera_pose.get()
-
-    def updateBackgroundTexture(self, image):
-        if self.bgtexture is None:
-            self.bgtexture = visualization.BackgroundImage()
-        print " XXX %s " % image.time()
-        self.bgtexture.imageIn(image)
-
-
     def initializeGL(self):
         glClearColor(0.0, 0.0, 0.0, 0.0)
         self.resizeGL(self.width(), self.height())
@@ -121,6 +148,7 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
         self.screen_width = w
         self.screen_height = h
         #self.update()
+
 
 
     def setProjection(self):
@@ -262,6 +290,9 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
 
 
 
+
+
+
 class VirtualCameraWidget(RawWidget):
     """ A Qt4 implementation of an Enaml ProxyVirtualCameraWidget.
 
@@ -273,14 +304,14 @@ class VirtualCameraWidget(RawWidget):
     #: The list of graphics items to be displayed
     items = d_(List())
 
-    #: The camera_pose
-    camera_pose = d_(Member())
+    #: The camera image source
+    image_source = d_(Typed(uthelpers.PushSinkAdapter))
     
-    #: The camera_intrinsics
-    camera_intrinsics = d_(Member())
+    #: The camera intrinsics source
+    intrinsics_source = d_(Typed(uthelpers.PullSinkAdapter))
 
-    #: The background texture
-    bgtexture = d_(Member())
+    #: The camera pose source
+    pose_source = d_(Typed(uthelpers.PullSinkAdapter))
 
     #: .
     hug_width = set_default('weak')
@@ -293,8 +324,10 @@ class VirtualCameraWidget(RawWidget):
 
         """
         # Create the list model and accompanying controls:
-        widget = QtVirtualCameraWidget(parent=parent, bgtexture=self.bgtexture, camera_intrinsics=self.camera_intrinsics,
-                                       camera_pose=self.camera_pose)
+        widget = QtVirtualCameraWidget(parent=parent,
+                                       camera_sink=self.image_source,
+                                       intrinsic_sink=self.intrinsics_source,
+                                       pose_sink=self.pose_source)
         for item in self.items:
             self.add_item(widget, item)
 
@@ -303,29 +336,6 @@ class VirtualCameraWidget(RawWidget):
     def add_item(self, widget, item):
         widget.addItem(item)
 
-    #--------------------------------------------------------------------------
-    # Signal Handlers
-    #--------------------------------------------------------------------------
-
-    def onDataReadyEvent(self, data):
-        """ The signal handler when data arrives.
-        """
-        widget = self.get_widget()
-        if widget is None:
-            #log.warn("VirtualCameraWidget is None")
-            return
-
-        if data is not None:
-            if data.intrinsics is not None:
-                widget.updateCameraIntrinsics(data.intrinsics)
-
-            if data.pose is not None:
-                widget.updateCameraPose(data.pose)
-
-            if data.image is not None:
-                widget.updateBackgroundTexture(data.image)
-
-        widget.updateGL()
 
     #--------------------------------------------------------------------------
     # VirtualCamera API
@@ -340,7 +350,7 @@ class VirtualCameraWidget(RawWidget):
     #--------------------------------------------------------------------------
     # Observers
     #--------------------------------------------------------------------------
-    @observe('items', 'camera_pose', 'camera_intrinsics')
+    @observe('items',)
     def _update_proxy(self, change):
         """ An observer which sends state change to the proxy.
 
@@ -351,7 +361,3 @@ class VirtualCameraWidget(RawWidget):
         if widget:
             if name == 'items':
                 self.set_items(self.items)
-            elif name == "camera_pose":
-                widget.camera_pose = self.camera_pose
-            elif name == "camera_intrinsics":
-                widget.camera_intrinsics = self.camera_intrinsics
