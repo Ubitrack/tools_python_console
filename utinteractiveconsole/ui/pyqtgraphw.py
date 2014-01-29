@@ -349,7 +349,6 @@ class QtGLViewWidget(RawWidget):
         """ An observer which sends state change to the proxy.
 
         """
-        widget = self.get_widget()
         if change['type'] == 'create':
             return
         self._guard |= ITEM_CHANGE_FLAG
@@ -375,7 +374,7 @@ class GLGraphicsItem(Atom):
 
     @observe('transform', 'visible')
     def _item_change(self, change):
-        """ Pass changes to point properties to the GLScatterPlot object.
+        """ Pass changes to point properties to the GLGraphicsItem object.
 
         """
         if change['name'] == 'transform':

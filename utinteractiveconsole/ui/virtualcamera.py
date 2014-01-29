@@ -4,23 +4,18 @@
 #-------------------------------------------------------------------------------
 #  Imports:
 #-------------------------------------------------------------------------------
-from atom.api import (Bool, List, observe, set_default, Unicode, Enum, Int, Atom, Value, Typed)
+from atom.api import (observe, set_default, Int, Long, Value, ForwardTyped)
 
 from enaml.widgets.api import RawWidget
 from enaml.core.declarative import d_
 from enaml.qt.QtCore import *
 from OpenGL.GL import *
 from enaml.qt import QtOpenGL, QtCore
-
-from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
-
-from pyqtgraph import Vector
 import numpy as np
 
 from ubitrack.core import math, calibration
-from ubitrack.vision import vision
 from ubitrack.visualization import visualization
-from utinteractiveconsole import uthelpers
+from utinteractiveconsole.ui.pyqtgraphw import Scene3D, ITEM_CHANGE_FLAG, VIEW_SYNC_FLAG
 
 import logging
 log = logging.getLogger(__name__)
@@ -29,24 +24,14 @@ log = logging.getLogger(__name__)
 
 
 class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
-    """
-example:
-
-from utinteractiveconsole.uthelpers import PushSinkAdapter
-sink = df.getApplicationPushSinkVisionImage("pattern_40")
-psa = PushSinkAdapter(sink)
-from utinteractiveconsole.virtualcamera import QtVirtualCameraWidget
-vcw = QtVirtualCameraWidget(psa)
-vcw.show()
-
-
-
-    """
 
     ShareWidget = None
 
-    def __init__(self, camera_sink=None, pose_sink=None, intrinsic_sink=None,
-                 cam_width=640, cam_height=480, cam_near=0.01, cam_far=10.0,
+    #: Fired in update() method to synchronize listeners.
+    sigUpdate = QtCore.Signal()
+
+
+    def __init__(self, cam_width=640, cam_height=480, cam_near=0.01, cam_far=10.0,
                  camera_intrinsics=None, parent=None):
 
         if QtVirtualCameraWidget.ShareWidget is None:
@@ -58,41 +43,9 @@ vcw.show()
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
 
-        self.bgtexture = visualization.BackgroundImage() if camera_sink is not None else None
+        self.bgtexture = visualization.BackgroundImage()
         self.camera_intrinsics = camera_intrinsics
         self.camera_pose = None
-
-
-        # XXX Interfaces and Adapters should be used here !!!
-        # have a look at Martjin Faasens reg module (or zope.interface .. but think about py3)
-        if camera_sink is not None and isinstance(camera_sink, uthelpers.PushSinkAdapter):
-            self.camera_sink = camera_sink
-
-            def new_img_handler(ts):
-                try:
-                    self.bgtexture.imageIn(self.camera_sink.get(ts))
-
-                    if self.pose_sink is not None:
-                        self.camera_pose = self.pose_sink.get(ts).get()
-
-                    if self.intrinsic_sink is not None:
-                        self.camera_intrinsics = self.intrinsic_sink.get(ts).get()
-
-                except uthelpers.NoValueException, e:
-                    # log ?
-                    pass
-                except Exception, e:
-                    log.exception(e)
-                finally:
-                    self.updateGL()
-
-            self.camera_sink.connect(new_img_handler)
-
-        if pose_sink is not None and isinstance(pose_sink, uthelpers.PullSinkAdapter):
-            self.pose_sink = pose_sink
-
-        if intrinsic_sink is not None and isinstance(intrinsic_sink, uthelpers.PullSinkAdapter):
-            self.intrinsic_sink = intrinsic_sink
 
         self.camera_width = float(cam_width)
         self.camera_height = float(cam_height)
@@ -110,7 +63,14 @@ vcw.show()
 
         self.makeCurrent()
 
+    def setBackgroundTexture(self, m):
+        self.bgtexture.imageIn(m)
 
+    def setCameraIntrinsics(self, mat):
+        self.camera_intrinsics = mat
+
+    def setCameraPose(self, mat):
+        self.camera_pose = mat
 
     def addItem(self, item):
         self.items.append(item)
@@ -122,7 +82,6 @@ vcw.show()
                 self.checkOpenGLVersion('Error while adding item %s to GLViewWidget.' % str(item))
 
         item._setView(self)
-        #print "set view", item, self, item.view()
         self.update()
 
     def removeItem(self, item):
@@ -157,17 +116,17 @@ vcw.show()
         glLoadIdentity()
         if self.camera_intrinsics is not None:
             proj = calibration.projectionMatrix3x3ToOpenGL(0., self.camera_width, 0., self.camera_height, self.camera_near, self.camera_far, self.camera_intrinsics)
-            glMultMatrixd(proj)
+            glMultMatrixd(proj.T)
 
 
     def setModelview(self):
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
-        if self.camera_pose is not None:
-            pose = self.camera_pose.toMatrix()
-            print pose
-            glMultMatrixd(pose)
+        # XXX Needs more thoughts .. a transpose could be required here to be consistent with the global matrix handling
+        # if self.camera_pose is not None:
+        #     pose = self.camera_pose.toMatrix()
+        #     glMultMatrixd(pose)
 
 
     def paintGL(self):
@@ -302,21 +261,28 @@ class VirtualCameraWidget(RawWidget):
     __slots__ = '__weakref__'
 
 
-    #: The list of graphics items to be displayed
-    items = d_(List())
+    #: The scene that should be displayed
+    scene = d_(ForwardTyped(lambda: Scene3D))
 
-    #: The camera image source
-    image_source = d_(Typed(uthelpers.PushSinkAdapter))
+    #: The camera image measurement
+    background_texture = d_(Value())
     
-    #: The camera intrinsics source
-    intrinsics_source = d_(Typed(uthelpers.PullSinkAdapter))
+    #: The camera intrinsics measurement
+    camera_intrinsics = d_(Value())
 
-    #: The camera pose source
-    pose_source = d_(Typed(uthelpers.PullSinkAdapter))
+    #: The camera pose measurement
+    camera_pose = d_(Value())
+
+    #: The current timestamp
+    current_timestamp = d_(Long())
+
+    #: Cyclic notification guard flags.
+    _guard = d_(Int(0))
 
     #: .
     hug_width = set_default('weak')
-    
+    hug_height = set_default('weak')
+
     #--------------------------------------------------------------------------
     # Initialization API
     #--------------------------------------------------------------------------
@@ -326,39 +292,110 @@ class VirtualCameraWidget(RawWidget):
         """
         # Create the list model and accompanying controls:
         widget = QtVirtualCameraWidget(parent=parent,
-                                       camera_sink=self.image_source,
-                                       intrinsic_sink=self.intrinsics_source,
-                                       pose_sink=self.pose_source)
-        for item in self.items:
-            self.add_item(widget, item)
+                                       # add properties for camera width, height, near, far, ...
+                                       )
+
+        widget.sigUpdate.connect(self._update_model)
+
+        if self.scene.grid:
+            widget.addItem(self.scene.grid.item)
+        if self.scene.orientation_axes:
+            widget.addItem(self.scene.orientation_axes.item)
+
+        for item in self.scene.items:
+            widget.addItem(item.item)
+
+        def _handle_update(change):
+            if change['type'] == 'create':
+                return
+            self.on_update()
+
+        self.scene.observe("needs_update", _handle_update)
 
         return widget
 
-    def add_item(self, widget, item):
-        widget.addItem(item)
+    def _update_model(self):
+        """ Synchronize view attributes to the model.
 
+        """
+        if self._guard & ITEM_CHANGE_FLAG:
+            return
+        self._guard &= VIEW_SYNC_FLAG
+        widget = self.get_widget()
+        # for (key, value) in widget.opts.items():
+        #     if not key in ['azimuth', 'distance', 'fov', 'center', 'elevation']:
+        #         continue
+        #     setattr(self, key, value)
+        self._guard &= ~VIEW_SYNC_FLAG
 
     #--------------------------------------------------------------------------
-    # VirtualCamera API
+    # Signal Handlers
+    #--------------------------------------------------------------------------
+    def on_update_items(self):
+        """ The signal handler for the index changed signal.
+
+        """
+        self.set_items(self.scene.items)
+        self.on_update()
+
+    def on_update(self):
+        """ The signal handler for the index changed signal.
+
+        """
+        widget = self.get_widget()
+        widget.updateGL()
+
+    #--------------------------------------------------------------------------
+    # ProxyListStrView API
     #--------------------------------------------------------------------------
 
     def set_items(self, items):
         """
         """
+        if self._guard & VIEW_SYNC_FLAG:
+            return
+        self._guard &= ITEM_CHANGE_FLAG
         widget = self.get_widget()
-        widget.setItems(items)
+        for item in widget.items:
+            widget.removeItem(item)
+
+        if self.scene.grid:
+            widget.addItem(self.scene.grid.item)
+        if self.scene.orientation_axes:
+            widget.addItem(self.scene.orientation_axes.item)
+
+        for item in items:
+            widget.addItem(item.item)
+
+        self._guard &= ~ITEM_CHANGE_FLAG
+
 
     #--------------------------------------------------------------------------
     # Observers
     #--------------------------------------------------------------------------
-    @observe('items',)
-    def _update_proxy(self, change):
+
+
+    @observe('scene')
+    def _update_scene(self, change):
         """ An observer which sends state change to the proxy.
 
         """
-        # The superclass handler implementation is sufficient.
-        name = change['name']
+        if change['type'] == 'create':
+            return
+        self._guard |= ITEM_CHANGE_FLAG
+        self.on_update_items()
+        self._guard &= ~ITEM_CHANGE_FLAG
+
+    @observe('current_timestamp',)
+    def _update_gl(self, change):
         widget = self.get_widget()
         if widget:
-            if name == 'items':
-                self.set_items(self.items)
+            if change["type"] == "update":
+                if self.background_texture is not None:
+                    widget.setBackgroundTexture(self.background_texture)
+                if self.camera_intrinsics is not None:
+                    widget.setCameraIntrinsics(self.camera_intrinsics)
+                if self.camera_pose is not None:
+                    widget.setCameraPose(self.camera_pose)
+
+

@@ -35,6 +35,9 @@ This module controls my garden""",
         "Topic :: Software Development :: Libraries :: Python Modules",
         ],
         entry_points={
+            'console_scripts': [
+                'utic = utinteractiveconsole.main:main',
+                ],
             'utinteractiveconsole.extension': [
                 'load_dataflow = utinteractiveconsole.extensions.load_dataflow:LoadDataflow',
             ],

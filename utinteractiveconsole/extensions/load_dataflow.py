@@ -3,9 +3,9 @@ import os, sys
 from pyqtgraph.Qt import QtCore, QtGui
 from lxml import etree
 
-from utinteractiveconsole.extensions import (ExtensionBase, PortInfo, InPort,
-                                             OutPort, PORT_TYPE_SOURCE, PORT_TYPE_SINK,
-                                             PORT_MODE_PUSH, PORT_MODE_PULL)
+from utinteractiveconsole.extensions import (ExtensionBase, InPort, OutPort,)
+from utinteractiveconsole.uthelpers import PortInfo, PORT_MODE_PULL, PORT_MODE_PUSH, PORT_TYPE_SINK, PORT_TYPE_SOURCE
+
 from ubitrack.dataflow import graph
 from ubitrack.core import util
 
