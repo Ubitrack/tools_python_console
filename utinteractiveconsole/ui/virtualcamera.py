@@ -31,7 +31,7 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
     sigUpdate = QtCore.Signal()
 
 
-    def __init__(self, cam_width=640, cam_height=480, cam_near=0.01, cam_far=10.0,
+    def __init__(self, cam_width=800, cam_height=600, cam_near=0.01, cam_far=10.0,
                  camera_intrinsics=None, parent=None):
 
         if QtVirtualCameraWidget.ShareWidget is None:
