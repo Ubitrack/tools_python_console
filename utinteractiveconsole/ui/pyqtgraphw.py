@@ -11,6 +11,7 @@ License: MIT
 
 """
 import sys
+from math import pi
 from OpenGL.GL import *
 from enaml.qt import QtCore, QtGui
 
@@ -29,6 +30,7 @@ from enaml.widgets.api import RawWidget
 from enaml.core.declarative import d_
 
 from OpenGL import GLU
+from ubitrack.core import math
 
 import logging
 log = logging.getLogger(__name__)
@@ -37,6 +39,132 @@ log = logging.getLogger(__name__)
 VIEW_SYNC_FLAG = 0x1
 ITEM_CHANGE_FLAG = 0x2
 
+# from openglcontext (mcfletcher)
+class DragWatcher(object):
+    """Class providing semantics for fractional and absolute dragging
+
+    With this class you can track the start position of a drag action
+    and query for both absolute distance dragged, and distance as a
+    fraction of the distance to the edges of the window.
+    """
+    def __init__(self, startX, startY, totalX, totalY ):
+        """Initialise the DragWatcher
+
+        startX, startY -- initial coordinates for the drag
+        totalX, totalY -- overall dimensions of the context
+        """
+        self.start = startX, startY
+        self.total = totalX, totalY
+    def fractions (self, newX, newY ):
+        """Calculate fractional delta from the start point
+
+        newX, newY -- new selection point from which to calculate
+        """
+        if (newX, newY) == self.start:
+            return 0.0,0.0
+        values = []
+        for index, item in ((0, newX), (1, newY)):
+            if item < self.start[index]:
+                value = float(item-self.start[index])/ self.start[index]
+            else:
+                value = float(item-self.start[index])/ (self.total[index]-self.start[index])
+            values.append (value)
+        return values
+    def distances (self, newX, newY ):
+        """Calculate absolute distances from start point
+
+        newX, newY -- new selection point from which to calculate
+        """
+        if (newX, newY) == self.start:
+            return 0,0
+        else:
+            return newX-self.start[0], newY-self.start[1]
+
+class Trackball:
+    '''Trackball mechanism for interactive rotation
+
+    Use the trackball utility to rotate a viewpoint
+    around a fixed world-space coordinate (center).
+
+    This trackball is a simple x/y grid of polar
+    coordinates.  Dragging to the left rotates the
+    eye around the object to view the left side,
+    similarly for right, top, bottom.
+    '''
+    def __init__ (
+        self, position, quaternion,
+        center,
+        originalX, originalY, width, height,
+        dragAngle=pi*2,
+    ):
+        """Initialise the Trackball
+
+        position -- object-space original position (camera pos)
+
+        quaternion -- camera orientation as a quaternion
+
+        originalX, originalY -- the initial screen
+            coordinates of the drag
+
+        width, height -- the dimensions of the screen
+            (newX-originalX)/(fractional width) used by
+            trackball algorithm
+
+        center -- the x,y,z world coordinates around which
+            we are to rotate the application will need to
+            use some heuristic to determine the most appropriate
+            center of rotation.  For instance, when the user
+            first clicks, check for an object in the "center" of
+            the display, use the center of that object (or
+            possibly the midpoint between the greatest and least
+            Z-buffer values) projected back into world space
+            coordinates.  If there is no available object,
+            potentially use the maximum and minimum of the whole
+            Z buffer. If there are no rendered elements at all
+            then use some multiple of the near frustum (20 or
+            30, for example)
+        dragAngle -- maximum rotation angle for a drag
+        """
+        self.watcher = DragWatcher(originalX, originalY, width, height)
+        self.originalPosition = position
+        self.originalQuaternion = quaternion
+        self.xAxis = self.originalQuaternion * np.asarray([1, 0, 0])
+        self.yAxis = self.originalQuaternion * np.asarray([0, 1, 0])
+
+        x, y, z = center[:3]
+        self.center = np.asarray([x, y, z, 0])
+        self.dragAngle = dragAngle
+        self.vector = self.originalPosition - self.center
+
+    def cancel (self):
+        """Cancel drag rotation, return pos,quat to original values"""
+        return self.originalPosition, self.originalQuaternion
+
+    def update(self, newX, newY ):
+        """Update with new x,y drag coordinates
+
+        newX, newY -- the new screen coordinates for the drag
+
+        returns a new position and quaternion orientation
+        """
+        # get the drag fractions
+        x,y = self.watcher.fractions ( newX, newY )
+        # multiply by the maximum drag angle
+        # note that movement in x creates rotation about y & vice-versa
+        # note that OpenGL coordinates make y reversed from "normal" rotation
+        yRotation,xRotation = x * self.dragAngle, -y * self.dragAngle
+        # calculate the results, keeping in mind that translation in one axis is rotation around the other
+        xRot = apply(quaternion.fromXYZR, self.xAxis + (xRotation,))
+        yRot = apply(quaternion.fromXYZR, self.yAxis + (yRotation,))
+
+        # the vector is already rotated by originalQuaternion
+        # and positioned at the origin, so just needs
+        # the adjusted x + y rotations + un-positioning
+        a = ((xRot *yRot) * self.vector) +  self.center
+        b = self.originalQuaternion *xRot *yRot
+        return a,b
+
+# end of openglcontext reuse
 
 class MyGLViewWidget(gl.GLViewWidget):
     """ Override GLViewWidget with enhanced behavior and Atom integration.
@@ -45,30 +173,39 @@ class MyGLViewWidget(gl.GLViewWidget):
     #: Fired in update() method to synchronize listeners.
     sigUpdate = QtCore.Signal()
 
+    def __init__(self, parent=None):
+        super(MyGLViewWidget, self).__init__(parent=parent)
+        # should be computed based on initial elevation and azimuth
+        pos = self.cameraPosition()
+        self.opts["camera_position"] = np.asarray([pos.x(), pos.y(), pos.z()])
+        self.opts["camera_orientation"] = math.Quaternion()
+
+
+    def viewMatrix(self):
+        tr = QtGui.QMatrix4x4()
+        tr.translate( 0.0, 0.0, -self.opts['distance'])
+        tr.rotate(self.opts['elevation']-90, 1, 0, 0)
+        tr.rotate(self.opts['azimuth']+90, 0, 0, -1)
+        center = self.opts['center']
+        tr.translate(-center.x(), -center.y(), -center.z())
+        return tr
+
+
     def mousePressEvent(self, ev):
         """ Store the position of the mouse press for later use.
 
         """
-        super(MyGLViewWidget, self).mousePressEvent(ev)
+        self.mousePos = ev.pos()
         self._downpos = self.mousePos
+        if ev.buttons() == QtCore.Qt.LeftButton:
+            center_ = self.opts['center']
+            center = np.asarray([center_.x(), center_.y(), center_.z()])
 
-    def mouseReleaseEvent(self, ev):
-        """ Allow for single click to move and right click for context menu.
-
-        Also emits a sigUpdate to refresh listeners.
-        """
-        super(MyGLViewWidget, self).mouseReleaseEvent(ev)
-        if self._downpos == ev.pos():
-            if ev.button() == 2:
-                print 'show context menu'
-            elif ev.button() == 1:
-                x = ev.pos().x() - self.width() / 2
-                y = ev.pos().y() - self.height() / 2
-                self.pan(-x, -y, 0, relative=True)
-                print self.opts['center']
-        self._prev_zoom_pos = None
-        self._prev_pan_pos = None
-        self.sigUpdate.emit()
+            position = self.opts['camera_position']
+            orientation = self.opts['camera_orientation']
+            self._trackball = Trackball(position, orientation, center,
+                                        ev.pos().x(), ev.pos().y(),
+                                        self.width(), self.height())
 
     def mouseMoveEvent(self, ev):
         """ Allow Shift to Move and Ctrl to Pan.
@@ -97,7 +234,50 @@ class MyGLViewWidget(gl.GLViewWidget):
             self.pan(dx, dy, 0, relative=True)
             self._prev_pan_pos = pos
         else:
-            super(MyGLViewWidget, self).mouseMoveEvent(ev)
+
+            diff = ev.pos() - self.mousePos
+            self.mousePos = ev.pos()
+
+            if ev.buttons() == QtCore.Qt.LeftButton:
+                self.orbit(-diff.x(), diff.y())
+                #print self.opts['azimuth'], self.opts['elevation']
+            elif ev.buttons() == QtCore.Qt.MidButton:
+                if (ev.modifiers() & QtCore.Qt.ControlModifier):
+                    self.pan(diff.x(), 0, diff.y(), relative=True)
+                else:
+                    self.pan(diff.x(), diff.y(), 0, relative=True)
+
+
+    def mouseReleaseEvent(self, ev):
+        """ Allow for single click to move and right click for context menu.
+
+        Also emits a sigUpdate to refresh listeners.
+        """
+        if self._downpos == ev.pos():
+            if ev.button() == 2:
+                print 'show context menu'
+            elif ev.button() == 1:
+                x = ev.pos().x() - self.width() / 2
+                y = ev.pos().y() - self.height() / 2
+                self.pan(-x, -y, 0, relative=True)
+                print self.opts['center']
+        self._prev_zoom_pos = None
+        self._prev_pan_pos = None
+        self._trackball = None
+        self.sigUpdate.emit()
+
+    def wheelEvent(self, ev):
+        if (ev.modifiers() & QtCore.Qt.ControlModifier):
+            self.opts['fov'] *= 0.999**ev.delta()
+        else:
+            self.opts['distance'] *= 0.999**ev.delta()
+        self.update()
+
+
+
+
+
+
 
 
 
@@ -448,6 +628,37 @@ class GLGridItem(GLGraphicsItem):
         """
         if change['name'] == 'size':
             self.item.setSize(size=QtGui.QVector3D(*change["value"]))
+
+
+
+class GLLinePlotItem(GLGraphicsItem):
+    """ An Grid Item Manager.
+
+    Shows a line plot.
+
+    """
+    #: (N,3) array of floats specifying line point locations.
+    pos = Coerced(np.ndarray, coercer=np.ndarray)
+
+    #: (N,4) array of floats (0.0-1.0) specifying pot colors
+    #: OR a tuple of floats specifying a single color for all spots.
+    color = Value([1.0, 1.0, 1.0, 0.5])
+
+    linewidth = Value(1.0)
+
+    def _default_item(self):
+        """ Create a GlLinePlotItem item with our current attributes.
+
+        """
+        return gl.GLLinePlotItem(pos=self.pos, color=self.color, width=self.linewidth)
+
+    @observe('pos')
+    def _data_change(self, change):
+        """ Pass changes to point properties to the GlLinePlotItem object.
+
+        """
+        if change['name'] == 'pos':
+            self.item.setData(pos=self.pos)
 
 
 class GLScatterPlotItem(GLGraphicsItem):
