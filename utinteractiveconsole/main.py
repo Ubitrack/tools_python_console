@@ -1,5 +1,6 @@
 __author__ = 'mvl'
 import os, sys
+import ConfigParser
 
 import enaml
 from enaml.qt import QtCore, QtGui
@@ -106,6 +107,10 @@ def main():
                   action="store", dest="logconfig", default="log4cpp.conf",
                   help="log4cpp config file")
 
+    parser.add_option("-C", "--configfile",
+                  action="store", dest="configfile", default="~/.utic.conf",
+                  help="Interactive console config file")
+
     appstate = AppState(context=dict())
     extensions = Extensions(appstate=appstate)
 
@@ -120,6 +125,22 @@ def main():
 
     appstate.context['args'] = args
     appstate.context['options'] = options
+
+    cfgfiles = []
+    if (os.path.isfile(options.configfile)):
+        cfgfiles.append(options.configfile)
+
+    if (os.path.isfile(os.environ.get("UTIC_CONFIG_FILE", ""))):
+        cfgfiles.append(os.environ["UTIC_CONFIG_FILE"])
+
+    config = ConfigParser.ConfigParser()
+    try:
+        config.read(cfgfiles)
+        appstate.context['config'] = config
+    except Exception, e:
+        log.error("Error parsing config file(s): %s" % (cfgfiles,))
+        log.exception(e)
+
 
     if len(args) < 1:
         filename = None
