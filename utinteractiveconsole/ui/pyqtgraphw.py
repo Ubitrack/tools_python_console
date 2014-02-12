@@ -11,7 +11,7 @@ License: MIT
 
 """
 import sys
-from math import pi
+from math import pi, radians
 from OpenGL.GL import *
 from enaml.qt import QtCore, QtGui
 
@@ -30,7 +30,7 @@ from enaml.widgets.api import RawWidget
 from enaml.core.declarative import d_
 
 from OpenGL import GLU
-from ubitrack.core import math
+from ubitrack.core import util, math, measurement
 
 import logging
 log = logging.getLogger(__name__)
@@ -55,19 +55,19 @@ class DragWatcher(object):
         """
         self.start = startX, startY
         self.total = totalX, totalY
-    def fractions (self, newX, newY ):
+    def fractions (self, newX, newY):
         """Calculate fractional delta from the start point
 
         newX, newY -- new selection point from which to calculate
         """
         if (newX, newY) == self.start:
-            return 0.0,0.0
+            return 0.0, 0.0
         values = []
         for index, item in ((0, newX), (1, newY)):
             if item < self.start[index]:
-                value = float(item-self.start[index])/ self.start[index]
+                value = float(item-self.start[index]) / self.start[index]
             else:
-                value = float(item-self.start[index])/ (self.total[index]-self.start[index])
+                value = float(item-self.start[index]) / (self.total[index]-self.start[index])
             values.append (value)
         return values
     def distances (self, newX, newY ):
@@ -76,7 +76,7 @@ class DragWatcher(object):
         newX, newY -- new selection point from which to calculate
         """
         if (newX, newY) == self.start:
-            return 0,0
+            return 0, 0
         else:
             return newX-self.start[0], newY-self.start[1]
 
@@ -95,7 +95,8 @@ class Trackball:
         self, position, quaternion,
         center,
         originalX, originalY, width, height,
-        dragAngle=pi*2,
+        dragAngle=pi/1.5,
+
     ):
         """Initialise the Trackball
 
@@ -128,11 +129,11 @@ class Trackball:
         self.watcher = DragWatcher(originalX, originalY, width, height)
         self.originalPosition = position
         self.originalQuaternion = quaternion
-        self.xAxis = self.originalQuaternion * np.asarray([1, 0, 0])
-        self.yAxis = self.originalQuaternion * np.asarray([0, 1, 0])
+        self.xAxis = self.originalQuaternion.transformVector(np.asarray([1.0, 0.0, 0.0]))
+        self.yAxis = self.originalQuaternion.transformVector(np.asarray([0.0, 1.0, 0.0]))
+        self.zAxis = self.originalQuaternion.transformVector(np.asarray([0.0, 0.0, 1.0]))
 
-        x, y, z = center[:3]
-        self.center = np.asarray([x, y, z, 0])
+        self.center = np.asarray(center[:3])
         self.dragAngle = dragAngle
         self.vector = self.originalPosition - self.center
 
@@ -140,7 +141,7 @@ class Trackball:
         """Cancel drag rotation, return pos,quat to original values"""
         return self.originalPosition, self.originalQuaternion
 
-    def update(self, newX, newY ):
+    def update(self, newX, newY , alt=False):
         """Update with new x,y drag coordinates
 
         newX, newY -- the new screen coordinates for the drag
@@ -148,23 +149,30 @@ class Trackball:
         returns a new position and quaternion orientation
         """
         # get the drag fractions
-        x,y = self.watcher.fractions ( newX, newY )
+        x, y = self.watcher.fractions(newX, newY)
         # multiply by the maximum drag angle
         # note that movement in x creates rotation about y & vice-versa
         # note that OpenGL coordinates make y reversed from "normal" rotation
-        yRotation,xRotation = x * self.dragAngle, -y * self.dragAngle
+        yRotation, xRotation = x * self.dragAngle, -y * self.dragAngle
         # calculate the results, keeping in mind that translation in one axis is rotation around the other
-        xRot = apply(quaternion.fromXYZR, self.xAxis + (xRotation,))
-        yRot = apply(quaternion.fromXYZR, self.yAxis + (yRotation,))
+        if alt:
+            xRot = math.Quaternion(self.xAxis, xRotation)
+        else:
+            xRot = math.Quaternion(self.zAxis, xRotation)
+
+        yRot = math.Quaternion(self.yAxis, yRotation)
+
 
         # the vector is already rotated by originalQuaternion
         # and positioned at the origin, so just needs
         # the adjusted x + y rotations + un-positioning
-        a = ((xRot *yRot) * self.vector) +  self.center
-        b = self.originalQuaternion *xRot *yRot
-        return a,b
+        pos = (math.Quaternion(xRot * yRot).transformVector(self.vector)) + self.center
+        rot = math.Quaternion(self.originalQuaternion * xRot * yRot)
+        return math.Pose(rot, pos)
 
 # end of openglcontext reuse
+
+
 
 class MyGLViewWidget(gl.GLViewWidget):
     """ Override GLViewWidget with enhanced behavior and Atom integration.
@@ -176,19 +184,13 @@ class MyGLViewWidget(gl.GLViewWidget):
     def __init__(self, parent=None):
         super(MyGLViewWidget, self).__init__(parent=parent)
         # should be computed based on initial elevation and azimuth
-        pos = self.cameraPosition()
-        self.opts["camera_position"] = np.asarray([pos.x(), pos.y(), pos.z()])
-        self.opts["camera_orientation"] = math.Quaternion()
+        rot = math.Quaternion( math.Quaternion(np.asarray([1.0, 0.0, 0.0]), 0.0) *
+                               math.Quaternion(np.asarray([1.0, 0.0, 0.0]), 0.0))
+        self.opts["camera_pose"] = math.Pose(rot, np.asarray([0.0, 0.0, 0.5]))
 
 
     def viewMatrix(self):
-        tr = QtGui.QMatrix4x4()
-        tr.translate( 0.0, 0.0, -self.opts['distance'])
-        tr.rotate(self.opts['elevation']-90, 1, 0, 0)
-        tr.rotate(self.opts['azimuth']+90, 0, 0, -1)
-        center = self.opts['center']
-        tr.translate(-center.x(), -center.y(), -center.z())
-        return tr
+        return QtGui.QMatrix4x4(self.opts["camera_pose"].invert().toMatrix().flatten())
 
 
     def mousePressEvent(self, ev):
@@ -198,14 +200,19 @@ class MyGLViewWidget(gl.GLViewWidget):
         self.mousePos = ev.pos()
         self._downpos = self.mousePos
         if ev.buttons() == QtCore.Qt.LeftButton:
-            center_ = self.opts['center']
-            center = np.asarray([center_.x(), center_.y(), center_.z()])
-
-            position = self.opts['camera_position']
-            orientation = self.opts['camera_orientation']
+            center = self.opts['camera_pose'].translation()
+            position = self.opts['camera_pose'].translation()
+            orientation = self.opts['camera_pose'].rotation()
             self._trackball = Trackball(position, orientation, center,
                                         ev.pos().x(), ev.pos().y(),
                                         self.width(), self.height())
+
+    def _drag(self, dx, dy, dz):
+        pose = self.opts['camera_pose']
+        new_pose = pose * math.Pose(math.Quaternion(), np.asarray([float(-dx)/50.0, float(-dy)/50.0, float(-dz)/50.0]))
+        self.opts['camera_pose'] = new_pose
+        self.update()
+
 
     def mouseMoveEvent(self, ev):
         """ Allow Shift to Move and Ctrl to Pan.
@@ -213,39 +220,19 @@ class MyGLViewWidget(gl.GLViewWidget):
         """
         shift = ev.modifiers() & QtCore.Qt.ShiftModifier
         ctrl = ev.modifiers() & QtCore.Qt.ControlModifier
-        if shift:
-            y = ev.pos().y()
-            if not hasattr(self, '_prev_zoom_pos') or not self._prev_zoom_pos:
-                self._prev_zoom_pos = y
-                return
-            dy = y - self._prev_zoom_pos
-            def delta():
-                return -dy * 5
-            ev.delta = delta
-            self._prev_zoom_pos = y
-            self.wheelEvent(ev)
-        elif ctrl:
-            pos = ev.pos().x(), ev.pos().y()
-            if not hasattr(self, '_prev_pan_pos') or not self._prev_pan_pos:
-                self._prev_pan_pos = pos
-                return
-            dx = pos[0] - self._prev_pan_pos[0]
-            dy = pos[1] - self._prev_pan_pos[1]
-            self.pan(dx, dy, 0, relative=True)
-            self._prev_pan_pos = pos
-        else:
+        diff = ev.pos() - self.mousePos
+        self.mousePos = ev.pos()
 
-            diff = ev.pos() - self.mousePos
-            self.mousePos = ev.pos()
+        if ev.buttons() == QtCore.Qt.LeftButton:
+            if self._trackball is not None:
+                self.opts["camera_pose"] = self._trackball.update(ev.pos().x(), ev.pos().y(), shift)
+                self.update()
+        elif ev.buttons() == QtCore.Qt.RightButton:
+            if shift:
+                self._drag(diff.x(), 0, diff.y())
+            else:
+                self._drag(diff.x(), diff.y(), 0)
 
-            if ev.buttons() == QtCore.Qt.LeftButton:
-                self.orbit(-diff.x(), diff.y())
-                #print self.opts['azimuth'], self.opts['elevation']
-            elif ev.buttons() == QtCore.Qt.MidButton:
-                if (ev.modifiers() & QtCore.Qt.ControlModifier):
-                    self.pan(diff.x(), 0, diff.y(), relative=True)
-                else:
-                    self.pan(diff.x(), diff.y(), 0, relative=True)
 
 
     def mouseReleaseEvent(self, ev):
@@ -253,24 +240,17 @@ class MyGLViewWidget(gl.GLViewWidget):
 
         Also emits a sigUpdate to refresh listeners.
         """
-        if self._downpos == ev.pos():
-            if ev.button() == 2:
-                print 'show context menu'
-            elif ev.button() == 1:
-                x = ev.pos().x() - self.width() / 2
-                y = ev.pos().y() - self.height() / 2
-                self.pan(-x, -y, 0, relative=True)
-                print self.opts['center']
-        self._prev_zoom_pos = None
-        self._prev_pan_pos = None
         self._trackball = None
         self.sigUpdate.emit()
 
     def wheelEvent(self, ev):
+        print "WE ", ev
         if (ev.modifiers() & QtCore.Qt.ControlModifier):
             self.opts['fov'] *= 0.999**ev.delta()
         else:
-            self.opts['distance'] *= 0.999**ev.delta()
+            pose = self.opts['camera_pose']
+            new_pose = pose * math.Pose(math.Quaternion(), np.asarray([0.0, 0.0, ev.delta()/300.0]))
+            self.opts['camera_pose'] = new_pose
         self.update()
 
 
