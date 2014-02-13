@@ -632,13 +632,17 @@ class GLLinePlotItem(GLGraphicsItem):
         """
         return gl.GLLinePlotItem(pos=self.pos, color=self.color, width=self.linewidth)
 
-    @observe('pos')
+    @observe('pos', 'color', 'linewidth')
     def _data_change(self, change):
         """ Pass changes to point properties to the GlLinePlotItem object.
 
         """
         if change['name'] == 'pos':
             self.item.setData(pos=self.pos)
+        # if change['name'] == 'color':
+        #     self.item.setData(color=self.color)
+        # if change['name'] == 'linewidth':
+        #     self.item.setData(width=self.linewidth)
 
 
 class GLScatterPlotItem(GLGraphicsItem):
