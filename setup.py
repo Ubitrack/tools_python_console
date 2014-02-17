@@ -21,6 +21,8 @@ setup(name = "utinteractiveconsole",
         'pyopengl',
         'stevedore',
         'lxml',
+        'atom>=0.3.7',
+        'enaml>=0.9.1',
       ),
       zip_safe=False,
       long_description = """\
