@@ -29,6 +29,10 @@ use the following command for a local developer installation::
 otherwise::
   python setup.py install
 
+the installation might not install all requirements automatically. Typically requirements are installed like::
+
+  pip install <name>
+
 
 Documentation:
 ==============
