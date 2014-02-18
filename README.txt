@@ -8,16 +8,15 @@ It builds upon ubitrack_python and the Qt framework.
 Requirements:
 ==============
 
-- ubitrack
-- atom
-- enaml
-- stevedore
-- pyqtgraph
-- networkx
-- pyopengl
-- lxml
-- setuptools
-
+- ubitrack (use cmake/build/install)
+- atom (install from github.com/nucleic/atom, checkout master, python setup.py install)
+- enaml (install from github.com/nucleic/enaml, checkout master, python setup.py install)
+- stevedore (pip install stevedore)
+- pyqtgraph (pip install pyqtgraph)
+- networkx (pip install networkx)
+- pyopengl (pip install pyopengl)
+- lxml (part of Anaconda, otherwise pip install lxml)
+- setuptools (should be on any uptodate system ..)
 
 Installation:
 ==============
