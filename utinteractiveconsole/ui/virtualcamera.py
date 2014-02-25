@@ -31,7 +31,7 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
     sigUpdate = QtCore.Signal()
 
 
-    def __init__(self, cam_width=1280, cam_height=720, cam_near=0.01, cam_far=10.0,
+    def __init__(self, cam_width=800, cam_height=600, cam_near=0.01, cam_far=10.0,
                  camera_intrinsics=None, parent=None):
 
         if QtVirtualCameraWidget.ShareWidget is None:
@@ -260,6 +260,8 @@ class VirtualCameraWidget(RawWidget):
 
     __slots__ = '__weakref__'
 
+    camera_width = d_(Int(800))
+    camera_height = d_(Int(600))
 
     #: The scene that should be displayed
     scene = d_(ForwardTyped(lambda: Scene3D))
@@ -292,7 +294,9 @@ class VirtualCameraWidget(RawWidget):
         """
         # Create the list model and accompanying controls:
         widget = QtVirtualCameraWidget(parent=parent,
-                                       # add properties for camera width, height, near, far, ...
+                                       cam_width=self.camera_height,
+                                       cam_height=self.camera_height,
+                                       # add properties for camera near, far, ...
                                        )
 
         widget.sigUpdate.connect(self._update_model)
