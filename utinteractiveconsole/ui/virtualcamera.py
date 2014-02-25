@@ -31,7 +31,7 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
     sigUpdate = QtCore.Signal()
 
 
-    def __init__(self, cam_width=800, cam_height=600, cam_near=0.01, cam_far=10.0,
+    def __init__(self, cam_width=1024, cam_height=768, cam_near=0.01, cam_far=10.0,
                  camera_intrinsics=None, parent=None):
 
         if QtVirtualCameraWidget.ShareWidget is None:
@@ -260,8 +260,8 @@ class VirtualCameraWidget(RawWidget):
 
     __slots__ = '__weakref__'
 
-    camera_width = d_(Int(800))
-    camera_height = d_(Int(600))
+    camera_width = d_(Int(1024))
+    camera_height = d_(Int(768))
 
     #: The scene that should be displayed
     scene = d_(ForwardTyped(lambda: Scene3D))
@@ -294,7 +294,7 @@ class VirtualCameraWidget(RawWidget):
         """
         # Create the list model and accompanying controls:
         widget = QtVirtualCameraWidget(parent=parent,
-                                       cam_width=self.camera_height,
+                                       cam_width=self.camera_width,
                                        cam_height=self.camera_height,
                                        # add properties for camera near, far, ...
                                        )
@@ -402,4 +402,17 @@ class VirtualCameraWidget(RawWidget):
                 if self.camera_pose is not None:
                     widget.setCameraPose(self.camera_pose)
 
+
+
+    @observe('camera_width', 'camera_height')
+    def _update_camera_parameters(self, change):
+        widget = self.get_widget()
+        if widget:
+            if change["type"] == "update":
+                if change["name"] == "camera_width":
+                    print self.camera_width, type(self.camera_width)
+                    widget.camera_width = self.camera_width
+                elif change["name"] == "camera_height":
+                    print self.camera_height, type(self.camera_height)
+                    widget.camera_height = self.camera_height
 
