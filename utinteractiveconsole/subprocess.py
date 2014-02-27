@@ -66,8 +66,12 @@ class SubProcessManager(object):
 
         self.parent_conn, self.child_conn = Pipe()
         self.process = None
+        self.started = False
 
     def start(self):
+        if self.started:
+           return
+
         kwargs = dict(logConfig=self.logConfig,
                       components_path=self.components_path,
                       poll_timeout=self.poll_timeout)
@@ -77,8 +81,10 @@ class SubProcessManager(object):
                                kwargs=kwargs)
         log.info("start subprocess %s" % (self.name,))
         self.process.start()
+        self.started = True
 
     def stop(self, timeout=10.0):
+        self.started = False
         if not self.is_alive():
             return
 
@@ -124,7 +130,7 @@ class SubProcessManager(object):
         for msg in messages:
             self.parent_conn.send(msg)
 
-    def loadDataflow(self, dfg_filename):
+    def loadDataflow(self, dfg_filename, ignored=None):
         self.send_messages({"cmd": "loadDataflow", "filename": dfg_filename})
 
     def startDataflow(self):
