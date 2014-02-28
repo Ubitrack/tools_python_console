@@ -7,10 +7,10 @@ datadir: data
 srgdir: vharcalib\srgs\win
 
 [vharcalib.vharvisualizer]
-dfgfile: vhar_visualizer_lifecam_v1.dfg
-
-[vharcalib.wizard]
-basedir = vharcalib\srgs\win
+dfgfile: vhar_calibration_host_flea2.dfg
+#dfgfile: vhar_visualizer_flea2_v1.dfg
+camera_width: 1024
+camera_height: 768
 
 [haptic_gimbal_calibration]
 rootdir: H:\develop\haptic_gimbal_calibration
@@ -18,9 +18,3 @@ calibdir: calibration
 recorddir: record
 testdatadir: test_data
 
-[haptic_gimbal_calibration.vharvisualizer]
-dfgfile: srgs\vhar_visualizer_lifecam_v1.dfg
-autocopy_calib: True
-
-[haptic_gimbal_calibration.fwkvisualizer]
-gimbal_debugdir: data\record\05_haptic_workspace_orientation

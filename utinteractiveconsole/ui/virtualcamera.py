@@ -4,16 +4,19 @@
 #-------------------------------------------------------------------------------
 #  Imports:
 #-------------------------------------------------------------------------------
-from atom.api import (observe, set_default, Int, Long, Value, ForwardTyped)
+from atom.api import (observe, set_default, Int, Long, Value, ForwardTyped, Event)
 
 from enaml.widgets.api import RawWidget
 from enaml.core.declarative import d_
 from enaml.qt.QtCore import *
+
 from OpenGL.GL import *
+import OpenGL.GL.framebufferobjects as glfbo
 from enaml.qt import QtOpenGL, QtCore
 import numpy as np
+import pyqtgraph.functions as fn
 
-from ubitrack.core import math, calibration
+from ubitrack.core import calibration
 from ubitrack.visualization import visualization
 from utinteractiveconsole.ui.pyqtgraphw import Scene3D, ITEM_CHANGE_FLAG, VIEW_SYNC_FLAG
 
@@ -31,7 +34,8 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
     sigUpdate = QtCore.Signal()
 
 
-    def __init__(self, cam_width=1024, cam_height=768, cam_near=0.01, cam_far=10.0,
+    def __init__(self, key_event_handler=None, mouse_event_handler=None,
+                 cam_width=1024, cam_height=768, cam_near=0.01, cam_far=10.0,
                  camera_intrinsics=None, parent=None):
 
         if QtVirtualCameraWidget.ShareWidget is None:
@@ -56,6 +60,9 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
         self.screen_height = cam_height
 
         self.items = []
+
+        self.key_event_handler = key_event_handler
+        self.mouse_event_handler = mouse_event_handler
         self.noRepeatKeys = [QtCore.Qt.Key_Right, QtCore.Qt.Key_Left, QtCore.Qt.Key_Up, QtCore.Qt.Key_Down, QtCore.Qt.Key_PageUp, QtCore.Qt.Key_PageDown]
         self.keysPressed = {}
         self.keyTimer = QtCore.QTimer()
@@ -183,15 +190,20 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
 
     def mousePressEvent(self, ev):
         self.mousePos = ev.pos()
+        if self.mouse_event_handler:
+            self.mouse_event_handler(("press", ev))
 
     def mouseMoveEvent(self, ev):
-        pass
+        if self.mouse_event_handler:
+            self.mouse_event_handler(("move", ev))
 
     def mouseReleaseEvent(self, ev):
-        pass
+        if self.mouse_event_handler:
+            self.mouse_event_handler(("release", ev))
 
     def wheelEvent(self, ev):
-        pass
+        if self.mouse_event_handler:
+            self.mouse_event_handler(("wheel", ev))
 
     def keyPressEvent(self, ev):
         if ev.key() in self.noRepeatKeys:
@@ -200,6 +212,10 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
                 return
             self.keysPressed[ev.key()] = 1
             self.evalKeyState()
+
+        if self.key_event_handler:
+            self.key_event_handler(("press", ev, self.keysPressed))
+
 
     def keyReleaseEvent(self, ev):
         if ev.key() in self.noRepeatKeys:
@@ -211,6 +227,9 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
             except:
                 self.keysPressed = {}
             self.evalKeyState()
+
+        if self.key_event_handler:
+            self.key_event_handler(("release", ev, self.keysPressed))
 
     def checkOpenGLVersion(self, msg):
         ## Only to be called from within exception handler.
@@ -243,6 +262,86 @@ class QtVirtualCameraWidget(QtOpenGL.QGLWidget):
         else:
             self.keyTimer.stop()
 
+
+
+    def readQImage(self):
+        """
+        Read the current buffer pixels out as a QImage.
+        """
+        w = self.width()
+        h = self.height()
+        self.repaint()
+        pixels = np.empty((h, w, 4), dtype=np.ubyte)
+        pixels[:] = 128
+        pixels[...,0] = 50
+        pixels[...,3] = 255
+
+        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
+
+        # swap B,R channels for Qt
+        tmp = pixels[..., 0].copy()
+        pixels[..., 0] = pixels[..., 2]
+        pixels[..., 2] = tmp
+        pixels = pixels[::-1]  # flip vertical
+
+        img = fn.makeQImage(pixels, transpose=False)
+        return img
+
+
+    def renderToArray(self, size, format=GL_BGRA, type=GL_UNSIGNED_BYTE, textureSize=1024, padding=256):
+        w,h = map(int, size)
+
+        self.makeCurrent()
+        tex = None
+        fb = None
+        try:
+            output = np.empty((w, h, 4), dtype=np.ubyte)
+            fb = glfbo.glGenFramebuffers(1)
+            glfbo.glBindFramebuffer(glfbo.GL_FRAMEBUFFER, fb )
+
+            glEnable(GL_TEXTURE_2D)
+            tex = glGenTextures(1)
+            glBindTexture(GL_TEXTURE_2D, tex)
+            texwidth = textureSize
+            data = np.zeros((texwidth,texwidth,4), dtype=np.ubyte)
+
+            ## Test texture dimensions first
+            glTexImage2D(GL_PROXY_TEXTURE_2D, 0, GL_RGBA, texwidth, texwidth, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+            if glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D, 0, GL_TEXTURE_WIDTH) == 0:
+                raise Exception("OpenGL failed to create 2D texture (%dx%d); too large for this hardware." % shape[:2])
+            ## create teture
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texwidth, texwidth, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.transpose((1,0,2)))
+
+            self.opts['viewport'] = (0, 0, w, h)  # viewport is the complete image; this ensures that paintGL(region=...)
+                                                  # is interpreted correctly.
+            p2 = 2 * padding
+            for x in range(-padding, w-padding, texwidth-p2):
+                for y in range(-padding, h-padding, texwidth-p2):
+                    x2 = min(x+texwidth, w+padding)
+                    y2 = min(y+texwidth, h+padding)
+                    w2 = x2-x
+                    h2 = y2-y
+
+                    ## render to texture
+                    glfbo.glFramebufferTexture2D(glfbo.GL_FRAMEBUFFER, glfbo.GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0)
+
+                    self.paintGL(region=(x, h-y-h2, w2, h2), viewport=(0, 0, w2, h2))  # only render sub-region
+
+                    ## read texture back to array
+                    data = glGetTexImage(GL_TEXTURE_2D, 0, format, type)
+                    data = np.fromstring(data, dtype=np.ubyte).reshape(texwidth,texwidth,4).transpose(1,0,2)[:, ::-1]
+                    output[x+padding:x2-padding, y+padding:y2-padding] = data[padding:w2-padding, -(h2-padding):-padding]
+
+        finally:
+            self.opts['viewport'] = None
+            glfbo.glBindFramebuffer(glfbo.GL_FRAMEBUFFER, 0)
+            glBindTexture(GL_TEXTURE_2D, 0)
+            if tex is not None:
+                glDeleteTextures([tex])
+            if fb is not None:
+                glfbo.glDeleteFramebuffers([fb])
+
+        return output
 
 
 
@@ -281,6 +380,8 @@ class VirtualCameraWidget(RawWidget):
     #: Cyclic notification guard flags.
     _guard = d_(Int(0))
 
+    key_events = d_(Event())
+
     #: .
     hug_width = set_default('weak')
     hug_height = set_default('weak')
@@ -294,6 +395,7 @@ class VirtualCameraWidget(RawWidget):
         """
         # Create the list model and accompanying controls:
         widget = QtVirtualCameraWidget(parent=parent,
+                                       key_event_handler=self.key_events,
                                        cam_width=self.camera_width,
                                        cam_height=self.camera_height,
                                        # add properties for camera near, far, ...
@@ -372,6 +474,17 @@ class VirtualCameraWidget(RawWidget):
             widget.addItem(item.item)
 
         self._guard &= ~ITEM_CHANGE_FLAG
+
+
+    def readQImage(self):
+        widget = self.get_widget()
+        if widget is not None:
+            return widget.readQImage()
+
+    def renderToArray(self, size, format=GL_BGRA, type=GL_UNSIGNED_BYTE, textureSize=1024, padding=256):
+        widget = self.get_widget()
+        if widget is not None:
+            return widget.renderToArray(size, format=format, type=type, textureSize=textureSize, padding=padding)
 
 
     #--------------------------------------------------------------------------

@@ -33,6 +33,18 @@ the installation might not install all requirements automatically. Typically req
   pip install <name>
 
 
+Configuration:
+==============
+
+please copy utic.ini.example to some/path utic.ini and set the environment variable UTIC_CONFIG_FILE to point to it.
+
+Required sections are::
+
+    [ubitrack]
+    components_path = H:\Libraries\UbiTrack-build\bin\ubitrack
+
+
+
 Documentation:
 ==============
 

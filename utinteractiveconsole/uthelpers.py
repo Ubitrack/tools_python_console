@@ -6,9 +6,9 @@ from collections import namedtuple
 from lxml import etree
 import new
 
-from atom.api import (Bool, List, Dict, observe, set_default, Unicode, Str, Enum, Int, Long, Atom, Value, Typed)
+from atom.api import (Bool, List, Dict, observe, set_default, Unicode, Str, Enum, Int, Long, Atom, Value, Typed, Event)
 
-from ubitrack.core import math, calibration, util
+from ubitrack.core import math, calibration, util, measurement
 from ubitrack.dataflow import graph
 from ubitrack.vision import vision
 from ubitrack.visualization import visualization
@@ -90,6 +90,31 @@ class PullSinkAdapter(QtCore.QObject):
             raise NoValueException
 
 
+class PushSourceAdapter(QtCore.QObject):
+
+    converters = {
+        (str, "Button"): lambda ts, v: measurement.Button(ts, math.ScalarInt(ord(v))),
+        (int, "Button"): lambda ts, v: measurement.Button(ts, math.ScalarInt(v)),
+        # more converters to come
+    }
+
+
+    def __init__(self, source, datatype):
+        super(PushSourceAdapter, self).__init__()
+        self.source = source
+        self.datatype = datatype
+
+    def send(self, v):
+        ts = measurement.now()
+        vtyp = type(v)
+        ckey = (vtyp, self.datatype)
+        if ckey in self.converters:
+            m = self.converters[ckey](ts, v)
+            self.source.send(m)
+        else:
+            log.warn("No converter found for datatype: %s" % self.datatype)
+
+
 class UbitrackConnectorBase(Atom):
 
     sync_source = Str()
@@ -121,6 +146,15 @@ class UbitrackConnectorBase(Atom):
                         adapters[pi.name] = PullSinkAdapter(accessor)
                     else:
                         log.warn("Missing accessor %s from facade, cannot connect PullSink %s" % (accessor_name, pi.name))
+            else:
+                if pi.mode == PORT_MODE_PUSH:
+                    accessor_name = "getApplicationPushSource%s" % pi.data_type
+                    if hasattr(facade, accessor_name):
+                        accessor = getattr(facade, accessor_name)(pi.name)
+                        adapters[pi.name] = PushSourceAdapter(accessor, pi.data_type)
+                        self.observe(pi.name, self.handleSourceData)
+                    else:
+                        log.warn("Missing accessor %s from facade, cannot connect PushSource %s" % (accessor_name, pi.name))
 
         self.adapters = adapters
 
@@ -137,14 +171,19 @@ class UbitrackConnectorBase(Atom):
                     val = self.adapters[pi.name].get(ts)
                     setattr(self, pi.name, val)
                 except NoValueException, e:
-                    log.warn("No value from sink: %s for timestamp: %d" % (pi.name, ts))
+                    log.debug("No value from sink: %s for timestamp: %d" % (pi.name, ts))
                 except Exception, e:
                     log.error("Error while retrieving a value from sink: %s for timestamp: %d" % (pi.name, ts))
                     log.exception(e)
         self.current_timestamp = ts
 
 
-
+    def handleSourceData(self, change):
+        port_name = change["name"]
+        port_value = change["value"]
+        if port_name in self.adapters:
+            adapter = self.adapters[port_name]
+            adapter.send(port_value)
 
 
 
@@ -200,7 +239,10 @@ def ubitrack_connector_class(dfg_filename):
 
         if port_type is not None and mode is not None:
             ports.append(PortInfo(k, port_type, mode, type_name, queued))
-            attrs[k] = Value()
+            if port_type == PORT_TYPE_SOURCE and mode == PORT_MODE_PUSH:
+                attrs[k] = Event()
+            else:
+                attrs[k] = Value()
 
     attrs["ports"] = List(default=ports)
 
