@@ -5,7 +5,7 @@ if sys.platform == 'win32':
 from enaml.qt import QtCore, QtGui
 
 from enaml.widgets.api import (Container, Label, Window, Field, DockArea, DockItem, MenuBar, Menu, Action,
-                               ActionGroup, StatusBar, StatusItem, ToolBar)
+                               ActionGroup, StatusBar, StatusItem, ToolBar, MultilineField)
 from enaml.stdlib.dock_area_styles import available_styles
 from enaml.layout.api import (
     HSplitLayout, VSplitLayout, TabLayout, InsertItem, hbox, vbox, spacer
@@ -21,7 +21,7 @@ enamldef MainToolBar(ToolBar):
 
 
 enamldef MainDockArea(DockArea): dockarea:
-    attr context
+    attr appstate
 
     alias console
 
@@ -35,9 +35,19 @@ enamldef MainDockArea(DockArea): dockarea:
         name = 'console'
         title = 'Console'
         closable = False
+
         Container: console:
-            IPythonWidget:
-                context := dockarea.context
+            alias ipy
+            alias syslog
+
+            constraints = [vbox(ipy, syslog, spacing=3)]
+
+            IPythonWidget: ipy:
+                context := dockarea.appstate.context
+
+            MultilineField: syslog:
+                read_only = True
+                text << "\n".join(dockarea.appstate.syslog.logitems)
 
 
 
@@ -52,7 +62,7 @@ enamldef Main(Window): main:
         MainToolBar: tbar:
             pass
         MainDockArea: area:
-            context := main.appstate.context
+            appstate := main.appstate
             dock_event ::
                 print change
 

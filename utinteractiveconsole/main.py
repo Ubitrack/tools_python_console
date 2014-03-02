@@ -1,12 +1,13 @@
 __author__ = 'mvl'
 import os, sys
+import StringIO
 import ConfigParser
 
 import enaml
 from enaml.qt import QtCore, QtGui
 from enaml.qt.qt_application import QtApplication
 
-from atom.api import Atom, Float, Value, Typed, List, Dict, Unicode, ForwardTyped
+from atom.api import Atom, Float, Value, Typed, List, Dict, Unicode, ForwardTyped, Event, Str, observe
 from IPython.lib import guisupport
 
 from ubitrack.core import util
@@ -18,6 +19,30 @@ import logging
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+
+class ConsoleWindowLogHandler(logging.Handler):
+
+    def __init__(self, parent):
+        super(ConsoleWindowLogHandler, self).__init__()
+        self.parent = parent
+
+    def emit(self, logRecord):
+        message = str(logRecord.getMessage())
+        self.parent.logevent(message)
+
+class Syslog(Atom):
+
+    logitems = List()
+    logevent = Event()
+
+    handler = Typed(ConsoleWindowLogHandler)
+
+    def _default_handler(self):
+        return ConsoleWindowLogHandler(self)
+
+    @observe("logevent")
+    def _handle_logevent(self, change):
+        self.logitems.append(change["value"])
 
 
 class Extensions(Atom):
@@ -96,6 +121,8 @@ class AppState(Atom):
     args = Value()
     options = Value()
 
+    syslog = Typed(Syslog)
+
 
 
 
@@ -111,7 +138,15 @@ def main():
                   action="store", dest="configfile", default="~/.utic.conf",
                   help="Interactive console config file")
 
-    appstate = AppState(context=dict())
+
+    syslog = Syslog()
+    # logger = logging.getLogger()
+    # logger.setLevel(logging.INFO)
+    # logger.addHandler(syslog.handler)
+    #
+
+    appstate = AppState(context=dict(),
+                        syslog=syslog)
     extensions = Extensions(appstate=appstate)
 
     extensions.updateCmdlineParser(parser)
