@@ -17,6 +17,7 @@ class SubProcess(object):
         facade = facade.AdvancedFacade(components_path)
 
         is_running = True
+        conn.send({"changeState": {"process_running": True}})
 
         while is_running:
             is_ready = conn.poll(poll_timeout)
@@ -32,23 +33,28 @@ class SubProcess(object):
                             dfg_filename = msg["filename"]
                             log.info("SubProcess %s loadDataflow: %s" % (name, dfg_filename))
                             facade.loadDataflow(dfg_filename, True)
+                            conn.send({"changeState": {"dataflow_loaded": True}})
                         else:
                             log.error("Subprocess %s missing filename" % (name,))
                     elif cmd == "startDataflow":
                         log.info("SubProcess %s startDataflow")
                         facade.startDataflow()
+                        conn.send({"changeState": {"dataflow_running": True}})
                     elif cmd == "stopDataflow":
                         log.info("SubProcess %s stopDataflow")
                         facade.stopDataflow()
+                        conn.send({"changeState": {"dataflow_running": False}})
                     elif cmd == "clearDataflow":
                         log.info("SubProcess %s clearDataflow")
                         facade.clearDataflow()
+                        conn.send({"changeState": {"dataflow_loaded": False}})
                     elif cmd == "killEverything":
                         log.info("SubProcess %s killEverything")
                         facade.killEverything()
                     elif cmd == "exit":
                         log.info("SubProcess %s is exiting")
                         is_running = False
+                        conn.send({"changeState": {"process_running": False}})
 
         conn.send(["terminate"])
         conn.close()
@@ -67,6 +73,8 @@ class SubProcessManager(object):
         self.parent_conn, self.child_conn = Pipe()
         self.process = None
         self.started = False
+
+        self.last_dfgfile = None
 
     def start(self):
         if self.started:
@@ -106,7 +114,16 @@ class SubProcessManager(object):
     def is_alive(self):
         return self.process.is_alive()
 
-    def get_messages(self, timeout=None):
+    def restart(self, timeout=10, autostart=True):
+        self.stop(timeout)
+        self.start()
+        if self.last_dfgfile is not None:
+            self.loadDataflow(self.last_dfgfile)
+            if autostart:
+                self.startDataflow()
+
+
+    def get_messages(self, timeout=0):
         messages = []
         if not self.is_alive():
             log.error("process %s not alive" % self.name)
@@ -131,6 +148,7 @@ class SubProcessManager(object):
             self.parent_conn.send(msg)
 
     def loadDataflow(self, dfg_filename, ignored=None):
+        self.last_dfgfile = dfg_filename
         self.send_messages({"cmd": "loadDataflow", "filename": dfg_filename})
 
     def startDataflow(self):
@@ -141,4 +159,5 @@ class SubProcessManager(object):
 
     def clearDataflow(self):
         self.send_messages({"cmd": "clearDataflow"})
+        self.last_dfgfile = None
 

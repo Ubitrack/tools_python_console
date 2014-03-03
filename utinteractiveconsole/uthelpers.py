@@ -1,6 +1,7 @@
 __author__ = 'jack'
 from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
+import os
 from collections import namedtuple
 
 from lxml import etree
@@ -252,6 +253,10 @@ def ubitrack_connector_class(dfg_filename):
 
 
 # Recorder Files helper
+
+def fd(fname):
+    return util.streambuf(open(fname, "r"), 1024)
+
 
 DSC_ = namedtuple("DSC", ['fieldname', 'filename', 'reader', 'interpolator', "tsoffset", "syncgroup"])
 def DSC(fieldname, filename, reader, interpolator=None, tsoffset=0.0, syncgroup=None):

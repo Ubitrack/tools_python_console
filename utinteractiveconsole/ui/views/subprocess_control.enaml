@@ -1,0 +1,86 @@
+from enaml.layout.api import grid, spacer
+from enaml.image import Image
+from enaml.icon import Icon, IconImage
+from atom.api import Atom, Bool
+from enaml.widgets.api import (
+    Label, Container, PushButton, Slider, Timer, SpinBox, Field, Window, DualSlider
+)
+from enaml.stdlib.dialog_buttons import DialogButton
+from enaml.stdlib.message_box import (critical, )
+import math
+
+from pkg_resources import resource_stream
+
+class SubprocessState(Atom):
+    process_running = Bool(False)
+    dataflow_loaded = Bool(False)
+    dataflow_running = Bool(False)
+
+enamldef SubprocessControl(Container): scmain:
+    attr facade
+    attr state = SubprocessState()
+
+    alias timer
+
+    constraints = [
+        grid(
+            [playing, stopped, reloadsrg],
+            column_align='width',
+            row_align='v_center',
+        ),
+    ]
+
+    PushButton: playing:
+        icon = Icon(images=[IconImage(image=Image(data=resource_stream("utinteractiveconsole", "resources/icons/btn_start.png").read())),])
+        icon_size = (32, 32)
+        enabled << state.dataflow_running
+
+    PushButton: stopped:
+        icon = Icon(images=[IconImage(image=Image(data=resource_stream("utinteractiveconsole", "resources/icons/btn_stop.png").read())),])
+        icon_size = (32, 32)
+        enabled << not state.dataflow_running
+
+    PushButton: reloadsrg:
+        icon = Icon(images=[IconImage(image=Image(data=resource_stream("utinteractiveconsole", "resources/icons/btn_repeat.png").read())),])
+        icon_size = (32, 32)
+        clicked::
+            print "reload SRG"
+
+
+    Timer: timer:
+        interval = 500
+        attr ignore_next_checks = 0
+        timeout ::
+            if scmain.facade is not None:
+                # XXX should go into the subprocess wrapper class ..
+                msgs = scmain.facade.get_messages()
+                for msg in msgs:
+                    print msg
+                    if isinstance(msg, dict):
+                        if "changeState" in msg:
+                            sc = msg["changeState"]
+                            for k,v in sc.items():
+                                if hasattr(scmain.state, k):
+                                    setattr(scmain.state, k, v)
+
+                if self.ignore_next_checks > 0:
+                    self.ignore_next_checks -= 1
+                elif not scmain.facade.is_alive():
+                    btns = [DialogButton('Restart', 'accept'),
+                            DialogButton('Cancel', 'reject')]
+                    result = critical(scmain, 'Error occured', 'The dataflow subprocess unexpectedly terminated.', btns)
+                    if result.text == "Restart":
+                        scmain.facade.restart(autostart=scmain.state.dataflow_running)
+                        self.ignore_next_checks = 20
+
+
+
+enamldef SubprocessControlWindow(Window): main:
+    attr facade
+    title << "Dataflow Control"
+
+    alias panel: sc
+
+    SubprocessControl: sc:
+        facade = main.facade
+
