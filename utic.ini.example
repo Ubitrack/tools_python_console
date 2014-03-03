@@ -12,12 +12,63 @@ dfgfile: vhar_calibration_host_flea2.dfg
 camera_width: 1024
 camera_height: 768
 
-[vharcalib.gimbalcalib]
+
+[vharcalib]
+rootdir: H:\config\vharcalib
+datadir: data
+srgdir: vharcalib\srgs\win
+
+[vharcalib.module.optitrack_calibration]
+enabled: True
+
+[vharcalib.module.hapticdevice_calibration]
+enabled: True
+
+[vharcalib.module.tooltip_calibration]
+enabled: True
+dfg_filename: calibration_tooltip.dfg
+
+[vharcalib.module.absolute_orientation_init_calibration]
+enabled: True
+dfg_filename: calibration_absolute_orientation_init.dfg
+
+[vharcalib.module.absolute_orientation_calibration]
+enabled: True
+dfg_filename: calibration_absolute_orientation.dfg
+
+[vharcalib.module.timedelay_estimation_calibration]
+enabled: True
+dfg_filename: calibration_timedelay.dfg
+
+[vharcalib.module.hapticworkspace_init_calibration]
+enabled: True
+dfg_filename: calibration_haptic_workspace.dfg
+
+[vharcalib.module.hapticworkspace_calibration]
+enabled: True
+dfg_filename: calibration_haptic_workspace.dfg
+
+[vharcalib.module.hapticgimbal_init_calibration]
+enabled: True
+dfg_filename: calibration_hapticgimbal_initialization.dfg
 recorddir: data\record\05_haptic_workspace_initialize_orientation
+
+[vharcalib.module.hapticgimbal_calibration]
+enabled: True
+dfg_filename: calibration_hapticgimbal_workspace.dfg
+
+[vharcalib.module.calibration_result]
+enabled: True
 
 [vharcalib.devices.phantom]
 joint_length1: 0.13335
 joint_length2: 0.13335
+
+[vharcalib.vharvisualizer]
+dfgfile: vhar_calibration_host_flea2.dfg
+#dfgfile: vhar_visualizer_flea2_v1.dfg
+camera_width: 1024
+camera_height: 768
 
 # deprecated - will be removed later
 [haptic_gimbal_calibration]

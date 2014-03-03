@@ -44,7 +44,8 @@ enamldef SubprocessControl(Container): scmain:
         icon = Icon(images=[IconImage(image=Image(data=resource_stream("utinteractiveconsole", "resources/icons/btn_repeat.png").read())),])
         icon_size = (32, 32)
         clicked::
-            print "reload SRG"
+            if scmain.facade is not None:
+                scmain.facade.restart()
 
 
     Timer: timer:
@@ -55,7 +56,6 @@ enamldef SubprocessControl(Container): scmain:
                 # XXX should go into the subprocess wrapper class ..
                 msgs = scmain.facade.get_messages()
                 for msg in msgs:
-                    print msg
                     if isinstance(msg, dict):
                         if "changeState" in msg:
                             sc = msg["changeState"]
