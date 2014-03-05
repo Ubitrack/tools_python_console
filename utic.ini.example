@@ -5,18 +5,10 @@ components_path = H:\Libraries\UbiTrack-build\bin\ubitrack
 rootdir: H:\config\vharcalib
 datadir: data
 srgdir: vharcalib\srgs\win
+resultsdir: results
 
-[vharcalib.vharvisualizer]
-dfgfile: vhar_calibration_host_flea2.dfg
-#dfgfile: vhar_visualizer_flea2_v1.dfg
-camera_width: 1024
-camera_height: 768
-
-
-[vharcalib]
-rootdir: H:\config\vharcalib
-datadir: data
-srgdir: vharcalib\srgs\win
+[vharcalib.module.calibration_start]
+enabled: True
 
 [vharcalib.module.optitrack_calibration]
 enabled: True
@@ -27,14 +19,20 @@ enabled: True
 [vharcalib.module.tooltip_calibration]
 enabled: True
 dfg_filename: calibration_tooltip.dfg
+calib_files: tooltip_calibration.calib
+recorddir: record\01_tooltip
 
 [vharcalib.module.absolute_orientation_init_calibration]
 enabled: True
 dfg_filename: calibration_absolute_orientation_init.dfg
+calib_files: absolut_orientation_calibration.calib
+recorddir: record\02_absolute_orienation_init
 
 [vharcalib.module.absolute_orientation_calibration]
 enabled: True
 dfg_filename: calibration_absolute_orientation.dfg
+calib_files: absolut_orientation_calibration.calib
+recorddir: record\04_absolute_orientation
 
 [vharcalib.module.timedelay_estimation_calibration]
 enabled: True
@@ -43,22 +41,32 @@ dfg_filename: calibration_timedelay.dfg
 [vharcalib.module.hapticworkspace_init_calibration]
 enabled: True
 dfg_filename: calibration_haptic_workspace.dfg
+calib_files: phantom_angle_correction.calib
+recorddir: record\03_haptic_workspace_position
 
 [vharcalib.module.hapticworkspace_calibration]
 enabled: True
 dfg_filename: calibration_haptic_workspace.dfg
+calib_files: phantom_angle_correction.calib
+recorddir: record\03_haptic_workspace_position
 
 [vharcalib.module.hapticgimbal_init_calibration]
 enabled: True
 dfg_filename: calibration_hapticgimbal_initialization.dfg
-recorddir: data\record\05_haptic_workspace_initialize_orientation
+calib_files: zref_axis.calib
+recorddir: record\05_haptic_workspace_initialize_orientation
 
 [vharcalib.module.hapticgimbal_calibration]
 enabled: True
 dfg_filename: calibration_hapticgimbal_workspace.dfg
+calib_files: phantom_angle_correction_5dof.calib
+recorddir: record\05_haptic_workspace_orientation
 
 [vharcalib.module.calibration_result]
 enabled: True
+dfg_filename: vhar_calibration_verification.dfg
+report_filename: calibration_report.yaml
+
 
 [vharcalib.devices.phantom]
 joint_length1: 0.13335
@@ -70,10 +78,8 @@ dfgfile: vhar_calibration_host_flea2.dfg
 camera_width: 1024
 camera_height: 768
 
-# deprecated - will be removed later
 [haptic_gimbal_calibration]
 rootdir: H:\develop\haptic_gimbal_calibration
 calibdir: calibration
 recorddir: record
 testdatadir: test_data
-

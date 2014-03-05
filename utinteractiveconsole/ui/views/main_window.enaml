@@ -38,16 +38,17 @@ enamldef MainDockArea(DockArea): dockarea:
 
         Container: console:
             alias ipy
-            alias syslog
+            # alias syslog
 
-            constraints = [vbox(ipy, syslog, spacing=3)]
+            # constraints = [vbox(ipy, syslog, spacing=3)]
+            constraints = [vbox(ipy, spacing=3)]
 
             IPythonWidget: ipy:
                 context := dockarea.appstate.context
 
-            MultilineField: syslog:
-                read_only = True
-                text << "\n".join(dockarea.appstate.syslog.logitems)
+            # MultilineField: syslog:
+            #     read_only = True
+            #     text << "\n".join(dockarea.appstate.syslog.logitems)
 
 
 
