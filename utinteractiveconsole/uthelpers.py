@@ -336,109 +336,50 @@ def loadRawData(root_dir, items=None):
 
 
 
+def selectNearestNeighbour(dest_ts, data, tsoffset=0.0):
 
-def selectNearestNeighbour(dts, src_ts, src_data):
+    samples = []
+    start_idx = 0
 
-    idx = (np.abs(src_ts-dts)).argmin()
-    if dts < src_ts[idx]:
-        if idx == 0:
-            ts1 = src_ts[idx]
-            idx1 = idx
-        else:
-            ts1 = src_ts[idx-1]
-            idx1 = idx-1
-        ts2 = src_ts[idx]
-        idx2 = idx
-    else:
-        ts1 = src_ts[idx]
-        idx1 = idx
-        if not idx+1 < len(src_ts):
+    src_ts = np.asarray([p.time() for p in data]) + tsoffset
+    src_data = np.asarray([p.get() for p in data])
+
+    for dts in dest_ts:
+
+        idx = (np.abs(src_ts-dts)).argmin()
+        if dts < src_ts[idx]:
+            if idx == 0:
+                ts1 = src_ts[idx]
+                idx1 = idx
+            else:
+                ts1 = src_ts[idx-1]
+                idx1 = idx-1
             ts2 = src_ts[idx]
             idx2 = idx
         else:
-            ts2 = src_ts[idx+1]
-            idx2 = idx+1
-
-    ediff = ts2 - ts1
-    tdiff = dts - ts1
-
-    if ediff != 0:
-        h = float(tdiff) / float(ediff)
-    else:
-        h = 1.0
-
-    if h < 0.5:
-        return src_data[idx1]
-    else:
-        return src_data[idx2]
-
-
-
-def interpolatePose(dts, src_ts, src_poses):
-
-    idx = (np.abs(src_ts-dts)).argmin()
-    if dts < src_ts[idx]:
-        if idx == 0:
             ts1 = src_ts[idx]
             idx1 = idx
+            if not idx+1 < len(src_ts):
+                ts2 = src_ts[idx]
+                idx2 = idx
+            else:
+                ts2 = src_ts[idx+1]
+                idx2 = idx+1
+
+        ediff = ts2 - ts1
+        tdiff = dts - ts1
+
+        if ediff != 0:
+            h = float(tdiff) / float(ediff)
         else:
-            ts1 = src_ts[idx-1]
-            idx1 = idx-1
-        ts2 = src_ts[idx]
-        idx2 = idx
-    else:
-        ts1 = src_ts[idx]
-        idx1 = idx
-        if not idx+1 < len(src_ts):
-            ts2 = src_ts[idx]
-            idx2 = idx
+            h = 1.0
+
+        if h < 0.5:
+            samples.append(src_data[idx1])
         else:
-            ts2 = src_ts[idx+1]
-            idx2 = idx+1
+            samples.append(src_data[idx2])
 
-    ediff = ts2 - ts1
-    tdiff = dts - ts1
-
-    if ediff != 0:
-        h = float(tdiff) / float(ediff)
-    else:
-        h = 1.0
-
-    return math.linearInterpolatePose(src_poses[idx1], src_poses[idx2], h)
-
-
-def interpolateVec3(dts, src_ts, src_vecs):
-    idx = (np.abs(src_ts-dts)).argmin()
-    if dts < src_ts[idx]:
-        if idx == 0:
-            ts1 = src_ts[idx]
-            idx1 = idx
-        else:
-            ts1 = src_ts[idx-1]
-            idx1 = idx-1
-        ts2 = src_ts[idx]
-        idx2 = idx
-    else:
-        ts1 = src_ts[idx]
-        idx1 = idx
-        if not idx+1 < len(src_ts):
-            ts2 = src_ts[idx]
-            idx2 = idx
-        else:
-            ts2 = src_ts[idx+1]
-            idx2 = idx+1
-
-    ediff = ts2 - ts1
-    tdiff = dts - ts1
-
-    if ediff != 0:
-        h = float(tdiff) / float(ediff)
-    else:
-        h = 1.0
-
-    return math.linearInterpolateVector3(src_vecs[idx1], src_vecs[idx2], h)
-
-
+    return samples, start_idx
 
 
 def selectOnlyMatchingSamples(dest_ts, data, tsoffset=0.0):
