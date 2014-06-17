@@ -24,8 +24,8 @@ def main():
                   action="store", dest="logconfig", default="/etc/mvl/log4cpp.conf",
                   help="log4cpp config file")
 
-    parser.add_option("-L", "--show-logwindow",
-                  action="store_true", dest="show_logwindow", default=False,
+    parser.add_option("-L", "--skip-logwindow",
+                  action="store_false", dest="show_logwindow", default=True,
                   help="Show logging window in gui")
 
     parser.add_option("-C", "--configfile",
@@ -56,6 +56,8 @@ def main():
 
     appstate.context['args'] = args
     appstate.context['options'] = options
+
+    # XXX care about windows default paths here
 
     cfgfiles = []
     if (os.path.isfile(os.environ.get("UTIC_CONFIG_FILE", "/etc/mvl/utic.conf"))):

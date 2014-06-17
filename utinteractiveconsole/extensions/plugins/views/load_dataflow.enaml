@@ -54,10 +54,8 @@ enamldef LoadDataflowDockArea(DockArea): dockarea:
 
     name = "load_window_dockarea"
 
-    layout = VSplitLayout(
-        TabLayout(
-            'console',
-        ),
+    layout = TabLayout(
+        'console',
         'logwindow',
     )
 
@@ -136,7 +134,7 @@ enamldef LoadDataflowManifest(PluginManifest):
             path = '/view/console'
             label = 'Console'
             checkable = True
-            checked = False
+            checked = True
             command = 'utic.commands.extensions.load_dataflow.toggle_console'
             #parameters = {'test': 'passed'}
 
@@ -144,7 +142,7 @@ enamldef LoadDataflowManifest(PluginManifest):
             path = '/view/log'
             label = 'Log'
             checkable = True
-            checked = False
+            checked = True
             command = 'utic.commands.extensions.load_dataflow.toggle_logwindow'
             #parameters = {'test': 'passed'}
 

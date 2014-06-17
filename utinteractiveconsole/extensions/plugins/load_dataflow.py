@@ -1,5 +1,6 @@
 __author__ = 'jack'
-import os, sys
+import os
+import sys
 import logging
 
 import enaml
@@ -8,9 +9,9 @@ from lxml import etree
 
 from utinteractiveconsole.extensions import ExtensionBase, ExtensionWorkspace
 from utinteractiveconsole.uthelpers import PortInfo, PORT_MODE_PULL, PORT_MODE_PUSH, PORT_TYPE_SINK, PORT_TYPE_SOURCE
-
 from ubitrack.dataflow import graph
 from ubitrack.core import util
+
 
 log = logging.getLogger(__name__)
 
@@ -182,7 +183,7 @@ class LoadDataflow(ExtensionBase):
         def plugin_factory(workbench):
 
             with enaml.imports():
-                from utinteractiveconsole.extensions.views.load_dataflow import LoadDataflowMain, LoadDataflowManifest
+                from utinteractiveconsole.extensions.plugins.views.load_dataflow import LoadDataflowMain, LoadDataflowManifest
 
             space = ExtensionWorkspace(appstate=mgr.appstate, utic_plugin=self)
             space.window_title = 'Load Dataflow'
@@ -199,6 +200,7 @@ class LoadDataflow(ExtensionBase):
                       label="Load Dataflow",
                       shortcut= "Ctrl+L",
                       group="spaces",
+                      before="close",
                       command="enaml.workbench.ui.select_workspace",
                       parameters= {'workspace': "utic.%s" % name, }
                       )

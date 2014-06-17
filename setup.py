@@ -41,7 +41,7 @@ This module controls my garden""",
                 'utic = utinteractiveconsole.main:main',
                 ],
             'utinteractiveconsole.extension': [
-                'load_dataflow = utinteractiveconsole.extensions.load_dataflow:LoadDataflow',
+                'load_dataflow = utinteractiveconsole.extensions.plugins.load_dataflow:LoadDataflow',
             ],
         },
       )
