@@ -2,47 +2,22 @@ __author__ = 'mvl'
 import os, sys
 import StringIO
 import ConfigParser
-
-import enaml
-from enaml.qt import QtCore, QtGui
-from enaml.qt.qt_application import QtApplication
-
-from atom.api import Atom, Float, Value, Typed, List, Dict, Unicode, ForwardTyped, Event, Str, observe
-from IPython.lib import guisupport
-
-from ubitrack.core import util
-
 from optparse import OptionParser
 from stevedore import extension
 import logging
 
+import enaml
+from atom.api import Atom, Value, Typed, List, Dict, ForwardTyped
+from enaml.workbench.ui.api import UIWorkbench
+from enaml.workbench.ui.api import ActionItem
+from enaml.workbench.api import Extension
+
+from ubitrack.core import util
+from utinteractiveconsole.guilogging import Syslog, ConsoleWindowLogHandler
+
+
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
-
-class ConsoleWindowLogHandler(logging.Handler):
-
-    def __init__(self, parent):
-        super(ConsoleWindowLogHandler, self).__init__()
-        self.parent = parent
-
-    def emit(self, logRecord):
-        message = str(logRecord.getMessage())
-        self.parent.logevent(message)
-
-class Syslog(Atom):
-
-    logitems = List()
-    logevent = Event()
-
-    handler = Typed(ConsoleWindowLogHandler)
-
-    def _default_handler(self):
-        return ConsoleWindowLogHandler(self)
-
-    @observe("logevent")
-    def _handle_logevent(self, change):
-        self.logitems.append(change["value"])
 
 
 class Extensions(Atom):
@@ -50,7 +25,8 @@ class Extensions(Atom):
 
     extensions = Dict()
     extension_manager = Value()
-    extensions_menuitems = List()
+    extensions_actionitems = List()
+    extensions_workspaceplugins = List()
 
     def _default_extension_manager(self):
         return extension.ExtensionManager(
@@ -86,30 +62,42 @@ class Extensions(Atom):
                 print ext.get_ports()
 
 
-    def registerExtension(self, name, inst, category="default", menu_items=None, add_globals=None):
+    def registerExtension(self, name, inst, category="default", action_items=None, workspace_plugins=None, add_globals=None):
         cat = self.extensions.setdefault(category, {})
         if name in cat:
             raise ValueError("Extension with name: %s already registered in category %s." % (name, category))
 
         cat[name] = inst
-        if menu_items is not None:
-            self.extensions_menuitems.append((name, category, menu_items))
+        if action_items is not None:
+            self.extensions_actionitems.append((name, category, action_items))
+        if workspace_plugins is not None:
+            self.extensions_workspaceplugins.append((name, category, workspace_plugins))
         if add_globals is not None:
             for k,v in add_globals.items():
                 self.appstate.context[k] = v
 
-    def addToolbarItems(self, toolbar):
-        for name, category, menu_items in self.extensions_menuitems:
-            for info in menu_items:
+
+    def generateWorkspaceActionItems(self, plugin_ext):
+        result = []
+        for name, category, action_items in self.extensions_actionitems:
+            for info in action_items:
                 try:
-                    #menu_id = info["menu_id"]
-                    #menu = self.menus.setdefault(menu_id, None)
-                    #if menu is None:
-                    #    menu = self.menus[menu_id] = self.menubar.addMenu(info.get("menu_title", menu_id.capitalize()))
-                    toolbar.children.append(info["menu_action"])
+                    result.append(ActionItem(parent=plugin_ext, **info))
                 except Exception, e:
-                    log.error("error while adding menu action")
+                    log.error("error while adding menu action: %s" % info['path'])
                     log.exception(e)
+        return result
+
+    def generateWorkspaceExtensions(self, plugin_manifest):
+        result = []
+        for name, category, plugins in self.extensions_workspaceplugins:
+            for info in plugins:
+                try:
+                    result.append(Extension(parent=plugin_manifest, **info))
+                except Exception, e:
+                    log.error("error while adding plugin extension: %s" % info['path'])
+                    log.exception(e)
+        return result
 
 
 
@@ -131,19 +119,19 @@ def main():
     parser = OptionParser()
 
     parser.add_option("-l", "--logconfig",
-                  action="store", dest="logconfig", default="log4cpp.conf",
+                  action="store", dest="logconfig", default="/etc/mvl/log4cpp.conf",
                   help="log4cpp config file")
 
+    parser.add_option("-L", "--show-logwindow",
+                  action="store_true", dest="show_logwindow", default=False,
+                  help="Show logging window in gui")
+
     parser.add_option("-C", "--configfile",
-                  action="store", dest="configfile", default="~/.utic.conf",
+                  action="store", dest="configfile", default="~/utic.conf",
                   help="Interactive console config file")
 
 
     syslog = Syslog()
-    # logger = logging.getLogger()
-    # logger.setLevel(logging.INFO)
-    # logger.addHandler(syslog.handler)
-    #
 
     appstate = AppState(context=dict(),
                         syslog=syslog)
@@ -155,6 +143,12 @@ def main():
 
     (options, args) = parser.parse_args()
 
+    if options.show_logwindow:
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        logger.addHandler(syslog.handler)
+
+
     appstate.args = args
     appstate.options = options
 
@@ -162,11 +156,11 @@ def main():
     appstate.context['options'] = options
 
     cfgfiles = []
+    if (os.path.isfile(os.environ.get("UTIC_CONFIG_FILE", "/etc/mvl/utic.conf"))):
+        cfgfiles.append(os.environ["UTIC_CONFIG_FILE"])
+
     if (os.path.isfile(options.configfile)):
         cfgfiles.append(options.configfile)
-
-    if (os.path.isfile(os.environ.get("UTIC_CONFIG_FILE", ""))):
-        cfgfiles.append(os.environ["UTIC_CONFIG_FILE"])
 
     config = ConfigParser.ConfigParser()
     try:
@@ -183,26 +177,21 @@ def main():
         filename = args[0]
     appstate.context['filename'] = filename
 
-    QtGui.QApplication.setGraphicsSystem('raster')
-    app = QtApplication()
-    appstate.context['app'] = app
+    with enaml.imports():
+        from utinteractiveconsole.ui.manifest import ApplicationManifest
+
+    workbench = UIWorkbench()
 
     util.initLogging(options.logconfig)
-
-    with enaml.imports():
-        from utinteractiveconsole.ui.views.main_window import Main
-
     extensions.initExtensions()
-
+    # XXX use weakref here !!
     appstate.context['appstate'] = appstate
 
-    win = Main(appstate=appstate)
-    appstate.context['main_window'] = win
+    manifest = ApplicationManifest(appstate=appstate, extension_mgr=extensions)
+    print manifest.children[2].objects
 
-    extensions.addToolbarItems(win.tbar)
-
-    win.show()
-    guisupport.start_event_loop_qt4(app._qapp)
+    workbench.register(manifest)
+    workbench.run()
 
 
 if __name__ == '__main__':

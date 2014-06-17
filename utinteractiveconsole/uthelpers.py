@@ -1,5 +1,5 @@
 __author__ = 'jack'
-from pyqtgraph.Qt import QtCore, QtGui
+from enaml.qt import QtCore
 import numpy as np
 import os
 from collections import namedtuple
@@ -7,7 +7,7 @@ from collections import namedtuple
 from lxml import etree
 import new
 
-from atom.api import (Bool, List, Dict, observe, set_default, Unicode, Str, Enum, Int, Long, Atom, Value, Typed, Event)
+from atom.api import (List, Dict, Str, Long, Atom, Value, Event)
 
 from ubitrack.core import math, calibration, util, measurement
 from ubitrack.dataflow import graph

@@ -1,15 +1,17 @@
 __author__ = 'jack'
 import os, sys
-from pyqtgraph.Qt import QtCore, QtGui
+import logging
+
+import enaml
+from enaml.qt import QtCore, QtGui
 from lxml import etree
 
-from utinteractiveconsole.extensions import (ExtensionBase, InPort, OutPort,)
+from utinteractiveconsole.extensions import ExtensionBase, ExtensionWorkspace
 from utinteractiveconsole.uthelpers import PortInfo, PORT_MODE_PULL, PORT_MODE_PUSH, PORT_TYPE_SINK, PORT_TYPE_SOURCE
 
 from ubitrack.dataflow import graph
 from ubitrack.core import util
 
-import logging
 log = logging.getLogger(__name__)
 
 class LoadDataflowWidget(QtGui.QWidget):
@@ -149,8 +151,6 @@ class LoadDataflowWidget(QtGui.QWidget):
                 ports.append(PortInfo(k, port_type, mode, type_name, queued))
         return ports
 
-
-
 class LoadDataflow(ExtensionBase):
 
     def update_optparse(self, parser):
@@ -173,21 +173,37 @@ class LoadDataflow(ExtensionBase):
 
     def register(self, mgr):
 
-        print "load_dataflow is disabled"
-        return self
+        name = "load_dataflow"
+        category = "util"
+        #win = self.context.get("win")
+        #if self.widget is None:
+        #    self.widget = LoadDataflowWidget(win)
 
-        win = self.context.get("win")
-        if self.widget is None:
-            self.widget = LoadDataflowWidget(win)
+        def view_factory(workbench):
 
-        action = QtGui.QAction('&Load Dataflow', win)
-        action.setShortcut('Ctrl+L')
-        action.setStatusTip('Load Dataflow')
-        action.triggered.connect(self.widget.handle_load_dataflow)
+            with enaml.imports():
+                from utinteractiveconsole.ui.views.load_dataflow import LoadDataflowMain, LoadDataflowManifest
 
-        menu_item = dict(menu_id="file", menu_title="&File", menu_action=action)
-        mgr.registerExtension("load_dataflow", self, category="file", menu_items=[menu_item,])
+            space = ExtensionWorkspace()
+            space.window_title = 'Load Dataflow'
+            space.content_def = LoadDataflowMain
+            space.manifest_def = LoadDataflowManifest
+            return space
 
+        plugin = dict(id=name,
+                         point="enaml.workbench.ui.workspaces",
+                         factory=view_factory)
+
+
+        action = dict(path="/workspace/load_dataflow",
+                      label="Load Dataflow",
+                      shortcut= "Ctrl+L",
+                      group="util",
+                      command="enaml.workbench.ui.select_workspace",
+                      parameters= {'workspace': "utic.%s" % name, }
+                      )
+
+        mgr.registerExtension(name, self, category=category, action_items=[action,], workspace_plugins=[plugin,])
         return self
 
     def get_name(self):
