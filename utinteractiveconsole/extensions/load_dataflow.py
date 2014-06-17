@@ -179,12 +179,12 @@ class LoadDataflow(ExtensionBase):
         #if self.widget is None:
         #    self.widget = LoadDataflowWidget(win)
 
-        def view_factory(workbench):
+        def plugin_factory(workbench):
 
             with enaml.imports():
-                from utinteractiveconsole.ui.views.load_dataflow import LoadDataflowMain, LoadDataflowManifest
+                from utinteractiveconsole.extensions.views.load_dataflow import LoadDataflowMain, LoadDataflowManifest
 
-            space = ExtensionWorkspace()
+            space = ExtensionWorkspace(appstate=mgr.appstate, utic_plugin=self)
             space.window_title = 'Load Dataflow'
             space.content_def = LoadDataflowMain
             space.manifest_def = LoadDataflowManifest
@@ -192,13 +192,13 @@ class LoadDataflow(ExtensionBase):
 
         plugin = dict(id=name,
                          point="enaml.workbench.ui.workspaces",
-                         factory=view_factory)
+                         factory=plugin_factory)
 
 
         action = dict(path="/workspace/load_dataflow",
                       label="Load Dataflow",
                       shortcut= "Ctrl+L",
-                      group="util",
+                      group="spaces",
                       command="enaml.workbench.ui.select_workspace",
                       parameters= {'workspace': "utic.%s" % name, }
                       )

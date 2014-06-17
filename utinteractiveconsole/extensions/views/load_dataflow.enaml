@@ -1,0 +1,170 @@
+import sys, os
+if sys.platform == 'win32':
+    from enaml import winutil
+
+from enaml.widgets.api import Container, Form, Label, Field
+from enaml.workbench.api import Extension, PluginManifest
+from enaml.workbench.ui.api import ActionItem, MenuItem
+from enaml.workbench.core.command import Command
+from enaml.widgets.ipython_console import IPythonConsole
+
+from enaml.widgets.api import DockArea, DockItem, StatusBar, StatusItem, MultilineField
+from enaml.stdlib.dock_area_styles import available_styles
+from enaml.layout.api import (
+    HSplitLayout, VSplitLayout, TabLayout, InsertItem, hbox, vbox, spacer
+)
+
+
+def file_open(event):
+    """ The command handler for opening a file.
+
+    """
+    print "file open", event.parameters, event.workbench, event.trigger
+
+
+def toggle_3dview(event):
+    """ The command handler for toggling the 3d view.
+
+    """
+    print "toggle 3dview", event.parameters, event.workbench, event.trigger
+
+def toggle_console(event):
+    """ The command handler for toggling the console.
+
+    """
+    ui = event.workbench.get_plugin('enaml.workbench.ui')
+    console_dockitem = ui.workspace.content.find('console')
+    console_dockitem.visible = event.trigger.checked
+
+
+
+def toggle_logwindow(event):
+    """ The command handler for toggling the log window.
+
+    """
+    print "toggle log window", event.parameters, event.workbench, event.trigger
+
+
+enamldef LoadDataflowDockArea(DockArea): dockarea:
+    attr appstate
+    attr utic_plugin
+
+    alias console
+    alias logwindow
+
+    name = "load_window_dockarea"
+
+    layout = VSplitLayout(
+        TabLayout(
+            'console',
+        ),
+        'logwindow',
+    )
+
+    DockItem:
+        name = 'console'
+        title = 'Console'
+        closable = True
+
+        Container: console:
+            alias ipy
+            constraints = [vbox(ipy, spacing=3)]
+
+            IPythonConsole: ipy:
+                initial_ns = dockarea.appstate.context
+
+    DockItem:
+        name = 'logwindow'
+        title = 'Log Window'
+        closable = True
+
+        Container: logwindow:
+            alias syslog
+            constraints = [vbox(syslog, spacing=3)]
+
+            MultilineField: syslog:
+                read_only = True
+                text << "\n".join(dockarea.appstate.syslog.logitems)
+
+
+
+enamldef LoadDataflowMain(Container): main:
+    attr appstate
+    attr utic_plugin
+
+    constraints = [vbox(area, spacing=0)]
+    LoadDataflowDockArea: area:
+        appstate := main.appstate
+        dock_event ::
+            print change
+
+
+enamldef LoadDataflowManifest(PluginManifest):
+    """ The manifest which is registered when the view is loaded.
+
+    This manifest contributes extra menu items to the menu bar.
+
+    """
+    attr appstate
+    attr utic_plugin
+
+    id = 'uticmain.load_dataflow'
+    Extension:
+        id = 'actions'
+        point = 'enaml.workbench.ui.actions'
+        ActionItem:
+            path = '/file/open'
+            label = 'Open'
+            command = 'utic.commands.extensions.load_dataflow.file_open'
+            #parameters = {'test': 'passed'}
+
+        MenuItem:
+            path = '/view'
+            label = 'View'
+            after = 'file'
+            before = 'workspace'
+
+        ActionItem:
+            path = '/view/3dview'
+            label = '3D View'
+            checkable = True
+            checked = False
+            command = 'utic.commands.extensions.load_dataflow.toggle_3dview'
+            #parameters = {'test': 'passed'}
+
+        ActionItem:
+            path = '/view/console'
+            label = 'Console'
+            checkable = True
+            checked = False
+            command = 'utic.commands.extensions.load_dataflow.toggle_console'
+            #parameters = {'test': 'passed'}
+
+        ActionItem:
+            path = '/view/log'
+            label = 'Log'
+            checkable = True
+            checked = False
+            command = 'utic.commands.extensions.load_dataflow.toggle_logwindow'
+            #parameters = {'test': 'passed'}
+
+    Extension:
+        id = 'load_dataflow_commands'
+        point = 'enaml.workbench.core.commands'
+        Command:
+            id = 'utic.commands.extensions.load_dataflow.file_open'
+            description = "Open File"
+            handler = file_open
+        Command:
+            id = 'utic.commands.extensions.load_dataflow.toggle_3dview'
+            description = "3D View"
+            handler = toggle_3dview
+        Command:
+            id = 'utic.commands.extensions.load_dataflow.toggle_console'
+            description = "Console"
+            handler = toggle_console
+        Command:
+            id = 'utic.commands.extensions.load_dataflow.toggle_logwindow'
+            description = "Log Window"
+            handler = toggle_logwindow
+

@@ -13,6 +13,8 @@ enamldef ApplicationManifest(PluginManifest): plugin_manifest:
     attr appstate
     attr extension_mgr
 
+    alias plugin_ext
+
     id = 'utic'
 
     Extension:
