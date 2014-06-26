@@ -1,18 +1,24 @@
 __author__ = 'jack'
+import os, sys
+
 from enaml.qt import QtCore
-import numpy as np
-import os
 from collections import namedtuple
 
 from lxml import etree
 import new
 
-from atom.api import (List, Dict, Str, Long, Atom, Value, Event)
+from atom.catom import Member
+from atom.api import (List, Dict, Str, Long, Atom, Value, Event, Bool, observe)
 
+# import all ubitrack modules to setup boost-python inline converters
 from ubitrack.core import math, calibration, util, measurement
+from ubitrack.facade import facade
 from ubitrack.dataflow import graph
 from ubitrack.vision import vision
 from ubitrack.visualization import visualization
+
+from .subprocess import SubProcessManager
+
 
 import logging
 log = logging.getLogger(__name__)
@@ -252,231 +258,145 @@ def ubitrack_connector_class(dfg_filename):
 
 
 
-# Recorder Files helper
-
-def fd(fname):
-    return util.streambuf(open(fname, "r"), 1024)
 
 
-DSC_ = namedtuple("DSC", ['fieldname', 'filename', 'reader', 'interpolator', "tsoffset", "syncgroup"])
-def DSC(fieldname, filename, reader, interpolator=None, tsoffset=0.0, syncgroup=None):
-    return DSC_(fieldname, filename, reader, interpolator, tsoffset, syncgroup)
+class UbitrackFacadeBase(Atom):
+    context = Member()
+    components_path = Str()
+    instance = Member()
+    dfg_basedir = Str()
+    dfg_filename = Str()
 
+    is_loaded = Bool()
+    is_running = Bool()
 
-def loadData(root_dir, reference, items=None):
-    data_fieldnames = []
-    data_items = []
+    def start(self):
+        pass
 
-    # load reference dataset
-    ref_data = reference.reader(fd(os.path.join(root_dir, reference.filename))).values()
+    def stop(self):
+        pass
 
-    ref_timestamps = np.asarray([p.time() for p in ref_data])
+    def _default_components_path(self):
+        cpath = None
+        if self.context is not None and self.context.get("config") is not None:
+            cfg = self.context.get("config")
+            if cfg.has_section("ubitrack"):
+                ut_cfg = dict(cfg.items("ubitrack"))
+                cpath = ut_cfg.get("components_path")
+        if cpath is None:
+            cpath = os.environ.get("UBITRACK_COMPONENTS_PATH", None)
+            if cpath is None:
+                log.warn("Missing UBITRACK_COMPONENTS_PATH environment variable")
+        return cpath
 
-    # check timestamps
-    if not np.all(np.diff(ref_timestamps) > 0):
-        log.warn("Reference Timestamps are not ascending")
-
-    data_fieldnames.append("timestamp")
-    data_items.append(ref_timestamps)
-
-    data_fieldnames.append(reference.fieldname)
-    data_items.append([p.get() for p in ref_data])
-
-
-
-    # load additional datasets
-    start_indexes = [0, ]
-    for item in items:
-        data_fieldnames.append(item.fieldname)
-        records = item.reader(fd(os.path.join(root_dir, item.filename))).values()
-        if item.interpolator is not None:
-            r_data, sidx = item.interpolator(ref_timestamps, records, item.tsoffset)
-            start_indexes.append(sidx)
+    def _default_dfg_basedir(self):
+        basedir = None
+        if self.context is not None and self.context.get("config") is not None:
+            cfg = self.context.get("config")
+            root_dir = None
+            srg_dir = None
+            if cfg.has_section("vharcalib"):
+                vc_cfg = dict(cfg.items("vharcalib"))
+                root_dir = vc_cfg["rootdir"]
+                srg_dir = vc_cfg["srgdir"]
+            basedir = os.path.join(*filter(None, [root_dir, srg_dir]))
         else:
-            # XXX should verify timestamps or number of samples ...
-            r_data = [p.get() for p in records]
+            osname = None
+            if sys.platform.startswith("win"):
+                osname = "win"
+            elif sys.platform.startswith("linux"):
+                osname = "linux"
+            elif sys.platform.startswith("darwin"):
+                osname = "mac"
+            if osname is None:
+                raise ValueError("Unkown Operating System: %s " % sys.platform)
 
-        data_items.append(r_data)
-
-    start_index = np.max(np.asarray(start_indexes))
-    stop_index = np.min(np.asarray([len(v) for v in data_items]))
-
-    # create result dataset with timely aligned measurements
-    DataSet = namedtuple('DataSet', data_fieldnames)
-
-    all_data = []
-    for i in range(start_index, stop_index):
-        all_data.append(DataSet(*[e[i] for e in data_items]))
-
-    return all_data
-
+            # XXX this does not work anymore ...
+            basedir = os.path.join(os.path.dirname(__file__), "srgs", osname)
+        if basedir is None or not os.path.isdir(basedir):
+            log.error("Invalid Basedir for CalibrationModules: %s" % basedir)
+        return basedir
 
 
+    @observe("dfg_filename")
+    def _handle_dfg_change(self, change):
+        if self.is_loaded:
+            fname = change["value"]
+            self.stopDataflow()
+            self.loadDataflow(fname)
 
-DataSetItem = namedtuple("DataSetItem", ["name", "values", "timestamps", "interval", "interpolator", "tsoffset", "syncgroup"])
+    def loadDataflow(self, fname, force_reload=False):
+        if self.is_loaded and not force_reload:
+            return
 
-def loadRawData(root_dir, items=None):
-    data = {}
-    sync_groups = {}
+        if fname is not None:
+            if not os.path.isfile(fname):
+                fname = os.path.join(self.dfg_basedir, fname)
+                if not os.path.isfile(fname):
+                    log.error("Invalid DFG filename: %s" % fname)
+                    return
+            log.info("Load DFG: %s" % fname)
+            self.instance.loadDataflow(fname, True)
+            self.is_loaded = True
 
-    # load additional datasets
-    for item in items:
-        if item.syncgroup:
-            sync_groups.setdefault(item.syncgroup, []).append(item.fieldname)
+    def startDataflow(self):
+        if not self.is_loaded:
+            if self.dfg_filename:
+                self.loadDataflow(self.dfg_filename)
 
-        records = item.reader(fd(os.path.join(root_dir, item.filename))).values()
+        if not self.is_running:
+            log.info("Start Dataflow")
+            self.instance.startDataflow()
+            self.is_running = True
 
-        ts_data = [p.time() for p in records]
-        data[item.fieldname] = DataSetItem(item.fieldname, [p.get() for p in records], np.asarray(ts_data),
-                                            int(np.diff(np.asarray(ts_data)).mean() / MS_DIVIDER),
-                                            item.interpolator, item.tsoffset, item.syncgroup,
-                                            )
+    def stopDataflow(self):
+        if not self.is_loaded:
+            return
 
-    return data, sync_groups
+        if self.is_running:
+            log.info("Stop Dataflow")
+            self.instance.stopDataflow()
+            self.is_running = False
 
-
-
-def selectNearestNeighbour(dest_ts, data, tsoffset=0.0):
-
-    samples = []
-    start_idx = 0
-
-    src_ts = np.asarray([p.time() for p in data]) + tsoffset
-    src_data = np.asarray([p.get() for p in data])
-
-    for dts in dest_ts:
-
-        idx = (np.abs(src_ts-dts)).argmin()
-        if dts < src_ts[idx]:
-            if idx == 0:
-                ts1 = src_ts[idx]
-                idx1 = idx
-            else:
-                ts1 = src_ts[idx-1]
-                idx1 = idx-1
-            ts2 = src_ts[idx]
-            idx2 = idx
-        else:
-            ts1 = src_ts[idx]
-            idx1 = idx
-            if not idx+1 < len(src_ts):
-                ts2 = src_ts[idx]
-                idx2 = idx
-            else:
-                ts2 = src_ts[idx+1]
-                idx2 = idx+1
-
-        ediff = ts2 - ts1
-        tdiff = dts - ts1
-
-        if ediff != 0:
-            h = float(tdiff) / float(ediff)
-        else:
-            h = 1.0
-
-        if h < 0.5:
-            samples.append(src_data[idx1])
-        else:
-            samples.append(src_data[idx2])
-
-    return samples, start_idx
+    def clearDataflow(self):
+        self.instance.clearDataflow()
+        self.is_loaded = False
 
 
-def selectOnlyMatchingSamples(dest_ts, data, tsoffset=0.0):
-
-    samples = []
-    start_idx = 0
-
-    src_ts = np.asarray([p.time() for p in data]) + tsoffset
-    src_samples = np.asarray([p.get() for p in data])
-
-    for dts in dest_ts:
-        idx = (np.abs(src_ts-dts)).argmin()
-        if src_ts[idx] == dts:
-            samples.append(src_samples[idx])
-        else:
-            samples.append(None)
-    return samples, start_idx
+    def cleanup(self):
+        self.stopDataflow()
+        self.clearDataflow()
+        self.instance.killEverything()
+        self.instance = self._default_instance()
 
 
 
-def interpolatePoseList(dest_ts, data, tsoffset=0.0):
-    poses_intp = []
-    start_idx = 0
+class UbitrackFacade(UbitrackFacadeBase):
 
-    src_ts = np.asarray([p.time() for p in data]) + tsoffset
-    src_poses = np.asarray([p.get() for p in data])
 
-    # Linear Interpolation from UbiTrack component
-    for dts in dest_ts:
-        idx = (np.abs(src_ts-dts)).argmin()
-        if idx == 0:
-            poses_intp.append(None)
-            start_idx += 1
-            continue
+    def _default_instance(self):
+        log.info("Create UbiTrack facade")
+        return facade.AdvancedFacade(self.components_path)
 
-        if dts < src_ts[idx]:
-            ts1 = src_ts[idx-1]
-            idx1 = idx-1
-            ts2 = src_ts[idx]
-            idx2 = idx
-        else:
-            ts1 = src_ts[idx]
-            idx1 = idx
-            ts2 = src_ts[idx+1]
-            idx2 = idx+1
 
-        ediff = ts2 - ts1
-        tdiff = dts - ts1
-        if ediff != 0:
-            h = float(tdiff) / float(ediff)
-        else:
-            h = 1.0
-        p = math.linearInterpolatePose(src_poses[idx1], src_poses[idx2], h)
-        poses_intp.append(p)
+class UbitrackSubProcessFacade(UbitrackFacadeBase):
 
-    return poses_intp, start_idx
+    def start(self):
+        self.instance.start()
 
-def interpolateVec3List(dest_ts, data, tsoffset=0.0):
-    vecs_intp = []
-    start_idx = 0
+    def stop(self):
+        self.instance.stop()
 
-    src_ts = np.asarray([p.time() for p in data]) + tsoffset
-    src_vecs = np.asarray([p.get() for p in data])
+    def restart(self, autostart=True):
+        self.instance.restart(autostart=autostart)
 
-    len_src_ts = len(src_ts)
+    def get_messages(self, timeout=0):
+        return self.instance.get_messages(timeout=timeout)
 
-    # Linear Interpolation from UbiTrack component
-    for dts in dest_ts:
-        idx = (np.abs(src_ts-dts)).argmin()
-        if idx == 0:
-            vecs_intp.append(None)
-            start_idx += 1
-            continue
+    def is_alive(self):
+        return self.instance.is_alive()
 
-        if dts < src_ts[idx]:
-            ts1 = src_ts[idx-1]
-            idx1 = idx-1
-            ts2 = src_ts[idx]
-            idx2 = idx
-        else:
-            ts1 = src_ts[idx]
-            idx1 = idx
-            if not idx+1 < len_src_ts:
-                ts2 = src_ts[idx]
-                idx2 = idx
-            else:
-                ts2 = src_ts[idx+1]
-                idx2 = idx+1
-
-        ediff = ts2 - ts1
-        tdiff = dts - ts1
-        if ediff != 0:
-            h = float(tdiff) / float(ediff)
-        else:
-            h = 1.0
-        v = math.linearInterpolateVector3(src_vecs[idx1], src_vecs[idx2], h)
-        vecs_intp.append(v)
-
-    return vecs_intp, start_idx
+    def _default_instance(self):
+        log.info("Create UbiTrack SubProcess facade")
+        return SubProcessManager("calibration_wizard_slave", components_path=self.components_path)
 

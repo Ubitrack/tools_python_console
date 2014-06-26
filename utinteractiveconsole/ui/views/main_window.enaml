@@ -11,7 +11,7 @@ from enaml.layout.api import (
     HSplitLayout, VSplitLayout, TabLayout, InsertItem, hbox, vbox, spacer
 )
 
-from utinteractiveconsole.ui.ipywidget import IPythonWidget
+from enaml.widgets.ipython_console import IPythonConsole
 
 enamldef MainToolBar(ToolBar):
     Action:
@@ -43,8 +43,8 @@ enamldef MainDockArea(DockArea): dockarea:
             # constraints = [vbox(ipy, syslog, spacing=3)]
             constraints = [vbox(ipy, spacing=3)]
 
-            IPythonWidget: ipy:
-                context := dockarea.appstate.context
+            IPythonConsole: ipy:
+                initial_ns << dict(context=dockarea.appstate.context, appstate=dockarea.appstate)
 
             # MultilineField: syslog:
             #     read_only = True

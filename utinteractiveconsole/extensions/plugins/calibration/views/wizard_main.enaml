@@ -1,0 +1,119 @@
+import enaml
+from enaml.layout.api import hbox, vbox, spacer
+from enaml.widgets.api import (
+    Window, Label, Container, Action, Menu, Notebook, PushButton, ScrollArea
+)
+from enaml.core.api import Looper
+from enaml.core.api import Include
+from enaml.styling import StyleSheet, Style, Setter
+
+with enaml.imports():
+    from utinteractiveconsole.ui.views.subprocess_control import SubprocessControl
+
+
+
+enamldef TaskItemStyleSheet(StyleSheet):
+    Style:
+        element = 'Field'
+        style_class = 'taskitem'
+        Setter:
+            field = 'background'
+            value = 'white'
+        Setter:
+            field = 'padding'
+            value = '0px'
+        Setter:
+            field = 'margins'
+            value = '0px'
+        Setter:
+            field = 'color'
+            value = 'black'
+    Style:
+        element = 'Field'
+        style_class = 'taskitem-done'
+        Setter:
+            field = 'background'
+            value = 'green'
+        Setter:
+            field = 'padding'
+            value = '0px'
+        Setter:
+            field = 'margins'
+            value = '0px'
+        Setter:
+            field = 'color'
+            value = 'white'
+
+
+enamldef CalibrationMenu(Menu):
+    attr handler
+    Action:
+        text = 'Calibrate'
+        triggered :: handler()
+
+enamldef LoadCalibrationWizardAction(Action):
+    attr handler
+    text = 'CalibrationWizard'
+    triggered :: CalibrationMenu(handler=handler).popup()
+
+
+enamldef WizardMain(Window): main:
+    attr module_manager
+    attr controller
+    attr state
+
+    title = 'Calibration Wizard'
+
+    alias looper
+    alias content
+    alias control
+
+    TaskItemStyleSheet:
+        pass
+
+    Container:
+        constraints = [
+            hbox(
+                vbox(scroller, control),
+                content,
+            ),
+            scroller.width == 250,
+        ]
+        ScrollArea: scroller:
+            Container:
+                hug_width = "medium"
+                Looper: looper:
+                    iterable << main.state.task_list
+                    Container:
+                        hug_height = 'strong'
+                        padding = 0
+                        Label:
+                            text = main.state.module_manager.modules[loop_item].get_name()
+
+        Container: content:
+            constraints = [
+                vbox(
+                    module_content,
+                    hbox(spacer, skip_btn, ok_btn),
+                ),
+            ]
+            alias content_include
+
+            Notebook: module_content:
+                tab_style = 'document'
+                Include: content_include:
+                    objects << main.state.active_widgets
+
+            PushButton: ok_btn:
+                text << 'Ok' if len(state.task_list) > state.task_idx + 1 else "Finish"
+                clicked :: main.controller.on_ok(content)
+
+            PushButton: skip_btn:
+                text = 'Skip'
+                visible << bool(len(state.task_list) > state.task_idx + 1)
+                clicked :: main.controller.on_skip(content)
+
+        Container: control:
+            alias subprocess
+            SubprocessControl: subprocess:
+                facade := main.state.facade
