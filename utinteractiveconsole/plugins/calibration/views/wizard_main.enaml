@@ -20,9 +20,6 @@ from enaml.layout.api import (
 with enaml.imports():
     from utinteractiveconsole.ui.views.subprocess_control import SubprocessControl
 
-def launch_wizard(event):
-    print "launch Wizard: ", event
-
 
 enamldef TaskItemStyleSheet(StyleSheet):
     Style:
@@ -86,7 +83,7 @@ enamldef WizardView(DockItem): wizard:
                         hug_height = 'strong'
                         padding = 0
                         Label:
-                            text = main.state.module_manager.modules[loop_item].get_name()
+                            text = wizard.state.module_manager.modules[loop_item].get_name()
 
         Container: content:
             constraints = [
@@ -152,7 +149,7 @@ enamldef WizardMain(Container): main:
     WizardDockArea: area:
         appstate := main.appstate
         dock_event ::
-            print change
+            print "DockEvent: ", change
 
 
 

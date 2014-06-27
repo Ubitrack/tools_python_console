@@ -82,7 +82,7 @@ def main():
     appstate.context['filename'] = filename
 
     with enaml.imports():
-        from utinteractiveconsole.ui.manifest import ApplicationManifest
+        from utinteractiveconsole.ui.views.manifest import ApplicationManifest
 
     workbench = UIWorkbench()
 

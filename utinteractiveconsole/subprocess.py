@@ -37,22 +37,22 @@ class SubProcess(object):
                         else:
                             log.error("Subprocess %s missing filename" % (name,))
                     elif cmd == "startDataflow":
-                        log.info("SubProcess %s startDataflow")
+                        log.info("SubProcess %s startDataflow" % (name,))
                         facade.startDataflow()
                         conn.send({"changeState": {"dataflow_running": True}})
                     elif cmd == "stopDataflow":
-                        log.info("SubProcess %s stopDataflow")
+                        log.info("SubProcess %s stopDataflow" % (name,))
                         facade.stopDataflow()
                         conn.send({"changeState": {"dataflow_running": False}})
                     elif cmd == "clearDataflow":
-                        log.info("SubProcess %s clearDataflow")
+                        log.info("SubProcess %s clearDataflow" % (name,))
                         facade.clearDataflow()
                         conn.send({"changeState": {"dataflow_loaded": False}})
                     elif cmd == "killEverything":
-                        log.info("SubProcess %s killEverything")
+                        log.info("SubProcess %s killEverything" % (name,))
                         facade.killEverything()
                     elif cmd == "exit":
-                        log.info("SubProcess %s is exiting")
+                        log.info("SubProcess %s is exiting" % (name,))
                         is_running = False
                         conn.send({"changeState": {"process_running": False}})
 

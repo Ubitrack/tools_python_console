@@ -267,6 +267,8 @@ class UbitrackFacadeBase(Atom):
     dfg_basedir = Str()
     dfg_filename = Str()
 
+    config_ns = Str()
+
     is_loaded = Bool()
     is_running = Bool()
 
@@ -293,26 +295,14 @@ class UbitrackFacadeBase(Atom):
         basedir = None
         if self.context is not None and self.context.get("config") is not None:
             cfg = self.context.get("config")
-            root_dir = None
             srg_dir = None
-            if cfg.has_section("vharcalib"):
-                vc_cfg = dict(cfg.items("vharcalib"))
-                root_dir = vc_cfg["rootdir"]
+            if cfg.has_section(self.config_ns):
+                vc_cfg = dict(cfg.items(self.config_ns))
                 srg_dir = vc_cfg["srgdir"]
-            basedir = os.path.join(*filter(None, [root_dir, srg_dir]))
+            basedir = os.path.expanduser(srg_dir)
         else:
-            osname = None
-            if sys.platform.startswith("win"):
-                osname = "win"
-            elif sys.platform.startswith("linux"):
-                osname = "linux"
-            elif sys.platform.startswith("darwin"):
-                osname = "mac"
-            if osname is None:
-                raise ValueError("Unkown Operating System: %s " % sys.platform)
+            raise ValueError("Invalid Config")
 
-            # XXX this does not work anymore ...
-            basedir = os.path.join(os.path.dirname(__file__), "srgs", osname)
         if basedir is None or not os.path.isdir(basedir):
             log.error("Invalid Basedir for CalibrationModules: %s" % basedir)
         return basedir

@@ -1,5 +1,5 @@
 from enaml.workbench.api import Extension, PluginManifest
-from enaml.workbench.ui.api import ActionItem, Branding, MenuItem, ItemGroup
+from enaml.workbench.ui.api import ActionItem, Branding, MenuItem, ItemGroup, Autostart
 from enaml.core.api import Include
 
 enamldef ApplicationManifest(PluginManifest): plugin_manifest:
@@ -22,6 +22,7 @@ enamldef ApplicationManifest(PluginManifest): plugin_manifest:
         point = 'enaml.workbench.ui.branding'
         Branding:
             title = 'Ubitrack Interactive Console'
+
 
     Extension: plugin_ext:
         id = 'actions'
@@ -53,3 +54,10 @@ enamldef ApplicationManifest(PluginManifest): plugin_manifest:
 
     Include:
         objects << extension_mgr.generateWorkspaceExtensions(plugin_manifest)
+
+    # Extension:
+    #     id = 'autostart'
+    #     point = 'enaml.workbench.ui.autostart'
+    #     Autostart:
+    #         plugin_id = 'calibration_wizard'
+

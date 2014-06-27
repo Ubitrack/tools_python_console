@@ -12,6 +12,8 @@ from enaml.workbench.ui.api import ActionItem
 from enaml.workbench.api import Extension
 from enaml.workbench.core.command import Command
 
+from enaml.layout.api import InsertItem
+
 from utinteractiveconsole.extension import ExtensionBase
 from utinteractiveconsole.workspace import ExtensionWorkspace
 from utinteractiveconsole.uthelpers import UbitrackSubProcessFacade
@@ -106,16 +108,20 @@ class WizardState(Atom):
     facade = Typed(UbitrackSubProcessFacade)
 
     def _default_facade(self):
-        facade = UbitrackSubProcessFacade(context=self.context)
+        facade = UbitrackSubProcessFacade(context=self.context,
+                                          config_ns=self.module_manager.config_ns,
+                                          )
         return facade
 
     def _default_calibration_datetime(self):
         return datetime.datetime.now().strftime("%Y%d%m-%H%M")
 
     def start(self):
+        log.info("Start Facade")
         self.facade.start()
 
     def stop(self):
+        log.info("Stop Facade")
         self.facade.stop()
 
 
@@ -129,13 +135,12 @@ class WizardState(Atom):
        return self.module_manager.modules[self.current_task]
 
     def _default_active_widgets(self):
-        if self.current_module is None:
-            return []
         widget_cls = self.current_module.get_widget_class()
         ctrl = self.current_module.get_controller_class()(context=self.context,
                                                           facade=self.facade,
                                                           wizard_state=self,
-                                                          state=self.tasks[self.task_idx],)
+                                                          state=self.tasks[self.task_idx],
+                                                          config_ns=self.module_manager.config_ns)
         if self.facade is not None and ctrl.dfg_filename:
             fname = os.path.join(self.facade.dfg_basedir, ctrl.dfg_filename)
             if os.path.isfile(fname):
@@ -159,16 +164,13 @@ class WizardState(Atom):
             self.current_task = self.task_list[self.task_idx]
             self.current_module = self.module_manager.modules[self.current_task]
 
-
-    # @observe("current_task")
-    # def _handle_current_task_change(self, change):
-    #     if change["type"] == "update" and change["name"] == "current_task":
             widget_cls = self.current_module.get_widget_class()
             ctrl = self.current_module.get_controller_class()(module_name=self.current_module.get_module_name(),
                                                               context=self.context,
                                                               facade=self.facade,
                                                               state=self.tasks[self.task_idx],
-                                                              wizard_state=self,)
+                                                              wizard_state=self,
+                                                              config_ns=self.module_manager.config_ns)
 
             if self.facade is not None and ctrl.dfg_filename:
                 fname = os.path.join(self.facade.dfg_basedir, ctrl.dfg_filename)
@@ -291,8 +293,6 @@ class CalibrationWizard(ExtensionBase):
     wizard_instances = {}
 
     def register(self, mgr):
-        options = self.context.get("options")
-
         name = "calibration_wizard"
         category = "calibration"
 
@@ -408,11 +408,16 @@ class CalibrationWizard(ExtensionBase):
         name = params.get('wizard_name')
         wizard_def = params.get('wizard_def')
 
-        parent = ev.workbench.get_plugin('enaml.workbench.ui').workspace.content.area
 
 
         if name in self.wizard_instances:
-            self.wizard_instances[name].show()
+            wizard = self.wizard_instances[name]
+            wizard.show()
+            # add to layout
+            parent = ev.workbench.get_plugin('enaml.workbench.ui').workspace.content.area
+            op = InsertItem(item=name,)
+            parent.update_layout(op)
+
         else:
             wizard = WizardController(context=self.context)
             if not wizard.initialize(wizard_def):
@@ -422,28 +427,38 @@ class CalibrationWizard(ExtensionBase):
             with enaml.imports():
                 from .views.wizard_main import WizardView
 
+            workspace = ev.workbench.get_plugin('enaml.workbench.ui').workspace
+
             def cleanup(*args):
+                log.info("cleanup for wizard: %s" % name)
+                wizard.wizview.unobserve("closed", cleanup)
                 wizard.wizview = None
+
                 wizard.current_state.stop()
                 wizard.current_state = None
+
                 wizard_instances.pop(name)
+                workspace.unobserve("stopped", cleanup)
 
             if wizard.current_state is not None:
                 wizard.current_state.start()
 
             if wizard.wizview is None:
-                wizard.wizview = WizardView(parent=parent,
+                wizard.wizview = WizardView(name=name,
                                             title="Calibrate: %s" % wizard_def.get('name'),
                                             controller=wizard,
                                             state=wizard.current_state)
                 wizard.wizview.observe("closed", cleanup)
+                workspace.observe("stopped", cleanup)
+
+                # add to layout
+                parent = workspace.content.area
+                wizard.wizview.set_parent(parent)
+                op = InsertItem(item=name,)
+                parent.update_layout(op)
 
             wizard.show()
 
             # start the watchdog timer for subprocess control
             wizard.wizview.control.subprocess.timer.start()
             wizard_instances[name] = wizard
-
-
-
-        print "launch wizard: ", name, ev.command, ev.workbench, params, ev.trigger

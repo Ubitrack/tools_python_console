@@ -1,5 +1,5 @@
 __author__ = 'jack'
-from atom.api import Subclass, Unicode, Typed
+from atom.api import Subclass, Unicode, Typed, Event
 from enaml.widgets.api import Container
 from enaml.workbench.api import PluginManifest
 from enaml.workbench.ui.api import Workspace
@@ -32,6 +32,9 @@ class ExtensionWorkspace(Workspace):
     appstate = Typed(AppState)
     utic_plugin = Typed(ExtensionBase)
 
+    started = Event()
+    stopped = Event()
+
     def start(self):
         """ Start the workspace instance.
 
@@ -39,6 +42,8 @@ class ExtensionWorkspace(Workspace):
         provided plugin with the workbench.
 
         """
+        self.appstate.current_workspace = self
+
         self.content = self.content_def(appstate=self.appstate,
                                         utic_plugin=self.utic_plugin)
         manifest = self.manifest_def(appstate=self.appstate,
@@ -48,6 +53,9 @@ class ExtensionWorkspace(Workspace):
         self._manifest_id = manifest.id
         self.workbench.register(manifest)
 
+
+        self.started()
+
     def stop(self):
         """ Stop the workspace instance.
 
@@ -55,6 +63,10 @@ class ExtensionWorkspace(Workspace):
         registered on start.
 
         """
+        self.stopped()
+
         # XXX check for running processes / unsaved changes here ?
         self.workbench.unregister(self._manifest_id)
+
+        self.appstate.current_workspace = None
 

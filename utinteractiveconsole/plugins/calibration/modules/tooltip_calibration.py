@@ -19,7 +19,7 @@ class TooltipCalibrationModule(ModuleBase):
         return "Tooltip Calibration"
 
     def get_dependencies(self):
-        return ["optitrack_calibration", "hapticdevice_calibration"]
+        return ["externaltracker_calibration", "hapticdevice_calibration"]
 
     def get_widget_class(self):
         return TooltipCalibrationPanel

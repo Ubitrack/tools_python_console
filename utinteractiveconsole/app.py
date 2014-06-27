@@ -99,6 +99,7 @@ class ExtensionManager(Atom):
 class AppState(Atom):
     context = Dict()
     extensions = Typed(ExtensionManager)
+    current_workspace = Value()
 
     args = Value()
     options = Value()

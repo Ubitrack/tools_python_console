@@ -30,7 +30,7 @@ class ModuleBase(object):
 
     def is_enabled(self):
         cfg = self.context.get("config")
-        sname = "%s.%s" % (self.parent.config_ns, self.module_name)
+        sname = "%s.modules.%s" % (self.parent.config_ns, self.module_name)
         if cfg.has_section(sname):
             return cfg.getboolean(sname, "enabled")
         return False
@@ -83,13 +83,14 @@ class ModuleManager(Atom):
     context = Value()
 
     modules_ns = Str('calibration_wizard.modules')
-    config_ns = Str('calibration_wizard')
+    config_ns = Str('calibration_wizard.config')
     modules = Dict()
 
     extension_manager = Typed(extension.ExtensionManager)
     graph = Typed(nx.DiGraph)
 
     def _default_extension_manager(self):
+        log.info("Initializing calibration wizard with configuration: %s and modules: %s" % (self.config_ns, self.modules_ns))
         return extension.ExtensionManager(
             namespace=self.modules_ns,
             invoke_on_load=True,
@@ -98,7 +99,7 @@ class ModuleManager(Atom):
 
     def is_module_enabled(self, name):
         cfg = self.context.get("config")
-        sname = "%s.%s" % (self.config_ns, name)
+        sname = "%s.modules.%s" % (self.config_ns, name)
         if cfg.has_section(sname):
             return cfg.getboolean(sname, "enabled")
         return False

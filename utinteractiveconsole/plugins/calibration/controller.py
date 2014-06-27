@@ -3,15 +3,13 @@ __author__ = 'jack'
 import os, sys
 import glob
 import shutil
-from atom.api import Atom, Str, Range, Bool, observe, Typed, ForwardTyped, List, ContainerList, Tuple, Dict
-from atom.catom import Member
+from atom.api import Atom, Value, Str, Range, Bool, observe, Typed, ForwardTyped, List, ContainerList, Tuple, Dict
 
-from stevedore import extension
-import networkx as nx
 from ubitrack.facade import facade
 import logging
 
 from utinteractiveconsole.subprocess import SubProcessManager
+from utinteractiveconsole.uthelpers import UbitrackSubProcessFacade
 
 log = logging.getLogger(__name__)
 
@@ -22,39 +20,33 @@ class CalibrationController(Atom):
     save_results = True
 
     module_name = Str()
+    config_ns = Str()
 
-    context = Member()
-    widget = Member()
+    context = Value()
+    widget = Value()
     facade = Typed(UbitrackSubProcessFacade)
-    state = Member()
-    wizard_state = Member()
+    state = Value()
+    wizard_state = Value()
 
-    config = Member()
+    config = Value()
 
     data_dir = Str()
     dfg_filename = Str()
 
     def _default_config(self):
         cfg = self.context.get("config")
-        sname = "vharcalib.module.%s" % self.module_name
-        if cfg.has_section(sname):
-            return dict(cfg.items(sname))
+        if cfg.has_section(self.config_ns):
+            return dict(cfg.items(self.config_ns))
         else:
-            log.error("Missing section: [%s] in config" % sname)
+            log.error("Missing section: [%s] in config" % self.config_ns)
             return dict()
 
     def _default_data_dir(self):
-        cfg = self.context.get("config")
-        if cfg.has_section("vharcalib"):
-            root_dir = cfg.get("vharcalib", "rootdir")
-            return os.path.join(root_dir, cfg.get("vharcalib", "datadir"))
-        else:
-            log.error("Missing section: [vharcalib] in config")
-            return ""
+        return os.path.expanduser(self.config.get("datadir"))
 
     def _default_dfg_filename(self):
         if "dfg_filename" in self.config:
-            return self.config["dfg_filename"]
+            return os.path.expanduser(self.config["dfg_filename"])
         return ""
 
     def startCalibration(self):
@@ -72,8 +64,8 @@ class CalibrationController(Atom):
             if not os.path.isdir(calib_path):
                 os.makedirs(calib_path)
             for calib_file in calib_files:
+                fname = os.path.join(calib_path, os.path.basename(calib_file))
                 if os.path.isfile(calib_file):
-                    fname = os.path.join(calib_path, os.path.basename(calib_file))
                     shutil.copy(calib_file, fname)
                 else:
                     log.warn("Calibration file not found: %s" % fname)

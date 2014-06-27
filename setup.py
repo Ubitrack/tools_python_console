@@ -46,7 +46,7 @@ This module controls my garden""",
             ],
             'vharcalibration.default_workspace.module': [
                 'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
-                'optitrack_calibration = utinteractiveconsole.plugins.calibration.modules.optitrack_calibration:OptitrackCalibrationModule',
+                'externaltracker_calibration = utinteractiveconsole.plugins.calibration.modules.externaltracker_calibration:ExternalTrackerCalibrationModule',
                 'hapticdevice_calibration = utinteractiveconsole.plugins.calibration.modules.hapticdevice_calibration:HapticDeviceCalibrationModule',
                 'tooltip_calibration = utinteractiveconsole.plugins.calibration.modules.tooltip_calibration:TooltipCalibrationModule',
                 'absolute_orientation_init_calibration = utinteractiveconsole.plugins.calibration.modules.absolute_orientation_init_calibration:AbsoluteOrientationInitCalibrationModule',

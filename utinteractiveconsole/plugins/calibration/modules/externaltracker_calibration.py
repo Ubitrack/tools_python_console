@@ -2,15 +2,15 @@ __author__ = 'MVL'
 
 import enaml
 with enaml.imports():
-    from .views.optitrack_calibration import OptitrackCalibrationPanel
+    from .views.externaltracker_calibration import ExternalTrackerCalibrationPanel
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import CalibrationController
 
-class OptitrackCalibrationController(CalibrationController):
+class ExternalTrackerCalibrationController(CalibrationController):
     pass
 
-class OptitrackCalibrationModule(ModuleBase):
+class ExternalTrackerCalibrationModule(ModuleBase):
 
     def get_category(self):
         return "Devices"
@@ -22,7 +22,7 @@ class OptitrackCalibrationModule(ModuleBase):
         return ["calibration_start", ]
 
     def get_widget_class(self):
-        return OptitrackCalibrationPanel
+        return ExternalTrackerCalibrationPanel
 
     def get_controller_class(self):
-        return OptitrackCalibrationController
+        return ExternalTrackerCalibrationController

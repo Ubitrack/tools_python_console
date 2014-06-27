@@ -3,7 +3,7 @@ from enaml.widgets.api import (
     Container, Html, Page
 )
 
-enamldef OptitrackCalibrationPanel(Page):
+enamldef ExternalTrackerCalibrationPanel(Page):
     attr module
     attr module_state
     attr module_controller
