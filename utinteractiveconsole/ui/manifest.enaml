@@ -42,14 +42,14 @@ enamldef ApplicationManifest(PluginManifest): plugin_manifest:
             shortcut = 'Ctrl+Q'
             command = 'enaml.workbench.ui.close_window'
 
-        Include:
-            objects << extension_mgr.generateWorkspaceActionItems(plugin_ext)
-
         ActionItem:
             path = '/workspace/close'
             label = 'Close Workspace'
             shortcut = 'Ctrl+D'
             command = 'enaml.workbench.ui.close_workspace'
+
+        Include:
+            objects << extension_mgr.generateWorkspaceActionItems(plugin_ext)
 
     Include:
         objects << extension_mgr.generateWorkspaceExtensions(plugin_manifest)

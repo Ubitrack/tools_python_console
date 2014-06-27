@@ -42,6 +42,7 @@ This module controls my garden""",
                 ],
             'utinteractiveconsole.extension': [
                 'load_dataflow = utinteractiveconsole.extensions.plugins.load_dataflow:LoadDataflow',
+                'calibration_wizard = utinteractiveconsole.extensions.plugins.calibration.wizard:CalibrationWizard',
             ],
         },
       )

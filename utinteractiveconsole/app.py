@@ -72,22 +72,24 @@ class ExtensionManager(Atom):
     def generateWorkspaceActionItems(self, plugin_ext):
         result = []
         for name, category, action_items in self.extensions_actionitems:
-            for info in action_items:
+            for item in action_items:
                 try:
-                    result.append(ActionItem(parent=plugin_ext, **info))
+                    item.set_parent(plugin_ext)
+                    result.append(item)
                 except Exception, e:
-                    log.error("error while adding menu action: %s" % info['path'])
+                    log.error("error while adding menu action: %s" % item.path)
                     log.exception(e)
         return result
 
     def generateWorkspaceExtensions(self, plugin_manifest):
         result = []
         for name, category, plugins in self.extensions_workspaceplugins:
-            for info in plugins:
+            for plugin in plugins:
                 try:
-                    result.append(Extension(parent=plugin_manifest, **info))
+                    plugin.set_parent(plugin_manifest)
+                    result.append(plugin)
                 except Exception, e:
-                    log.error("error while adding plugin extension: %s" % info['path'])
+                    log.error("error while adding plugin extension: %s" % plugin.id)
                     log.exception(e)
         return result
 

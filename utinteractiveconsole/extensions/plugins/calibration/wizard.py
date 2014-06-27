@@ -16,8 +16,8 @@ import logging
 log = logging.getLogger(__name__)
 
 
-with enaml.imports():
-    from .views.wizard import WizardMain, LoadCalibrationWizardAction
+# with enaml.imports():
+#     from .views.wizard import WizardMain, LoadCalibrationWizardAction
 
 
 class TaskResult(Atom):
@@ -189,11 +189,28 @@ class CalibrationWizard(ExtensionBase):
     module_graph = None
     current_state = None
 
+    wizard_modules_ns = 'calibration_wizard.modules'
+    wizard_config_ns = 'calibration_wizard'
+
+    def update_optparse(self, parser):
+        parser.add_option("--wizard-modules-ns",
+                      action="store", dest="wizard_modules_ns", default=self.wizard_modules_ns,
+                      help="python package name where calibration wizard modules are loaded from.")
+
+        parser.add_option("--wizard-config-ns",
+                      action="store", dest="wizard_config_ns", default=self.wizard_config_ns,
+                      help="configuration namespace for calibration wizard")
+
+
     def register(self, mgr):
         win = self.context.get("win")
+        options = self.context.get("options")
+
         if self.module_manager is None:
-            # XXX add module_ns and config_ns attributes from configuration
-            self.module_manager = ModuleManager(context=self.context)
+            self.module_manager = ModuleManager(context=self.context,
+                                                modules_ns=options.wizard_modules_ns,
+                                                config_ns=options.wizard_config_ns,
+                                                )
 
         if self.module_graph is None:
             self.module_graph = self.module_manager.graph

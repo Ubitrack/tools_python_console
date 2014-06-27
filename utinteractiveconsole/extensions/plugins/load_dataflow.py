@@ -7,6 +7,9 @@ import enaml
 from enaml.qt import QtCore, QtGui
 from lxml import etree
 
+from enaml.workbench.ui.api import ActionItem
+from enaml.workbench.api import Extension
+
 from utinteractiveconsole.extensions import ExtensionBase, ExtensionWorkspace
 from utinteractiveconsole.uthelpers import PortInfo, PORT_MODE_PULL, PORT_MODE_PUSH, PORT_TYPE_SINK, PORT_TYPE_SOURCE
 from ubitrack.dataflow import graph
@@ -155,7 +158,6 @@ class LoadDataflowWidget(QtGui.QWidget):
 class LoadDataflow(ExtensionBase):
 
     def update_optparse(self, parser):
-        print "init parser options"
         default_componenents_path = "/usr/local/lib/ubitrack"
         if sys.platform.startswith("win32") and "UBITRACK_PATH" in os.environ:
             default_componenents_path = os.path.join(os.environ["UBITRACK_PATH"], "ubitrack")
@@ -191,15 +193,14 @@ class LoadDataflow(ExtensionBase):
             space.manifest_def = LoadDataflowManifest
             return space
 
-        plugin = dict(id=name,
+        plugin = Extension(id=name,
                          point="enaml.workbench.ui.workspaces",
                          factory=plugin_factory)
 
 
-        action = dict(path="/workspace/load_dataflow",
+        action = ActionItem(path="/workspace/load_dataflow",
                       label="Load Dataflow",
                       shortcut= "Ctrl+L",
-                      group="spaces",
                       before="close",
                       command="enaml.workbench.ui.select_workspace",
                       parameters= {'workspace': "utic.%s" % name, }

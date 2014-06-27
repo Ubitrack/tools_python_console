@@ -1,6 +1,6 @@
 __author__ = 'jack'
 import abc
-from atom.api import Atom, String, Dict
+from atom.api import Atom, Str, Dict
 from atom.catom import Member
 
 from stevedore import extension
@@ -83,8 +83,8 @@ class ModuleBase(object):
 class ModuleManager(Atom):
     context = Member()
 
-    modules_ns = String('calibration_wizard.modules')
-    config_ns = String('calibration_wizard')
+    modules_ns = Str('calibration_wizard.modules')
+    config_ns = Str('calibration_wizard')
     modules = Dict()
 
     # xxx why Member instead of Value ??
