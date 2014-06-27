@@ -7,7 +7,7 @@ from atom.api import Atom, Value, Typed, List, Dict, ForwardTyped
 from enaml.workbench.ui.api import ActionItem
 from enaml.workbench.api import Extension
 
-from utinteractiveconsole.guilogging import Syslog
+from .guilogging import Syslog
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class ExtensionManager(Atom):
     appstate = ForwardTyped(lambda: AppState)
 
     extensions = Dict()
-    extension_manager = Value()
+    extension_manager = Typed(stevedore.extension.ExtensionManager)
     extensions_actionitems = List()
     extensions_workspaceplugins = List()
 

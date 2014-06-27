@@ -6,14 +6,14 @@ import logging
 import enaml
 from enaml.qt import QtCore, QtGui
 from lxml import etree
-
 from enaml.workbench.ui.api import ActionItem
 from enaml.workbench.api import Extension
-
-from utinteractiveconsole.extensions import ExtensionBase, ExtensionWorkspace
-from utinteractiveconsole.uthelpers import PortInfo, PORT_MODE_PULL, PORT_MODE_PUSH, PORT_TYPE_SINK, PORT_TYPE_SOURCE
 from ubitrack.dataflow import graph
 from ubitrack.core import util
+
+from utinteractiveconsole.extensions import ExtensionBase
+from utinteractiveconsole.workspace import ExtensionWorkspace
+from utinteractiveconsole.uthelpers import PortInfo, PORT_MODE_PULL, PORT_MODE_PUSH, PORT_TYPE_SINK, PORT_TYPE_SOURCE
 
 
 log = logging.getLogger(__name__)
@@ -185,7 +185,7 @@ class LoadDataflow(ExtensionBase):
         def plugin_factory(workbench):
 
             with enaml.imports():
-                from utinteractiveconsole.extensions.plugins.views.load_dataflow import LoadDataflowMain, LoadDataflowManifest
+                from utinteractiveconsole.plugins.views.load_dataflow import LoadDataflowMain, LoadDataflowManifest
 
             space = ExtensionWorkspace(appstate=mgr.appstate, utic_plugin=self)
             space.window_title = 'Load Dataflow'
@@ -194,17 +194,17 @@ class LoadDataflow(ExtensionBase):
             return space
 
         plugin = Extension(id=name,
-                         point="enaml.workbench.ui.workspaces",
-                         factory=plugin_factory)
+                           point="enaml.workbench.ui.workspaces",
+                           factory=plugin_factory)
 
 
         action = ActionItem(path="/workspace/load_dataflow",
-                      label="Load Dataflow",
-                      shortcut= "Ctrl+L",
-                      before="close",
-                      command="enaml.workbench.ui.select_workspace",
-                      parameters= {'workspace': "utic.%s" % name, }
-                      )
+                            label="Load Dataflow",
+                            shortcut= "Ctrl+L",
+                            before="close",
+                            command="enaml.workbench.ui.select_workspace",
+                            parameters={'workspace': "utic.%s" % name, }
+                            )
 
         mgr.registerExtension(name, self, category=category, action_items=[action,], workspace_plugins=[plugin,])
         return self

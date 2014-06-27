@@ -1,23 +1,24 @@
 __author__ = 'jack'
 
-import os, sys
-import networkx as nx
+import os
+import sys
 import datetime
+import logging
 
-from atom.api import Atom, Value, List, Bool, Int, Str, Coerced, Typed, observe
+import networkx as nx
+from atom.api import Atom, Value, List, Dict, Bool, Int, Str, Coerced, Typed, observe
 import enaml
+from enaml.workbench.ui.api import ActionItem
+from enaml.workbench.api import Extension
+from enaml.workbench.core.command import Command
 
-from utinteractiveconsole.extensions import ExtensionBase
+from utinteractiveconsole.extension import ExtensionBase
+from utinteractiveconsole.workspace import ExtensionWorkspace
 from utinteractiveconsole.uthelpers import UbitrackSubProcessFacade
-
 from .module import ModuleManager
 
-import logging
+
 log = logging.getLogger(__name__)
-
-
-# with enaml.imports():
-#     from .views.wizard import WizardMain, LoadCalibrationWizardAction
 
 
 class TaskResult(Atom):
@@ -125,9 +126,11 @@ class WizardState(Atom):
         return self.task_list[self.task_idx]
 
     def _default_current_module(self):
-        return self.module_manager.modules[self.current_task]
+       return self.module_manager.modules[self.current_task]
 
     def _default_active_widgets(self):
+        if self.current_module is None:
+            return []
         widget_cls = self.current_module.get_widget_class()
         ctrl = self.current_module.get_controller_class()(context=self.context,
                                                           facade=self.facade,
@@ -182,83 +185,44 @@ class WizardState(Atom):
 
 
 
-class CalibrationWizard(ExtensionBase):
+class WizardController(Atom):
 
-    wizview = None
-    module_manager = None
-    module_graph = None
-    current_state = None
-
-    wizard_modules_ns = 'calibration_wizard.modules'
-    wizard_config_ns = 'calibration_wizard'
-
-    def update_optparse(self, parser):
-        parser.add_option("--wizard-modules-ns",
-                      action="store", dest="wizard_modules_ns", default=self.wizard_modules_ns,
-                      help="python package name where calibration wizard modules are loaded from.")
-
-        parser.add_option("--wizard-config-ns",
-                      action="store", dest="wizard_config_ns", default=self.wizard_config_ns,
-                      help="configuration namespace for calibration wizard")
+    context = Value()
 
 
-    def register(self, mgr):
-        win = self.context.get("win")
-        options = self.context.get("options")
+    module_manager = Typed(ModuleManager)
+    module_graph = Typed(nx.DiGraph)
+    current_state = Typed(WizardState)
+
+    wizview = Value()
+
+    def initialize(self, config):
 
         if self.module_manager is None:
             self.module_manager = ModuleManager(context=self.context,
-                                                modules_ns=options.wizard_modules_ns,
-                                                config_ns=options.wizard_config_ns,
+                                                modules_ns=config['module_namespace'],
+                                                config_ns=config['config_namespace'],
                                                 )
+        if len(self.module_manager.modules.keys()) == 0:
+            log.warn("Wizard without modules found: %s" % config['name'])
+            return False
 
         if self.module_graph is None:
             self.module_graph = self.module_manager.graph
 
-        def cleanup(*args):
-            self.wizview = None
-            # only if window was exited
-            self.current_state.stop()
-            self.current_state = None
+        if self.current_state is None:
+            self.current_state = WizardState(task_idx=0,
+                                             task_list=[m for m in nx.topological_sort(self.module_manager.graph)
+                                                        if self.module_manager.modules[m].is_enabled()],
+                                             module_manager=self.module_manager,
+                                             context=self.context,
+                                             )
 
-        def start_wizard():
-            if self.current_state is None:
-                self.current_state = WizardState(task_idx=0,
-                                                 task_list=[m for m in nx.topological_sort(self.module_manager.graph) if self.module_manager.modules[m].is_enabled()],
-                                                 module_manager=self.module_manager,
-                                                 context=self.context,
-                                                 )
-                self.current_state.start()
-            if self.wizview is None:
-                self.wizview = WizardMain(controller=self,
-                                          state=self.current_state)
-                self.wizview.observe("closed", cleanup)
+        return True
 
+    def show(self):
+        if self.wizview is not None:
             self.wizview.show()
-
-            # start the watchdog timer for subprocess control
-            self.wizview.control.subprocess.timer.start()
-
-
-
-        action = LoadCalibrationWizardAction(handler=start_wizard)
-        menu_item = dict(menu_id="vhar_calibration", menu_title="&CalibrationWizard", menu_action=action)
-        mgr.registerExtension("vhar_calibration", self, category="vhar_calibration", menu_items=[menu_item, ],
-                              add_globals=dict(calibration_wizard=self))
-
-        return self
-
-    def get_name(self):
-        return "Calibration Wizard"
-
-    def get_ports(self):
-        return []
-
-    def get_port(self, name):
-        raise ValueError("tbd")
-
-
-
 
     def on_ok(self, content):
         state = self.current_state
@@ -319,3 +283,167 @@ class CalibrationWizard(ExtensionBase):
             log.info("Start task: %s" % state.task_list[state.task_idx])
             state.tasks[state.task_idx].started = True
             state.tasks[state.task_idx].running = True
+
+
+
+class CalibrationWizard(ExtensionBase):
+
+    wizard_instances = {}
+
+    def register(self, mgr):
+        options = self.context.get("options")
+
+        name = "calibration_wizard"
+        category = "calibration"
+
+
+        def plugin_factory(workbench):
+
+            with enaml.imports():
+                from .views.wizard_main import WizardMain, WizardManifest
+
+            space = ExtensionWorkspace(appstate=mgr.appstate, utic_plugin=self)
+            space.window_title = 'Calibration Wizard'
+            space.content_def = WizardMain
+            space.manifest_def = WizardManifest
+            return space
+
+        plugin = Extension(id=name,
+                           point="enaml.workbench.ui.workspaces",
+                           factory=plugin_factory)
+
+
+        action = ActionItem(path="/workspace/calibration_wizard",
+                            label="Calibration Wizard",
+                            shortcut= "Ctrl+W",
+                            before="load_dataflow",
+                            command="enaml.workbench.ui.select_workspace",
+                            parameters={'workspace': "utic.%s" % name, }
+                            )
+
+        mgr.registerExtension(name, self, category=category,
+                              action_items=[action, ],
+                              workspace_plugins=[plugin, ],
+                              add_globals=dict(calibration_wizards=self.wizard_instances))
+
+        return self
+
+    def get_name(self):
+        return "Calibration Wizard"
+
+    def get_ports(self):
+        return []
+
+    def get_port(self, name):
+        raise ValueError("tbd")
+
+    def get_wizard_config(self):
+        # eventually cache this one - or reify ..
+        wcfg = []
+        config = self.context.get('config')
+        if config is not None:
+            if config.has_section('calibration_wizard'):
+                wizards = config.get('calibration_wizard', 'wizards')
+                if wizards is not None:
+                    for wizard_name in [n.strip() for n in wizards.split(',')]:
+                        config_ok = True
+                        wizard_def = None
+                        wizard_config = None
+                        if config.has_section('calibration_wizard.%s' % wizard_name):
+                            wizard_def = dict(config.items('calibration_wizard.%s' % wizard_name))
+                        else:
+                            config_ok = False
+                            log.warn('Missing config section: calibration_wizard.%s' % wizard_name)
+
+                        if wizard_def is not None and wizard_def.get('config_namespace') is not None:
+                            if config.has_section(wizard_def.get('config_namespace')):
+                                wizard_config = dict(config.items(wizard_def.get('config_namespace')))
+                            else:
+                                config_ok = False
+                                log.warn('Missing config section: %s' % wizard_def.get('config_namespace'))
+                        else:
+                            config_ok = False
+
+                        if config_ok:
+                            wcfg.append([wizard_name, wizard_def, wizard_config])
+                        else:
+                            log.warn('Invalid wizard config: %s' % wizard_name)
+        return wcfg
+
+    # dynamically generate wizards from configuration
+    def generateWorkspaceActionItems(self, plugin_ext):
+        result = []
+        wcfg = self.get_wizard_config()
+
+        for name, wizard_def, wizard_cfg in wcfg:
+            log.info("Activate calibration wizard: %s" % wizard_def.get('name'))
+
+            item = ActionItem(path="/calibration/%s" % name,
+                              label=wizard_def.get('name'),
+                              command='utic.commands.extensions.calibration_wizard.launch_%s' % name,
+                              parameters={'wizard_name': name,
+                                          'wizard_def': wizard_def,
+                                          'wizard_cfg': wizard_cfg,}
+                              )
+            result.append(item)
+
+        return result
+
+    def generateWorkspaceCommands(self, plugin_manifest):
+        result = []
+        wcfg = self.get_wizard_config()
+
+        for name, wizard_def, wizard_cfg in wcfg:
+
+            cmd = Command(id='utic.commands.extensions.calibration_wizard.launch_%s' % name,
+                          description="Launch %s" % wizard_def.get('name'),
+                          handler=self.launch_wizard,
+                          )
+            result.append(cmd)
+        return result
+
+    def launch_wizard(self, ev):
+        params = ev.parameters
+        wizard_instances = self.wizard_instances
+        name = params.get('wizard_name')
+        wizard_def = params.get('wizard_def')
+
+        parent = ev.workbench.get_plugin('enaml.workbench.ui').workspace.content.area
+
+
+        if name in self.wizard_instances:
+            self.wizard_instances[name].show()
+        else:
+            wizard = WizardController(context=self.context)
+            if not wizard.initialize(wizard_def):
+                log.error("Error launching wizard: %s" % name)
+                return
+
+            with enaml.imports():
+                from .views.wizard_main import WizardView
+
+            def cleanup(*args):
+                wizard.wizview = None
+                wizard.current_state.stop()
+                wizard.current_state = None
+                wizard_instances.pop(name)
+
+            if wizard.current_state is not None:
+                wizard.current_state.start()
+
+            if wizard.wizview is None:
+                wizard.wizview = WizardView(parent=parent,
+                                            title="Calibrate: %s" % wizard_def.get('name'),
+                                            controller=wizard,
+                                            state=wizard.current_state)
+                wizard.wizview.observe("closed", cleanup)
+
+            wizard.show()
+
+            # start the watchdog timer for subprocess control
+            wizard.wizview.control.subprocess.timer.start()
+            wizard_instances[name] = wizard
+
+
+
+        print "launch wizard: ", name, ev.command, ev.workbench, params, ev.trigger

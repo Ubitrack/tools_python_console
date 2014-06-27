@@ -1,5 +1,7 @@
 __author__ = 'jack'
 
-from .base import Port, InPort, OutPort, ExtensionBase
-from .workspace import ExtensionWorkspace
+##  for backwards compatibility
+
+from utinteractiveconsole.extension import Port, InPort, OutPort, ExtensionBase
+from utinteractiveconsole.workspace import ExtensionWorkspace
 

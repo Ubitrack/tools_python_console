@@ -1,0 +1,14 @@
+from enaml.widgets.api import (
+    Window, Container, PushButton
+)
+
+
+enamldef UbiTrackControl(Window):
+    attr dataflow
+    Container:
+        PushButton:
+            text = 'Start Dataflow'
+            clicked :: dataflow.startDataflow()
+        PushButton:
+            text = 'Stop Dataflow'
+            clicked :: dataflow.stopDataflow()

@@ -1,0 +1,60 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, Page, Field, ComboBox, Form, Label, MultilineField
+)
+
+
+enamldef CalibrationStartPanel(Page): cpanel:
+    attr module
+    attr module_state
+    attr module_controller
+
+    title = module.get_name()
+    closable = False
+
+
+    Container:
+        constraints = [
+            vbox( content,
+                  hbox( form, ),
+            )
+        ]
+
+        Html: content:
+            source << """
+            <h1>Please provide information for this Calibration Procedure:</h1>
+            """
+
+
+        Form: form:
+            Label:
+                text = "Date/Time"
+            Field:
+                read_only = True
+                text << cpanel.module_controller.wizard_state.calibration_datetime
+
+            Label:
+                text = "Current Setup"
+            ComboBox:
+                items = ["OptiTrack + PHANToM Omni",
+                         "ART + PHANToM Premium",
+                         "Faro Arm + PHANToM Premium",
+                         "OptiTrack + PHANToM Omni (2nd-order)",
+                         "ART + PHANToM Premium (2nd-order)",
+                         "Faro Arm + PHANToM Premium (2nd-order)",
+                         ]
+                index := cpanel.module_controller.wizard_state.calibration_setup_idx
+
+            Label:
+                text = "Operator"
+            ComboBox:
+                items = ["Ulrich Eck",
+                         "Frieder Pankratz"]
+                index ::
+                    cpanel.module_controller.wizard_state.calibration_operator = self.items[self.index]
+
+            Label:
+                text = "Comments"
+            MultilineField:
+                text := cpanel.module_controller.wizard_state.calibration_comments
+

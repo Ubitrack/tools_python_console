@@ -1,0 +1,21 @@
+
+from enaml.widgets.api import (
+    Container, Html, Page
+)
+
+enamldef OptitrackCalibrationPanel(Page):
+    attr module
+    attr module_state
+    attr module_controller
+
+    title = module.get_name()
+    closable = False
+    Container:
+        Html: content:
+            source = """
+            <h1>External Tracker Workspace Calibration</h1>
+            <p>Please use the vendor supplied configuration tool to calibrate the tracking workspace</p>
+            """
+
+
+

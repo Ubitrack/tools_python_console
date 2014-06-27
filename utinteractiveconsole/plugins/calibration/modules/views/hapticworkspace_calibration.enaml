@@ -1,0 +1,34 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, Page, PushButton
+)
+
+enamldef HapticWorkspaceCalibrationPanel(Page):
+    attr module
+    attr module_state
+    attr module_controller
+
+    title = module.get_name()
+    closable = False
+    Container:
+        constraints = [
+            vbox( content,
+                  hbox( spacer, start_module, stop_module )
+            )
+        ]
+        Html: content:
+            source = """
+            <h1>Haptic Workspace Calibration</h1>
+            <p>Point and hold positions throughout the workspace and press space to capture a measurement.</p>
+            """
+
+        PushButton: start_module:
+            text = "Start Calibration"
+            clicked :: module_controller.startCalibration()
+
+        PushButton: stop_module:
+            text = "Stop Calibration"
+            clicked :: module_controller.stopCalibration()
+
+
+

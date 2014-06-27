@@ -1,7 +1,6 @@
 __author__ = 'jack'
 import abc
-from atom.api import Atom, Str, Dict
-from atom.catom import Member
+from atom.api import Atom, Str, Dict, Typed, Value
 
 from stevedore import extension
 import networkx as nx
@@ -81,15 +80,14 @@ class ModuleBase(object):
 
 
 class ModuleManager(Atom):
-    context = Member()
+    context = Value()
 
     modules_ns = Str('calibration_wizard.modules')
     config_ns = Str('calibration_wizard')
     modules = Dict()
 
-    # xxx why Member instead of Value ??
-    extension_manager = Member()
-    graph = Member()
+    extension_manager = Typed(extension.ExtensionManager)
+    graph = Typed(nx.DiGraph)
 
     def _default_extension_manager(self):
         return extension.ExtensionManager(
@@ -119,7 +117,7 @@ class ModuleManager(Atom):
         for key, module in self.modules.items():
             g.add_node(key, obj=module, category=module.get_category())
 
-        for key,module in self.modules.items():
+        for key, module in self.modules.items():
             for dep in module.get_dependencies():
                 g.add_edge(dep, key)
 

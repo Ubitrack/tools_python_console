@@ -1,0 +1,198 @@
+import enaml
+from enaml.layout.api import hbox, vbox, spacer
+from enaml.widgets.api import (
+    Window, Label, Container, Action, Menu, Notebook, PushButton, ScrollArea
+)
+from enaml.widgets.api import DockArea, DockItem, StatusBar, StatusItem, MultilineField
+from enaml.widgets.ipython_console import IPythonConsole
+
+from enaml.core.api import Looper
+from enaml.core.api import Include
+from enaml.styling import StyleSheet, Style, Setter
+from enaml.workbench.api import Extension, PluginManifest
+from enaml.workbench.ui.api import ActionItem, MenuItem
+from enaml.workbench.core.command import Command
+
+from enaml.layout.api import (
+    HSplitLayout, VSplitLayout, TabLayout, InsertItem, hbox, vbox, spacer
+)
+
+with enaml.imports():
+    from utinteractiveconsole.ui.views.subprocess_control import SubprocessControl
+
+def launch_wizard(event):
+    print "launch Wizard: ", event
+
+
+enamldef TaskItemStyleSheet(StyleSheet):
+    Style:
+        element = 'Field'
+        style_class = 'taskitem'
+        Setter:
+            field = 'background'
+            value = 'white'
+        Setter:
+            field = 'padding'
+            value = '0px'
+        Setter:
+            field = 'margins'
+            value = '0px'
+        Setter:
+            field = 'color'
+            value = 'black'
+    Style:
+        element = 'Field'
+        style_class = 'taskitem-done'
+        Setter:
+            field = 'background'
+            value = 'green'
+        Setter:
+            field = 'padding'
+            value = '0px'
+        Setter:
+            field = 'margins'
+            value = '0px'
+        Setter:
+            field = 'color'
+            value = 'white'
+
+
+enamldef WizardView(DockItem): wizard:
+    attr module_manager
+    attr controller
+    attr state
+
+    alias looper
+    alias content
+    alias control
+
+    TaskItemStyleSheet:
+        pass
+
+    Container:
+        constraints = [
+            hbox(
+                vbox(scroller, control),
+                content,
+            ),
+            scroller.width == 250,
+        ]
+        ScrollArea: scroller:
+            Container:
+                hug_width = "medium"
+                Looper: looper:
+                    iterable << wizard.state.task_list
+                    Container:
+                        hug_height = 'strong'
+                        padding = 0
+                        Label:
+                            text = main.state.module_manager.modules[loop_item].get_name()
+
+        Container: content:
+            constraints = [
+                vbox(
+                    module_content,
+                    hbox(spacer, skip_btn, ok_btn),
+                ),
+            ]
+            alias content_include
+
+            Notebook: module_content:
+                tab_style = 'document'
+                Include: content_include:
+                    objects << wizard.state.active_widgets
+
+            PushButton: ok_btn:
+                text << 'Ok' if len(state.task_list) > state.task_idx + 1 else "Finish"
+                clicked :: wizard.controller.on_ok(content)
+
+            PushButton: skip_btn:
+                text = 'Skip'
+                visible << bool(len(state.task_list) > state.task_idx + 1)
+                clicked :: wizard.controller.on_skip(content)
+
+        Container: control:
+            alias subprocess
+            SubprocessControl: subprocess:
+                facade := wizard.state.facade
+
+
+
+enamldef WizardDockArea(DockArea): dockarea:
+    attr appstate
+    attr utic_plugin
+
+    name = "calibration_wizard_dockarea"
+
+    layout = TabLayout(
+        'console',
+    )
+
+
+    DockItem:
+        name = 'console'
+        title = 'Console'
+        closable = True
+
+        Container: console:
+            alias ipy
+            constraints = [vbox(ipy, spacing=3)]
+
+            IPythonConsole: ipy:
+                initial_ns = dockarea.appstate.context
+
+
+enamldef WizardMain(Container): main:
+    attr appstate
+    attr utic_plugin
+
+    alias area
+
+    constraints = [vbox(area, spacing=0)]
+    WizardDockArea: area:
+        appstate := main.appstate
+        dock_event ::
+            print change
+
+
+
+enamldef WizardManifest(PluginManifest): plugin_manifest:
+    """ The manifest which is registered when the view is loaded.
+
+    This manifest contributes extra menu items to the menu bar.
+
+    """
+    attr appstate
+    attr utic_plugin
+
+    id = 'uticmain.calibration_wizard'
+    Extension: plugin_ext:
+        id = 'actions'
+        point = 'enaml.workbench.ui.actions'
+        MenuItem:
+            path = '/calibration'
+            label = 'Calibration'
+            after = 'file'
+            before = 'workspace'
+
+        ActionItem:
+            path = '/calibration/launch'
+            label = 'Launch'
+            command = 'utic.commands.extensions.calibration_wizard.launch'
+            #parameters = {'test': 'passed'}
+
+
+        Include:
+            objects << utic_plugin.generateWorkspaceActionItems(plugin_ext)
+
+    Extension:
+        id = 'load_dataflow_commands'
+        point = 'enaml.workbench.core.commands'
+        Command:
+            id = 'utic.commands.extensions.calibration_wizard.launch'
+            description = "Launch"
+            handler = launch_wizard
+
+        Include:
+            objects << utic_plugin.generateWorkspaceCommands(plugin_manifest)
+

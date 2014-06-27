@@ -1,12 +1,12 @@
 __author__ = 'jack'
 from atom.api import Subclass, Unicode, Typed
-
 from enaml.widgets.api import Container
 from enaml.workbench.api import PluginManifest
 from enaml.workbench.ui.api import Workspace
 
-from utinteractiveconsole.app import AppState
-from .base import ExtensionBase
+from .app import AppState
+from .extension import ExtensionBase
+
 
 
 class ExtensionWorkspace(Workspace):
@@ -39,8 +39,12 @@ class ExtensionWorkspace(Workspace):
         provided plugin with the workbench.
 
         """
-        self.content = self.content_def(appstate=self.appstate, utic_plugin=self.utic_plugin)
-        manifest = self.manifest_def(appstate=self.appstate, utic_plugin=self.utic_plugin)
+        self.content = self.content_def(appstate=self.appstate,
+                                        utic_plugin=self.utic_plugin)
+        manifest = self.manifest_def(appstate=self.appstate,
+                                     utic_plugin=self.utic_plugin)
+        # initialize to push dynamic includes to parents?
+        manifest.initialize()
         self._manifest_id = manifest.id
         self.workbench.register(manifest)
 
