@@ -1,0 +1,82 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, Page, PushButton
+)
+
+from enaml_opengl.widgets.opengl_widget import OpenGLWidget
+from enaml_opengl.widgets.opengl_widget import OpenGLWidget
+
+from enaml_opengl.renderer import MonoRenderer
+from enaml_opengl.camera import PinholeCamera
+from enaml_opengl.viewport import PerspectiveViewport
+
+from enaml_opengl.scenegraph_node import Scene3D
+
+from utinteractiveconsole.ui.background_texture import BackgroundTexture
+from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
+
+
+
+
+
+enamldef CameraIntrinsicsCalibrationPanel(Page):
+    attr module
+    attr module_state
+    attr module_controller
+
+    alias glview
+
+    title = module.get_name()
+    closable = False
+    Container:
+        constraints = [
+            vbox( content,
+                  glview,
+                  hbox( spacer, capture_image, start_module, stop_module )
+            )
+        ]
+
+        Html: content:
+            source = """
+            <h1>Camera Intrinsics</h1>
+            <p>Please use a calibration checkerboard to capture images from different viewpoints to
+               calibrate the camera intrinsics.</p>
+            """
+
+
+
+        Scene3D: scene:
+            name = "scene"
+
+            BackgroundTexture:
+                name = "bgtexture"
+
+        PinholeCamera: camera:
+            viewport = PerspectiveViewport()
+
+
+        MonoRenderer: renderer:
+            camera = camera
+            scene << scene
+
+
+        Container:
+            OpenGLWidget: glview:
+                minimum_size = (800, 600)
+                renderer = renderer
+
+
+        PushButton: capture_image:
+            text = "Capture Image"
+            clicked :: module_controller.captureImage()
+
+        PushButton: start_module:
+            text = "Start Calibration"
+            clicked :: module_controller.startCalibration()
+
+        PushButton: stop_module:
+            text = "Stop Calibration"
+            clicked :: module_controller.stopCalibration()
+
+
+

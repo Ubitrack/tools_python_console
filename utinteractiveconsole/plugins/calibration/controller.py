@@ -3,13 +3,11 @@ __author__ = 'jack'
 import os, sys
 import glob
 import shutil
-from atom.api import Atom, Value, Str, Range, Bool, observe, Typed, ForwardTyped, List, ContainerList, Tuple, Dict
+from atom.api import Atom, Value, Str, Typed, Dict
 
-from ubitrack.facade import facade
 import logging
 
-from utinteractiveconsole.subprocess import SubProcessManager
-from utinteractiveconsole.uthelpers import UbitrackSubProcessFacade
+from utinteractiveconsole.uthelpers import UbitrackFacadeBase
 
 log = logging.getLogger(__name__)
 
@@ -24,31 +22,34 @@ class CalibrationController(Atom):
 
     context = Value()
     widget = Value()
-    # XXX should allow both internal UbitrackFacade and UbitrackSubProcessFacade
-    facade = Typed(UbitrackSubProcessFacade)
+    facade = Typed(UbitrackFacadeBase)
     state = Value()
     wizard_state = Value()
 
-    config = Value()
+    config = Dict()
 
     data_dir = Str()
     dfg_filename = Str()
 
     def _default_config(self):
         cfg = self.context.get("config")
-        if cfg.has_section(self.config_ns):
-            return dict(cfg.items(self.config_ns))
+        sname = "%s.%s" % (self.config_ns, self.module_name)
+        if cfg.has_section(sname):
+            return dict(cfg.items(sname))
         else:
-            log.error("Missing section: [%s] in config" % self.config_ns)
+            log.error("Missing section: [%s] in config" % sname)
             return dict()
 
     def _default_data_dir(self):
-        return os.path.expanduser(self.config.get("datadir"))
+        return os.path.expanduser(self.wizard_state.config.get("datadir"))
 
     def _default_dfg_filename(self):
         if "dfg_filename" in self.config:
             return os.path.expanduser(self.config["dfg_filename"])
         return ""
+
+    def setupContoller(self):
+        pass
 
     def startCalibration(self):
         self.facade.loadDataflow(self.dfg_filename)

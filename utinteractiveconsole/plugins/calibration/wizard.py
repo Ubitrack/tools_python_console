@@ -16,7 +16,7 @@ from enaml.layout.api import InsertItem
 
 from utinteractiveconsole.extension import ExtensionBase
 from utinteractiveconsole.workspace import ExtensionWorkspace
-from utinteractiveconsole.uthelpers import UbitrackSubProcessFacade
+from utinteractiveconsole.uthelpers import UbitrackSubProcessFacade, UbitrackFacade, UbitrackFacadeBase
 from .module import ModuleManager
 
 
@@ -105,12 +105,34 @@ class WizardState(Atom):
     calibration_datetime = Str()
     calibration_dataok = Bool(False)
 
-    facade = Typed(UbitrackSubProcessFacade)
+    config = Dict()
+    facade = Typed(UbitrackFacadeBase)
+
+    def _default_config(self):
+        cfg = self.context.get("config")
+        if cfg.has_section(self.module_manager.config_ns):
+            return dict(cfg.items(self.module_manager.config_ns))
+        else:
+            log.error("Missing section: [%s] in config" % self.module_manager.config_ns)
+            return dict()
+
+    @property
+    def facade_handler_type(self):
+        return self.config.get("facade_handler", "subprocess")
 
     def _default_facade(self):
-        facade = UbitrackSubProcessFacade(context=self.context,
-                                          config_ns=self.module_manager.config_ns,
-                                          )
+        fht = self.facade_handler_type
+        facade = None
+        if fht == "subprocess":
+            facade = UbitrackSubProcessFacade(context=self.context,
+                                              config_ns=self.module_manager.config_ns,
+                                              )
+        elif fht == "inprocess":
+            facade = UbitrackFacade(context=self.context,
+                                              config_ns=self.module_manager.config_ns,
+                                              )
+        else:
+            log.error("Invalid facade_handler configured in section: %s" % self.module_manager.config_ns)
         return facade
 
     def _default_calibration_datetime(self):
@@ -141,6 +163,8 @@ class WizardState(Atom):
                                                           wizard_state=self,
                                                           state=self.tasks[self.task_idx],
                                                           config_ns=self.module_manager.config_ns)
+        ctrl.setupController()
+
         if self.facade is not None and ctrl.dfg_filename:
             fname = os.path.join(self.facade.dfg_basedir, ctrl.dfg_filename)
             if os.path.isfile(fname):

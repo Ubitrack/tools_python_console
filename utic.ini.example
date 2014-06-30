@@ -15,29 +15,30 @@ wizards: default_camera,default_workspace
 name: Default Camera
 module_namespace: vharcalibration.default_camera.module
 config_namespace: vc.default_camera
+facade_handler: inprocess
 
 [calibration_wizard.default_workspace]
 name: Default Workspace
 module_namespace: vharcalibration.default_workspace.module
 config_namespace: vc.default_workspace
 
+
 [vc.default_camera]
 rootdir: %(home_directory)s/vharcalibration
 datadir: %(rootdir)s/data/default_camera/%(setup_name)s/%(user_name)s
-calibdir: %(rootdir)s/config/calib/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
-srgdir: %(rootdir)s/config/srgs/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+calibdir: %(rootdir)s/calib/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/
+srgdir: %(rootdir)s/srgs/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
 resultsdir: %(rootdir)s/results/default_camera/%(setup_name)s/%(user_name)s
 
 [vc.default_workspace]
 rootdir: %(home_directory)s/vharcalibration
 datadir: %(rootdir)s/data/default_workspace/%(setup_name)s/%(user_name)s
-calibdir: %(rootdir)s/config/calib/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
-srgdir: %(rootdir)s/config/srgs/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+calibdir: %(rootdir)s/calib/default_workspace/%(domain_name)s/%(setup_name)s/%(user_name)s/
+srgdir: %(rootdir)s/srgs/default_workspace/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
 resultsdir: %(rootdir)s/results/default_camera/%(setup_name)s/%(user_name)s
 
 
-# old stuff below
-
+# default_workspace configuration
 [vc.default_workspace.modules.calibration_start]
 enabled: True
 
@@ -51,19 +52,19 @@ enabled: True
 enabled: True
 dfg_filename: calibration_tooltip.dfg
 calib_files: tooltip_calibration.calib
-recorddir: record\01_tooltip
+recorddir: record/01_tooltip
 
 [vc.default_workspace.modules.absolute_orientation_init_calibration]
 enabled: True
 dfg_filename: calibration_absolute_orientation_init.dfg
 calib_files: absolut_orientation_calibration.calib
-recorddir: record\02_absolute_orienation_init
+recorddir: record/02_absolute_orienation_init
 
 [vc.default_workspace.modules.absolute_orientation_calibration]
 enabled: True
 dfg_filename: calibration_absolute_orientation.dfg
 calib_files: absolut_orientation_calibration.calib
-recorddir: record\04_absolute_orientation
+recorddir: record/04_absolute_orientation
 
 [vc.default_workspace.modules.timedelay_estimation_calibration]
 enabled: True
@@ -73,25 +74,25 @@ dfg_filename: calibration_timedelay.dfg
 enabled: True
 dfg_filename: calibration_haptic_workspace.dfg
 calib_files: phantom_angle_correction.calib
-recorddir: record\03_haptic_workspace_position
+recorddir: record/03_haptic_workspace_position
 
 [vc.default_workspace.modules.hapticworkspace_calibration]
 enabled: True
 dfg_filename: calibration_haptic_workspace.dfg
 calib_files: phantom_angle_correction.calib
-recorddir: record\03_haptic_workspace_position
+recorddir: record/03_haptic_workspace_position
 
 [vc.default_workspace.modules.hapticgimbal_init_calibration]
 enabled: True
 dfg_filename: calibration_hapticgimbal_initialization.dfg
 calib_files: zref_axis.calib
-recorddir: record\05_haptic_workspace_initialize_orientation
+recorddir: record/05_haptic_workspace_initialize_orientation
 
 [vc.default_workspace.modules.hapticgimbal_calibration]
 enabled: True
 dfg_filename: calibration_hapticgimbal_workspace.dfg
 calib_files: phantom_angle_correction_5dof.calib
-recorddir: record\05_haptic_workspace_orientation
+recorddir: record/05_haptic_workspace_orientation
 
 [vc.default_workspace.modules.calibration_result]
 enabled: True
@@ -99,18 +100,21 @@ dfg_filename: vhar_calibration_verification.dfg
 report_filename: calibration_report.yaml
 
 
-[vc.default_workspace.devices.phantom]
+[calibration_wizard.devices.phantom_omni]
 joint_length1: 0.13335
 joint_length2: 0.13335
 
-[vc.default_workspace.vharvisualizer]
+
+# not yet adapted
+
+[vc.default_workspace.verification]
 dfgfile: vhar_calibration_host_flea2.dfg
 #dfgfile: vhar_visualizer_flea2_v1.dfg
 camera_width: 1024
 camera_height: 768
 
 [haptic_gimbal_calibration]
-rootdir: H:\develop\haptic_gimbal_calibration
+rootdir: H:/develop/haptic_gimbal_calibration
 calibdir: calibration
 recorddir: record
 testdatadir: test_data

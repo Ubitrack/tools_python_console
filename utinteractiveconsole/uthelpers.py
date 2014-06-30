@@ -365,7 +365,7 @@ class UbitrackFacade(UbitrackFacadeBase):
 
 
     def _default_instance(self):
-        log.info("Create UbiTrack facade")
+        log.info("Create InProcess UbiTrack facade")
         return facade.AdvancedFacade(self.components_path)
 
 
@@ -387,6 +387,6 @@ class UbitrackSubProcessFacade(UbitrackFacadeBase):
         return self.instance.is_alive()
 
     def _default_instance(self):
-        log.info("Create UbiTrack SubProcess facade")
+        log.info("Create SubProcess UbiTrack facade")
         return SubProcessManager("calibration_wizard_slave", components_path=self.components_path)
 

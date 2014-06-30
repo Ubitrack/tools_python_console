@@ -4,6 +4,15 @@ import ConfigParser
 from optparse import OptionParser
 import logging
 
+# hack to register the opengl widget factory
+from enaml.qt import qt_factories
+def create_openglwidget():
+    from enaml_opengl.qt.qt_opengl_widget import QtOpenGLWidget
+    return QtOpenGLWidget
+
+qt_factories.QT_FACTORIES['OpenGLWidget'] = create_openglwidget
+# end hack
+
 import enaml
 from enaml.workbench.ui.api import UIWorkbench
 

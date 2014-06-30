@@ -44,6 +44,9 @@ This module controls my garden""",
                 'load_dataflow = utinteractiveconsole.plugins.load_dataflow:LoadDataflow',
                 'calibration_wizard = utinteractiveconsole.plugins.calibration.wizard:CalibrationWizard',
             ],
+            'vharcalibration.default_camera.module': [
+                'calibration_start = utinteractiveconsole.plugins.calibration.modules.camera_intrinsics:CameraIntrinsicsCalibrationModule',
+            ],
             'vharcalibration.default_workspace.module': [
                 'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
                 'externaltracker_calibration = utinteractiveconsole.plugins.calibration.modules.externaltracker_calibration:ExternalTrackerCalibrationModule',
