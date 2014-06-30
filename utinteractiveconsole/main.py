@@ -68,6 +68,7 @@ def main():
 
     config = ConfigParser.ConfigParser()
     try:
+        log.info("Loading config files: %s" % (",".join(cfgfiles)))
         config.read(cfgfiles)
         appstate.context['config'] = config
     except Exception, e:

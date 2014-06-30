@@ -172,23 +172,12 @@ enamldef WizardManifest(PluginManifest): plugin_manifest:
             after = 'file'
             before = 'workspace'
 
-        ActionItem:
-            path = '/calibration/launch'
-            label = 'Launch'
-            command = 'utic.commands.extensions.calibration_wizard.launch'
-            #parameters = {'test': 'passed'}
-
-
         Include:
             objects << utic_plugin.generateWorkspaceActionItems(plugin_ext)
 
     Extension:
         id = 'load_dataflow_commands'
         point = 'enaml.workbench.core.commands'
-        Command:
-            id = 'utic.commands.extensions.calibration_wizard.launch'
-            description = "Launch"
-            handler = launch_wizard
 
         Include:
             objects << utic_plugin.generateWorkspaceCommands(plugin_manifest)

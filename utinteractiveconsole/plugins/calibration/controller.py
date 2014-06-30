@@ -24,6 +24,7 @@ class CalibrationController(Atom):
 
     context = Value()
     widget = Value()
+    # XXX should allow both internal UbitrackFacade and UbitrackSubProcessFacade
     facade = Typed(UbitrackSubProcessFacade)
     state = Value()
     wizard_state = Value()
