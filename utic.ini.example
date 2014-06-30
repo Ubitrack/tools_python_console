@@ -1,7 +1,7 @@
 [DEFAULT]
-domain_name: unisa.edu.au
-setup_name: magicvisionlab
-user_name: mvl
+domain_name: net-labs.de
+setup_name: semaphore
+user_name: jack
 platform_name: linux
 home_directory: ~/mvldata
 
@@ -15,7 +15,6 @@ wizards: default_camera,default_workspace
 name: Default Camera
 module_namespace: vharcalibration.default_camera.module
 config_namespace: vc.default_camera
-facade_handler: inprocess
 
 [calibration_wizard.default_workspace]
 name: Default Workspace
@@ -24,6 +23,7 @@ config_namespace: vc.default_workspace
 
 
 [vc.default_camera]
+facade_handler: inprocess
 rootdir: %(home_directory)s/vharcalibration
 datadir: %(rootdir)s/data/default_camera/%(setup_name)s/%(user_name)s
 calibdir: %(rootdir)s/calib/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/
@@ -37,6 +37,14 @@ calibdir: %(rootdir)s/calib/default_workspace/%(domain_name)s/%(setup_name)s/%(u
 srgdir: %(rootdir)s/srgs/default_workspace/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
 resultsdir: %(rootdir)s/results/default_camera/%(setup_name)s/%(user_name)s
 
+# default_camera configuration
+[vc.default_camera.modules.camera_intrinsics]
+enabled: True
+dfg_filename: camera_intrinsics.dfg
+
+[vc.default_camera.modules.camera_handeye]
+enabled: True
+dfg_filename: camera_handeye.dfg
 
 # default_workspace configuration
 [vc.default_workspace.modules.calibration_start]
