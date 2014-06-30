@@ -359,6 +359,11 @@ class UbitrackFacadeBase(Atom):
         self.instance.killEverything()
         self.instance = self._default_instance()
 
+    def get_messages(self, timeout=0):
+        return []
+
+    def is_alive(self):
+        return True
 
 
 class UbitrackFacade(UbitrackFacadeBase):

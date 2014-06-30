@@ -67,6 +67,8 @@ enamldef WizardView(DockItem): wizard:
         pass
 
     Container:
+        padding = (0, 0, 0, 0)
+        minimum_size = (800, 600)
         constraints = [
             hbox(
                 vbox(scroller, control),

@@ -19,13 +19,12 @@ from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
 
 
 
-enamldef CameraIntrinsicsCalibrationPanel(Page):
+enamldef CameraHandEyeCalibrationPanel(Page):
     attr module
     attr module_state
     attr module_controller
 
     alias glview
-    alias bgtexture
 
     title = module.get_name()
     closable = False
@@ -33,7 +32,7 @@ enamldef CameraIntrinsicsCalibrationPanel(Page):
     Scene3D: scene:
         name = "scene"
 
-        BackgroundTexture: bgtexture:
+        BackgroundTexture:
             name = "bgtexture"
 
     PinholeCamera: camera:
@@ -49,15 +48,16 @@ enamldef CameraIntrinsicsCalibrationPanel(Page):
         constraints = [
             vbox( content,
                   glview,
-                  hbox( spacer, capture_image, start_module, stop_module )
+                  hbox( spacer, capture_pose, start_module, stop_module )
             )
         ]
 
         Html: content:
             source = """
-            <h1>Camera Intrinsics</h1>
-            <p>Please use a calibration checkerboard to capture images from different viewpoints to
-               calibrate the camera intrinsics.</p>
+            <h1>Camera HandEye</h1>
+            <p>Please use a fiducial marker and attach a tracking target to the camera.
+               then capture poses from different viewpoints to
+               calibrate the target to camera transform.</p>
             """
 
         OpenGLWidget: glview:
@@ -65,10 +65,9 @@ enamldef CameraIntrinsicsCalibrationPanel(Page):
             renderer = renderer
 
 
-        PushButton: capture_image:
-            text = "Capture Image"
-            clicked :: module_controller.captureImage()
-            enabled := module_controller.is_ready
+        PushButton: capture_pose:
+            text = "Capture Pose"
+            clicked :: module_controller.capturePose()
 
         PushButton: start_module:
             text = "Start Calibration"

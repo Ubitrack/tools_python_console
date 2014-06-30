@@ -148,23 +148,34 @@ class WizardState(Atom):
 
 
     def _default_tasks(self):
+        if len(self.task_list) == 0:
+            return []
         return [TaskStatus(name=n) for n in self.task_list]
 
     def _default_current_task(self):
+        if len(self.task_list) == 0:
+            log.error("Invalid wizard configuration: no modules enabled")
+            return ''
         return self.task_list[self.task_idx]
 
     def _default_current_module(self):
-       return self.module_manager.modules[self.current_task]
+        if not self.current_task:
+            return None
+        return self.module_manager.modules[self.current_task]
 
     def _default_active_widgets(self):
+        if self.current_module is None:
+            return []
         widget_cls = self.current_module.get_widget_class()
         ctrl = self.current_module.get_controller_class()(context=self.context,
                                                           facade=self.facade,
                                                           wizard_state=self,
                                                           state=self.tasks[self.task_idx],
+                                                          module_name=self.current_module.module_name,
                                                           config_ns=self.module_manager.config_ns)
-        ctrl.setupController()
 
+
+        # XXX this is duplicated code - check with calibration controller and see where it belongs ..
         if self.facade is not None and ctrl.dfg_filename:
             fname = os.path.join(self.facade.dfg_basedir, ctrl.dfg_filename)
             if os.path.isfile(fname):
@@ -173,10 +184,13 @@ class WizardState(Atom):
                 log.error("Invalid file specified for module: %s" % fname)
 
         # eventually cache the module widgets and/or controllers ?
-        return [widget_cls(module=self.current_module,
-                           module_state=self.tasks[self.task_idx],
-                           module_controller=ctrl,),
-                ]
+        aw = [widget_cls(module=self.current_module,
+                         module_state=self.tasks[self.task_idx],
+                         module_controller=ctrl,),
+              ]
+
+        ctrl.setupController(active_widgets=aw)
+        return aw
 
     @observe("calibration_setup_idx")
     def _handle_calibration_setup_idx_change(self, change):
@@ -208,6 +222,7 @@ class WizardState(Atom):
                                               module_state=self.tasks[self.task_idx],
                                               module_controller=ctrl,),
                                    ]
+            ctrl.setupController(active_widgets=self.active_widgets)
 
 
 
@@ -290,7 +305,7 @@ class WizardController(Atom):
                 state.task_idx += 1
             else:
                 state.completed = True
-                self.wizview.close()
+                self.wizview.destroy()
                 return
 
             log.info("Start task: %s" % state.task_list[state.task_idx])
@@ -426,6 +441,7 @@ class CalibrationWizard(ExtensionBase):
             result.append(cmd)
         return result
 
+    # XXX should be split into event-handler and launch_wizard method
     def launch_wizard(self, ev):
         params = ev.parameters
         wizard_instances = self.wizard_instances
@@ -438,6 +454,7 @@ class CalibrationWizard(ExtensionBase):
             wizard = self.wizard_instances[name]
             wizard.show()
             # add to layout
+            # XXX maybe better to use workspace.find("content") or simlar
             parent = ev.workbench.get_plugin('enaml.workbench.ui').workspace.content.area
             op = InsertItem(item=name,)
             parent.update_layout(op)
@@ -455,13 +472,16 @@ class CalibrationWizard(ExtensionBase):
 
             def cleanup(*args):
                 log.info("cleanup for wizard: %s" % name)
-                wizard.wizview.unobserve("closed", cleanup)
+                if wizard.wizview is not None:
+                    wizard.wizview.unobserve("closed", cleanup)
                 wizard.wizview = None
 
-                wizard.current_state.stop()
+                if wizard.current_state is not None:
+                    wizard.current_state.stop()
                 wizard.current_state = None
 
-                wizard_instances.pop(name)
+                if name in wizard_instances:
+                    wizard_instances.pop(name)
                 workspace.unobserve("stopped", cleanup)
 
             if wizard.current_state is not None:

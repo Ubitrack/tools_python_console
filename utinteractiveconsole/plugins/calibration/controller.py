@@ -7,7 +7,7 @@ from atom.api import Atom, Value, Str, Typed, Dict
 
 import logging
 
-from utinteractiveconsole.uthelpers import UbitrackFacadeBase
+from utinteractiveconsole.uthelpers import UbitrackFacadeBase, UbitrackConnectorBase, ubitrack_connector_class
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class CalibrationController(Atom):
 
     def _default_config(self):
         cfg = self.context.get("config")
-        sname = "%s.%s" % (self.config_ns, self.module_name)
+        sname = "%s.modules.%s" % (self.config_ns, self.module_name)
         if cfg.has_section(sname):
             return dict(cfg.items(sname))
         else:
@@ -45,10 +45,16 @@ class CalibrationController(Atom):
 
     def _default_dfg_filename(self):
         if "dfg_filename" in self.config:
-            return os.path.expanduser(self.config["dfg_filename"])
+            fname = os.path.expanduser(self.config["dfg_filename"])
+            if os.path.isfile(fname):
+                return fname
+            if "srgdir" in self.wizard_state.config:
+                fname = os.path.join( os.path.expanduser(self.wizard_state.config["srgdir"]), self.config["dfg_filename"])
+                if os.path.isfile(fname):
+                    return fname
         return ""
 
-    def setupContoller(self):
+    def setupContoller(self, active_widgets=None):
         pass
 
     def startCalibration(self):
@@ -62,6 +68,7 @@ class CalibrationController(Atom):
     def saveResults(self, root_dir, extra_files=None):
         calib_files = self.getCalibrationFiles()
         if calib_files:
+            # XXX use config->calibdir here !!!
             calib_path = os.path.join(root_dir, "calibration")
             if not os.path.isdir(calib_path):
                 os.makedirs(calib_path)
@@ -102,3 +109,15 @@ class CalibrationController(Atom):
         if "recorddir" in self.config:
             return glob.glob(os.path.join(self.data_dir, self.config["recorddir"], "*"))
         return []
+
+
+class LiveCalibrationController(CalibrationController):
+    connector = Typed(UbitrackConnectorBase)
+    sync_source = Str()
+
+    def _default_connector(self):
+        if self.dfg_filename:
+            utconnector = ubitrack_connector_class(self.dfg_filename)(sync_source=self.sync_source)
+            return utconnector
+        return None
+

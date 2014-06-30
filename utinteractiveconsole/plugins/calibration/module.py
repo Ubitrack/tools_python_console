@@ -30,10 +30,14 @@ class ModuleBase(object):
 
     def is_enabled(self):
         cfg = self.context.get("config")
+        if self.module_name is None:
+            log.error("Module name must be set before usage")
         sname = "%s.modules.%s" % (self.parent.config_ns, self.module_name)
+        enabled = False
         if cfg.has_section(sname):
-            return cfg.getboolean(sname, "enabled")
-        return False
+            enabled = cfg.getboolean(sname, "enabled")
+        log.info("CalibrationWizard module: %s is %s" % (self.module_name, "enabled" if enabled else "disabled"))
+        return enabled
 
 
     @abc.abstractmethod
@@ -97,20 +101,21 @@ class ModuleManager(Atom):
             invoke_args=(self, self.context, ),
         )
 
-    def is_module_enabled(self, name):
-        cfg = self.context.get("config")
-        sname = "%s.modules.%s" % (self.config_ns, name)
-        if cfg.has_section(sname):
-            return cfg.getboolean(sname, "enabled")
-        return False
+    # def is_module_enabled(self, name):
+    #     cfg = self.context.get("config")
+    #     sname = "%s.modules.%s" % (self.config_ns, name)
+    #     if cfg.has_section(sname):
+    #         return cfg.getboolean(sname, "enabled")
+    #     return False
 
     def _default_modules(self):
         modules = dict()
         for ext in self.extension_manager:
-            # if not self.is_module_enabled(ext.name):
+            mod = ext.obj
+            mod.set_module_name(ext.name)
+            # if not mod.is_enabled():
             #     continue
-            ext.obj.set_module_name(ext.name)
-            modules[ext.name] = ext.obj
+            modules[ext.name] = mod
         return modules
 
     def _default_graph(self):
