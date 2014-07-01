@@ -20,6 +20,15 @@ from enaml.layout.api import (
 with enaml.imports():
     from utinteractiveconsole.ui.views.subprocess_control import SubprocessControl
 
+def toggle_console(event):
+    """ The command handler for toggling the console.
+
+    """
+    ui = event.workbench.get_plugin('enaml.workbench.ui')
+    console_dockitem = ui.workspace.content.find('console')
+    console_dockitem.visible = event.trigger.checked
+
+
 
 enamldef TaskItemStyleSheet(StyleSheet):
     Style:
@@ -96,8 +105,8 @@ enamldef WizardView(DockItem): wizard:
             ]
             alias content_include
 
-            Notebook: module_content:
-                tab_style = 'document'
+            Container: module_content:
+                padding = (0, 0, 0, 0)
                 Include: content_include:
                     objects << wizard.state.active_widgets
 
@@ -131,7 +140,8 @@ enamldef WizardDockArea(DockArea): dockarea:
     DockItem:
         name = 'console'
         title = 'Console'
-        closable = True
+        closable = False
+        visible = False
 
         Container: console:
             alias ipy
@@ -147,11 +157,10 @@ enamldef WizardMain(Container): main:
 
     alias area
 
+    padding = (0, 0, 0, 0)
     constraints = [vbox(area, spacing=0)]
     WizardDockArea: area:
         appstate := main.appstate
-        dock_event ::
-            print "DockEvent: ", change
 
 
 
@@ -172,7 +181,20 @@ enamldef WizardManifest(PluginManifest): plugin_manifest:
             path = '/calibration'
             label = 'Calibration'
             after = 'file'
+            before = 'view'
+
+        MenuItem:
+            path = '/view'
+            label = 'View'
+            after = 'calibration'
             before = 'workspace'
+
+        ActionItem:
+            path = '/view/console'
+            label = 'IPython Console'
+            checkable = True
+            checked = True
+            command = 'utic.commands.extensions.calibration_wizard.toggle_console'
 
         Include:
             objects << utic_plugin.generateWorkspaceActionItems(plugin_ext)
@@ -180,6 +202,11 @@ enamldef WizardManifest(PluginManifest): plugin_manifest:
     Extension:
         id = 'load_dataflow_commands'
         point = 'enaml.workbench.core.commands'
+
+        Command:
+            id = 'utic.commands.extensions.calibration_wizard.toggle_console'
+            description = "Console"
+            handler = toggle_console
 
         Include:
             objects << utic_plugin.generateWorkspaceCommands(plugin_manifest)

@@ -199,9 +199,16 @@ class WizardState(Atom):
     @observe("task_idx")
     def _handle_idx_change(self, change):
         if change["type"] == "update" and change["name"] == "task_idx":
+            # teardown the existing controller
+            for w in self.active_widgets:
+                if w.module_controller is not None:
+                    w.module_controller.teardownController(active_widgets=self.active_widgets)
+
+            # switch to selected task
             self.current_task = self.task_list[self.task_idx]
             self.current_module = self.module_manager.modules[self.current_task]
 
+            # create controller and widgets for current task
             widget_cls = self.current_module.get_widget_class()
             ctrl = self.current_module.get_controller_class()(module_name=self.current_module.get_module_name(),
                                                               context=self.context,

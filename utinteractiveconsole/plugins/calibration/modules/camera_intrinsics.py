@@ -9,40 +9,59 @@ from atom.api import Bool, Value
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import LiveCalibrationController
 
+import logging
+log = logging.getLogger(__name__)
+
 class CameraIntrinsicsCalibrationController(LiveCalibrationController):
 
     is_ready = Bool(False)
 
     bgtexture = Value()
+    results_txt = Value()
 
     def setupController(self, active_widgets=None):
 
         if active_widgets is not None:
-            self.bgtexture = active_widgets[0].bgtexture
+            self.bgtexture = active_widgets[0].find('bgtexture')
+            self.results_txt = active_widgets[0].find('results_txt')
 
         # needs to match the SRG !!
-        self.sync_source = "debug_image"
+        self.sync_source = "corner_image"
 
         if self.facade is not None:
             self.facade.observe("is_loaded", self.connector_setup)
 
+    def teardownController(self, active_widgets=None):
+        if self.connector is not None:
+            self.connector.unobserve("corner_image", self.handle_data)
+        if self.facade is not None:
+            self.facade.unobserve("is_loaded", self.connector_setup)
+
 
     def connector_setup(self, change):
-
-        def store_image(c):
-            self.bgtexture.image_in(c['value'])
-
         if change['value'] == True:
             self.connector.setup(self.facade.instance)
-            self.connector.observe("debug_image", store_image)
+            self.connector.observe("corner_image", self.handle_data)
             self.is_ready = True
+
+    def handle_data(self, c):
+        self.bgtexture.image_in(c['value'])
+        results = []
+        if self.connector.camera_intrinsics is not None:
+            results.append(self.connector.camera_intrinsics)
+        if self.connector.camera_distortion is not None:
+            results.append(self.connector.camera_distortion)
+
+        if results:
+            self.results_txt.text = "Results:\n%s" % "\n\n".join([str(i) for i in results])
+
 
 
     def captureImage(self):
         if self.connector is not None:
             # use space a default trigger
-            print "trigger"
-            self.connector.trigger(" ")
+            log.info("Capture Image")
+            self.connector.capture_image(" ")
 
 
 class CameraIntrinsicsCalibrationModule(ModuleBase):

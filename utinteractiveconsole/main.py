@@ -33,8 +33,8 @@ def main():
                   action="store", dest="logconfig", default="/etc/mvl/log4cpp.conf",
                   help="log4cpp config file")
 
-    parser.add_option("-L", "--skip-logwindow",
-                  action="store_false", dest="show_logwindow", default=True,
+    parser.add_option("-L", "--show-logwindow",
+                  action="store_true", dest="show_logwindow", default=False,
                   help="Show logging window in gui")
 
     parser.add_option("-C", "--configfile",
@@ -49,7 +49,7 @@ def main():
     extensions = ExtensionManager(appstate=appstate)
 
     extensions.updateCmdlineParser(parser)
-    appstate.extensions=extensions
+    appstate.extensions = extensions
     appstate.context['extensions'] = extensions
 
     (options, args) = parser.parse_args()

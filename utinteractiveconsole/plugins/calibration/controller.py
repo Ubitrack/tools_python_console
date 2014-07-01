@@ -57,6 +57,9 @@ class CalibrationController(Atom):
     def setupContoller(self, active_widgets=None):
         pass
 
+    def teardownController(self, active_widgets=None):
+        pass
+
     def startCalibration(self):
         self.facade.loadDataflow(self.dfg_filename)
         self.facade.startDataflow()
@@ -116,7 +119,7 @@ class LiveCalibrationController(CalibrationController):
     sync_source = Str()
 
     def _default_connector(self):
-        if self.dfg_filename:
+        if self.dfg_filename and self.sync_source:
             utconnector = ubitrack_connector_class(self.dfg_filename)(sync_source=self.sync_source)
             return utconnector
         return None

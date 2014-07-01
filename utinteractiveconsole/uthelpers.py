@@ -97,7 +97,8 @@ class PullSinkAdapter(QtCore.QObject):
             raise NoValueException
 
 
-class PushSourceAdapter(QtCore.QObject):
+
+class SourceAdapterBase(QtCore.QObject):
 
     converters = {
         (str, "Button"): lambda ts, v: measurement.Button(ts, math.ScalarInt(ord(v))),
@@ -107,9 +108,13 @@ class PushSourceAdapter(QtCore.QObject):
 
 
     def __init__(self, source, datatype):
-        super(PushSourceAdapter, self).__init__()
+        super(SourceAdapterBase, self).__init__()
         self.source = source
         self.datatype = datatype
+
+
+
+class PushSourceAdapter(SourceAdapterBase):
 
     def send(self, v):
         ts = measurement.now()
@@ -120,6 +125,47 @@ class PushSourceAdapter(QtCore.QObject):
             self.source.send(m)
         else:
             log.warn("No converter found for datatype: %s" % self.datatype)
+
+
+class PullSourceAdapter(SourceAdapterBase):
+
+    def __init__(self, source, datatype):
+        super(SourceAdapterBase, self).__init__(source, datatype)
+        self._time = None
+        self._value = None
+
+    def cb_handler(self, ts):
+        if self._value is None:
+            raise NoValueException("Value for: %s has not been set yet." % self.datatype)
+        vtyp = type(self._value)
+        ckey = (vtyp, self.datatype)
+        # XXX self._time vs ts .. what is correct behaviour ?
+        # do we need to be able to configure this ?
+        if ckey in self.converters:
+            m = self.converters[ckey](ts, self._value)
+            return m
+        else:
+            log.warn("No converter found for datatype: %s" % self.datatype)
+
+    def connect(self, handler=None):
+        handler = handler if handler is not None else self.cb_handler
+        self.source.setCallback(handler)
+
+    def disconnect(self, handler=None):
+        self.sink.setCallback(None)
+
+    def send(self, value):
+        self._time = measurement.now()
+        self._value = value
+
+    @property
+    def value(self):
+        return self._value
+
+    @property
+    def time(self):
+        return self._time
+
 
 
 class UbitrackConnectorBase(Atom):
@@ -159,6 +205,17 @@ class UbitrackConnectorBase(Atom):
                     if hasattr(facade, accessor_name):
                         accessor = getattr(facade, accessor_name)(pi.name)
                         adapters[pi.name] = PushSourceAdapter(accessor, pi.data_type)
+                        self.observe(pi.name, self.handleSourceData)
+                    else:
+                        log.warn("Missing accessor %s from facade, cannot connect PushSource %s" % (accessor_name, pi.name))
+
+                elif pi.mode == PORT_MODE_PULL:
+                    accessor_name = "getApplicationPullSource%s" % pi.data_type
+                    if hasattr(facade, accessor_name):
+                        accessor = getattr(facade, accessor_name)(pi.name)
+                        adapters[pi.name] = PullSourceAdapter(accessor, pi.data_type)
+                        # use default pull implementation for now.
+                        adapters[pi.name].connect()
                         self.observe(pi.name, self.handleSourceData)
                     else:
                         log.warn("Missing accessor %s from facade, cannot connect PushSource %s" % (accessor_name, pi.name))
@@ -276,6 +333,9 @@ class UbitrackFacadeBase(Atom):
         pass
 
     def stop(self):
+        pass
+
+    def restart(self, autostart=True):
         pass
 
     def _default_components_path(self):

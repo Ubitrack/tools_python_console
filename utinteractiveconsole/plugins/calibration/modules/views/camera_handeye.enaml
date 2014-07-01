@@ -1,16 +1,16 @@
 from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
-    Container, Html, Page, PushButton
+    Container, Html, PushButton, MultilineField
 )
 
 from enaml_opengl.widgets.opengl_widget import OpenGLWidget
 from enaml_opengl.widgets.opengl_widget import OpenGLWidget
 
 from enaml_opengl.renderer import MonoRenderer
-from enaml_opengl.camera import PinholeCamera
 from enaml_opengl.viewport import PerspectiveViewport
 
 from enaml_opengl.scenegraph_node import Scene3D
+from enaml_opengl.nodes.api import AxisItem
 
 from utinteractiveconsole.ui.background_texture import BackgroundTexture
 from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
@@ -19,15 +19,14 @@ from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
 
 
 
-enamldef CameraHandEyeCalibrationPanel(Page):
+enamldef CameraHandEyeCalibrationPanel(Container):
     attr module
     attr module_state
     attr module_controller
 
     alias glview
 
-    title = module.get_name()
-    closable = False
+    padding = (0, 0, 0, 0)
 
     Scene3D: scene:
         name = "scene"
@@ -35,21 +34,52 @@ enamldef CameraHandEyeCalibrationPanel(Page):
         BackgroundTexture:
             name = "bgtexture"
 
-    PinholeCamera: camera:
+
+    CalibratedCamera: camera:
+        name = "camera"
         viewport = PerspectiveViewport()
 
 
     MonoRenderer: renderer:
+        name = "renderer"
         camera = camera
         scene << scene
 
 
+
+    Scene3D: scene1:
+        name = "scene1"
+
+        BackgroundTexture:
+            name = "bgtexture1"
+
+        AxisItem:
+            name = "origin_marker"
+
+        AxisItem:
+            name = "verification_marker"
+
+    CalibratedCamera: camera1:
+        name = "camera1"
+        viewport = PerspectiveViewport()
+
+
+    MonoRenderer: renderer1:
+        name = "renderer1"
+        camera = camera1
+        scene << scene1
+
+
+
     Container:
+        padding = (0, 0, 0, 0)
         constraints = [
-            vbox( content,
-                  glview,
+            vbox( hbox(content, results_txt),
+                  hbox(glview, glview1,),
                   hbox( spacer, capture_pose, start_module, stop_module )
-            )
+            ),
+            content.width == results_txt.width,
+            glview.width == glview1.width,
         ]
 
         Html: content:
@@ -60,14 +90,32 @@ enamldef CameraHandEyeCalibrationPanel(Page):
                calibrate the target to camera transform.</p>
             """
 
-        OpenGLWidget: glview:
-            minimum_size = (800, 600)
-            renderer = renderer
+        MultilineField: results_txt:
+            name = 'results_txt'
+            text = """No results."""
 
+        OpenGLWidget: glview:
+            name = "glview"
+            minimum_size = (640, 480)
+            renderer = renderer
+            key_press_event::
+                v = change['value']
+                if module_controller.is_ready and v.key == 32:
+                    module_controller.capturePose()
+
+        OpenGLWidget: glview1:
+            name = "glview1"
+            minimum_size = (640, 480)
+            renderer = renderer1
+            key_press_event::
+                v = change['value']
+                if module_controller.is_ready and v.key == 32:
+                    module_controller.capturePose()
 
         PushButton: capture_pose:
             text = "Capture Pose"
             clicked :: module_controller.capturePose()
+            enabled := module_controller.is_ready
 
         PushButton: start_module:
             text = "Start Calibration"

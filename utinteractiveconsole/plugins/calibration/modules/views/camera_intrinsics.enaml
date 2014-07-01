@@ -1,6 +1,6 @@
 from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
-    Container, Html, Page, PushButton
+    Container, Html, PushButton, MultilineField
 )
 
 from enaml_opengl.widgets.opengl_widget import OpenGLWidget
@@ -13,22 +13,19 @@ from enaml_opengl.viewport import PerspectiveViewport
 from enaml_opengl.scenegraph_node import Scene3D
 
 from utinteractiveconsole.ui.background_texture import BackgroundTexture
-from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
 
 
 
 
 
-enamldef CameraIntrinsicsCalibrationPanel(Page):
+enamldef CameraIntrinsicsCalibrationPanel(Container):
     attr module
     attr module_state
     attr module_controller
 
     alias glview
-    alias bgtexture
 
-    title = module.get_name()
-    closable = False
+    padding = (0, 0, 0, 0)
 
     Scene3D: scene:
         name = "scene"
@@ -46,11 +43,13 @@ enamldef CameraIntrinsicsCalibrationPanel(Page):
 
 
     Container:
+        padding = (0, 0, 0, 0)
         constraints = [
-            vbox( content,
+            vbox( hbox(content, results_txt),
                   glview,
                   hbox( spacer, capture_image, start_module, stop_module )
-            )
+            ),
+            content.width == results_txt.width,
         ]
 
         Html: content:
@@ -60,9 +59,18 @@ enamldef CameraIntrinsicsCalibrationPanel(Page):
                calibrate the camera intrinsics.</p>
             """
 
+        MultilineField: results_txt:
+            name = 'results_txt'
+            text = """No results."""
+
         OpenGLWidget: glview:
-            minimum_size = (800, 600)
+            minimum_size = (640, 480)
             renderer = renderer
+            key_press_event::
+                v = change['value']
+                if module_controller.is_ready and v.key == 32:
+                    module_controller.captureImage()
+
 
 
         PushButton: capture_image:
