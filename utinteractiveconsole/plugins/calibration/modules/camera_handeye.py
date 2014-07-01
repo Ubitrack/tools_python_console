@@ -24,7 +24,6 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
     bgtexture1 = Value()
     camera1 = Value()
     renderer1 = Value()
-    verification_marker = Value()
 
     results_txt = Value()
 
@@ -39,7 +38,6 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
             self.bgtexture1 = w.find('bgtexture1')
             self.camera1 = w.find('camera1')
             self.renderer1 = w.find('renderer1')
-            self.verification_marker = w.find('verification_marker')
 
             self.results_txt = w.find('results_txt')
 
@@ -76,6 +74,7 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
         # set marker tracking for glview1
         self.renderer1.enable_trigger(False)
 
+        # could be optimized to fetch only once ...
         if conn.camera_resolution is not None:
             self.camera1.camera_width, self.camera1.camera_height = conn.camera_resolution.get().astype(np.int)
 
@@ -84,9 +83,6 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
 
         if conn.camera_pose is not None:
             self.camera1.modelview_matrix = conn.camera_pose.get().toMatrix()
-
-        if conn.marker_pose_verification is not None:
-            self.verification_marker.transform = conn.marker_pose_verification.get().toMatrix()
 
         self.renderer1.enable_trigger(True)
         if conn.camera_image is not None:

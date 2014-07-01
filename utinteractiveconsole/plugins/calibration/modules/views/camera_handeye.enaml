@@ -56,9 +56,6 @@ enamldef CameraHandEyeCalibrationPanel(Container):
         AxisItem:
             name = "origin_marker"
 
-        AxisItem:
-            name = "verification_marker"
-
     CalibratedCamera: camera1:
         name = "camera1"
         viewport = PerspectiveViewport()
