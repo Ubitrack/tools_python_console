@@ -76,12 +76,6 @@ class CameraIntrinsicsCalibrationModule(ModuleBase):
     def get_category(self):
         return "Camera"
 
-    def get_name(self):
-        return "Camera Intrinsics"
-
-    def get_dependencies(self):
-        return []
-
     def get_widget_class(self):
         return CameraIntrinsicsCalibrationPanel
 

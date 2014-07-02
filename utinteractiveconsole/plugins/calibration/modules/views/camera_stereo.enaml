@@ -7,54 +7,60 @@ from enaml_opengl.widgets.opengl_widget import OpenGLWidget
 from enaml_opengl.widgets.opengl_widget import OpenGLWidget
 
 from enaml_opengl.renderer import MonoRenderer
-from enaml_opengl.camera import PinholeCamera
 from enaml_opengl.viewport import PerspectiveViewport
 
 from enaml_opengl.scenegraph_node import Scene3D
+from enaml_opengl.nodes.api import AxisItem
 
 from utinteractiveconsole.ui.background_texture import BackgroundTexture
+from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
 
 
 
 
 
-enamldef CameraIntrinsicsCalibrationPanel(Container):
+enamldef CameraStereoCalibrationPanel(Container):
     attr module
     attr module_state
     attr module_controller
 
     padding = (0, 0, 0, 0)
 
-    Scene3D: scene:
-        name = "scene"
-
-        BackgroundTexture: bgtexture:
-            name = "bgtexture"
-
-    PinholeCamera: camera:
-        viewport = PerspectiveViewport()
-
-
-    MonoRenderer: renderer:
-        camera = camera
-        scene << scene
-
-
-    Scene3D: scene1:
-        name = "scene1"
+    Scene3D: scene_left:
+        name = "scene_left"
 
         BackgroundTexture:
-            name = "bgtexture1"
+            name = "bgtexture_left"
 
-    PinholeCamera: camera1:
-        name = "camera1"
+
+    CalibratedCamera: camera_left:
+        name = "camera_left"
         viewport = PerspectiveViewport()
 
 
-    MonoRenderer: renderer1:
-        name = "renderer1"
-        camera = camera1
-        scene << scene1
+    MonoRenderer: renderer_left:
+        name = "renderer_left"
+        camera = camera_left
+        scene << scene_left
+
+
+
+    Scene3D: scene_right:
+        name = "scene_right"
+
+        BackgroundTexture:
+            name = "bgtexture_right"
+
+
+    CalibratedCamera: camera_right:
+        name = "camera_right"
+        viewport = PerspectiveViewport()
+
+
+    MonoRenderer: renderer_right:
+        name = "renderer_right"
+        camera = camera_right
+        scene << scene_right
 
 
 
@@ -62,40 +68,44 @@ enamldef CameraIntrinsicsCalibrationPanel(Container):
         padding = (0, 0, 0, 0)
         constraints = [
             vbox( hbox(content, results_txt),
-                  hbox(glview, glview1,),
-                  hbox( spacer, capture_image, start_module, stop_module )
+                  hbox(glview_left, glview_right),
+                  hbox(spacer, capture_image,
+                       start_module, stop_module )
             ),
             content.width == results_txt.width,
-            glview.width == glview1.width,
+            glview_left.width == glview_right.width,
         ]
 
         Html: content:
+            minimum_size = (600, 100)
             source = """
             <h1>%s</h1>
-            <p>Please use a calibration checkerboard to capture images from different viewpoints to
-               calibrate the camera intrinsics.</p>
+            <p>Please use a checkerboard.
+               Then capture poses from different viewpoints to
+               calibrate the left-to-right camera transform.</p>
             """ % module.get_name()
 
         MultilineField: results_txt:
             name = 'results_txt'
             text = """No results."""
 
-        OpenGLWidget: glview:
+        OpenGLWidget: glview_left:
+            name = "glview_left"
             minimum_size = (640, 480)
-            renderer = renderer
+            constraints = [width == camera_left.w_h_ratio * height,]
+            renderer = renderer_left
             key_press_event::
                 v = change['value']
-                if module_controller.is_ready and v.key == 32:
-                    module_controller.captureImage()
+                module_controller.handle_keypress(v.key)
 
-        OpenGLWidget: glview1:
-            name = "glview1"
+        OpenGLWidget: glview_right:
+            name = "glview_right"
             minimum_size = (640, 480)
-            renderer = renderer1
+            constraints = [width == camera_right.w_h_ratio * height,]
+            renderer = renderer_right
             key_press_event::
                 v = change['value']
-                if module_controller.is_ready and v.key == 32:
-                    module_controller.captureImage()
+                module_controller.handle_keypress(v.key)
 
         PushButton: capture_image:
             text = "Capture Image"

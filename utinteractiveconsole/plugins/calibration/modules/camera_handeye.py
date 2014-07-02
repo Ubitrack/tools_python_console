@@ -89,10 +89,6 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
         if conn.camera_intrinsics is not None:
             self.camera1.camera_intrinsics = conn.camera_intrinsics.get()
 
-        # we don't transform the camera, but model everything in relation to it ..
-        # if conn.camera_pose is not None:
-        #     self.camera1.modelview_matrix = conn.camera_pose.get().toMatrix()
-
         if conn.origin_marker is not None:
             self.origin_marker.transform = conn.origin_marker.get().toMatrix()
 
@@ -145,12 +141,6 @@ class CameraHandEyeCalibrationModule(ModuleBase):
 
     def get_category(self):
         return "Camera"
-
-    def get_name(self):
-        return "Camera HandEye"
-
-    def get_dependencies(self):
-        return ['camera_intrinsics',]
 
     def get_widget_class(self):
         return CameraHandEyeCalibrationPanel

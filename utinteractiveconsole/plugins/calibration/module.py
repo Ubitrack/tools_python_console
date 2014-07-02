@@ -28,37 +28,50 @@ class ModuleBase(object):
     def get_module_name(self):
         return self.module_name
 
-    def is_enabled(self):
+    @property
+    def config_ns(self):
         cfg = self.context.get("config")
         if self.module_name is None:
             log.error("Module name must be set before usage")
         sname = "%s.modules.%s" % (self.parent.config_ns, self.module_name)
+        return sname
+
+    def is_enabled(self):
+        cfg = self.context.get("config")
+        sname = self.config_ns
         enabled = False
         if cfg.has_section(sname):
             enabled = cfg.getboolean(sname, "enabled")
         log.info("CalibrationWizard module: %s is %s" % (self.module_name, "enabled" if enabled else "disabled"))
         return enabled
 
+    def get_name(self):
+        """Return human readable name.
+
+        :returns: name of module.
+        """
+        cfg = self.context.get("config")
+        sname = self.config_ns
+        if cfg.has_section(sname):
+            return cfg.get(sname, "name")
+
+    def get_dependencies(self):
+        """Return a list of dependencies, that need to be satisified.
+
+        :returns: list of module names, that are required to be completed before invoking this module.
+        """
+        cfg = self.context.get("config")
+        sname = self.config_ns
+        if cfg.has_section(sname) and cfg.has_option(sname, 'dependencies'):
+            deps = cfg.get(sname, "dependencies")
+            return [d.strip() for d in deps.split(',')]
+        return []
 
     @abc.abstractmethod
     def get_category(self):
         """Return human readable name.
 
         :returns: name of category.
-        """
-
-    @abc.abstractmethod
-    def get_name(self):
-        """Return human readable name.
-
-        :returns: name of module.
-        """
-
-    @abc.abstractmethod
-    def get_dependencies(self):
-        """Return a list of dependencies, that need to be satisified.
-
-        :returns: list of module names, that are required to be completed before invoking this module.
         """
 
     @abc.abstractmethod
