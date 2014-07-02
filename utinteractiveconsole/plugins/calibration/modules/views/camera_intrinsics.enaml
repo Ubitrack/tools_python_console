@@ -70,6 +70,7 @@ enamldef CameraIntrinsicsCalibrationPanel(Container):
         ]
 
         Html: content:
+            minimum_size = (600, 100)
             source = """
             <h1>%s</h1>
             <p>Please use a calibration checkerboard to capture images from different viewpoints to

@@ -18,8 +18,10 @@ class CalibrationResultController(CalibrationController):
         extra_files = []
         if "report_filename" in self.config:
             calib_info = dict(
-                setup=wizard_state.calibration_setup,
-                operator=wizard_state.calibration_operator,
+                domain=wizard_state.calibration_domain_name,
+                setup=wizard_state.calibration_setup_name,
+                user=wizard_state.calibration_user_name,
+                platform=wizard_state.calibration_platform_name,
                 datetime=wizard_state.calibration_datetime,
                 comments=wizard_state.calibration_comments,
                 dataok=wizard_state.calibration_dataok,
@@ -33,16 +35,11 @@ class CalibrationResultController(CalibrationController):
             log.error("Missing report_filename in section [vharcalib.module.calibration_result]")
         super(CalibrationResultController, self).saveResults(root_dir, extra_files=extra_files)
 
+
 class CalibrationResultModule(ModuleBase):
 
     def get_category(self):
-        return "Summary"
-
-    def get_name(self):
-        return "Calibration Result"
-
-    def get_dependencies(self):
-        return ["hapticgimbal_calibration",]
+        return "Generic"
 
     def get_widget_class(self):
         return CalibrationResultPanel

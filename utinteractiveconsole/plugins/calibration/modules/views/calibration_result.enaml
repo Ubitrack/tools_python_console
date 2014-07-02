@@ -21,6 +21,7 @@ enamldef CalibrationResultPanel(Page):
         ]
 
         Html: content:
+            minimum_size = (600, 100)
             source << """
             <h1>Calibration Result:</h1>""" + "\n".join(t.to_html() for t in module_controller.wizard_state.tasks)
 

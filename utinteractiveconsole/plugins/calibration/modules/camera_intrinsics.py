@@ -60,6 +60,7 @@ class CameraIntrinsicsCalibrationController(LiveCalibrationController):
             results.append(self.connector.camera_distortion)
 
         if results:
+            self.state.results.value = [str(i) for i in results]
             self.results_txt.text = "Results:\n%s" % "\n\n".join([str(i) for i in results])
 
 

@@ -20,6 +20,7 @@ enamldef CalibrationStartPanel(Container): cpanel:
         ]
 
         Html: content:
+            minimum_size = (600, 100)
             source << """
             <h1>%s</h1>
             """ % cpanel.module_controller.wizard_state.wizard_name
@@ -36,25 +37,25 @@ enamldef CalibrationStartPanel(Container): cpanel:
                 text = "Domain"
             Field:
                 read_only = True
-                text << cpanel.module_controller.domain_name
+                text << cpanel.module_controller.wizard_state.domain_name
 
             Label:
                 text = "Setup"
             Field:
                 read_only = True
-                text << cpanel.module_controller.setup_name
+                text << cpanel.module_controller.wizard_state.setup_name
 
             Label:
                 text = "User"
             Field:
                 read_only = True
-                text << cpanel.module_controller.user_name
+                text << cpanel.module_controller.wizard_state.user_name
 
             Label:
                 text = "Platform"
             Field:
                 read_only = True
-                text << cpanel.module_controller.platform_name
+                text << cpanel.module_controller.wizard_state.platform_name
 
             Label:
                 text = "Comments"

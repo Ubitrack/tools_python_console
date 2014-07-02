@@ -113,6 +113,7 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
             results.append(conn.tracker_marker_transform)
 
         if results:
+            self.state.results.value = [str(i) for i in results]
             self.results_txt.text = "Results:\n%s" % "\n\n".join([str(i) for i in results])
 
     def handle_keypress(self, key):

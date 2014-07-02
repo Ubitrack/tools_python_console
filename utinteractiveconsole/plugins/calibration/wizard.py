@@ -98,9 +98,10 @@ class WizardState(Atom):
 
     active_widgets = Value()
 
-    calibration_setup_idx = Int(-1)
-    calibration_setup = Str()
-    calibration_operator = Str()
+    calibration_domain_name = Str()
+    calibration_setup_name = Str()
+    calibration_user_name = Str()
+    calibration_platform_name = Str()
     calibration_comments = Str()
     calibration_datetime = Str()
     calibration_dataok = Bool(False)
@@ -109,16 +110,25 @@ class WizardState(Atom):
     wizard_name = Str()
     facade = Typed(UbitrackFacadeBase)
 
-    show_skip_button = Bool(False)
-    enable_skip_button = Bool(True)
-    enable_ok_button = Bool(True)
-    text_ok_button = Str('Save')
+    show_back_button = Bool(True)
+    show_skip_button = Bool(True)
+    show_next_button = Bool(True)
+
+    enable_back_button = Bool(False)
+    enable_skip_button = Bool(False)
+    enable_next_button = Bool(True)
+
+    text_back_button = Str('Back')
+    text_skip_button = Str('Skip')
+    text_next_button = Str('Next')
 
     @observe('task_list', 'task_idx')
     def _update_gui_data(self, change):
-        self.text_ok_button = 'Next' if len(self.task_list) > self.task_idx + 1 else "Save"
+        self.text_next_button = 'Next' if len(self.task_list) > self.task_idx + 1 else "Finish"
+        self.show_back_button = bool(self.task_idx > 0)
         self.show_skip_button = bool(len(self.task_list) > self.task_idx + 1)
-        self.enable_skip_button = bool(self.task_idx > 0)
+        self.enable_back_button = bool(self.task_idx > 0)
+        self.enable_skip_button = bool(self.task_idx > 0 and len(self.task_list) > self.task_idx + 1)
 
     def _default_config(self):
         cfg = self.context.get("config")
@@ -237,11 +247,14 @@ class WizardState(Atom):
                                                               config_ns=self.module_manager.config_ns)
 
             if self.facade is not None and ctrl.dfg_filename:
-                fname = os.path.join(self.facade.dfg_basedir, ctrl.dfg_filename)
-                if os.path.isfile(fname):
-                    self.facade.dfg_filename = fname
+                if os.path.isfile(ctrl.dfg_filename):
+                    self.facade.dfg_filename = ctrl.dfg_filename
                 else:
-                    log.error("Invalid file specified for module: %s" % fname)
+                    fname = os.path.join(self.facade.dfg_basedir, ctrl.dfg_filename)
+                    if os.path.isfile(fname):
+                        self.facade.dfg_filename = fname
+                    else:
+                        log.error("Invalid file specified for module: %s" % fname)
 
             # eventually cache the module widgets and/or controllers ?
             self.active_widgets = [widget_cls(module=self.current_module,
@@ -290,7 +303,7 @@ class WizardController(Atom):
         if self.wizview is not None:
             self.wizview.show()
 
-    def on_ok(self, content):
+    def on_next(self, content):
         state = self.current_state
         if state is not None:
             log.info("Mark task %s as completed" % state.task_list[state.task_idx])
@@ -305,15 +318,26 @@ class WizardController(Atom):
                 mstate.result.recorded_files = mctrl.getRecordedFiles()
 
                 if mctrl.save_results:
-                    cfg = state.context.get("config")
-                    if cfg.has_section("vharcalib"):
-                        vc_cfg = dict(cfg.items("vharcalib"))
-                        results_path = os.path.join(vc_cfg["rootdir"], vc_cfg.get("resultsdir", "results"), state.calibration_setup, state.calibration_datetime, mctrl.module_name)
+                    if 'resultsdir' in state.config:
+                        results_path = os.path.join(os.path.expanduser(state.config["resultsdir"]),
+                                                    state.wizard_name, state.calibration_datetime,
+                                                    mctrl.module_name)
                         if not os.path.isdir(results_path):
                             os.makedirs(results_path)
                         mctrl.saveResults(results_path)
 
             self.next_task(content)
+
+    def on_back(self, content):
+        state = self.current_state
+        if state is not None:
+            #log.info("Mark task %s as completed" % state.task_list[state.task_idx])
+            mstate = state.tasks[state.task_idx]
+            # mstate.started = False
+            mstate.running = False
+            # mstate.completed = False
+
+            self.previous_task(content)
 
     def on_skip(self, content):
         state = self.current_state

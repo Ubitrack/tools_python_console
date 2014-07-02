@@ -42,15 +42,16 @@ class CalibrationStartController(CalibrationController):
     def _default_platform_name(self):
         return self.ubitrack_config.get("platform", sys.platform)
 
-
+    def setupController(self, active_widgets=None):
+        self.wizard_state.calibration_domain_name = self.domain_name
+        self.wizard_state.calibration_setup_name = self.setup_name
+        self.wizard_state.calibration_user_name = self.user_name
+        self.wizard_state.calibration_platform_name = self.platform_name
 
 class CalibrationStartModule(ModuleBase):
 
     def get_category(self):
         return "Generic"
-
-    def get_name(self):
-        return "Calibration Start"
 
     def get_dependencies(self):
         return []

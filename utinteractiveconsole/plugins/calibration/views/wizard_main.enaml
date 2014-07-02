@@ -21,15 +21,26 @@ with enaml.imports():
     from utinteractiveconsole.ui.views.subprocess_control import SubprocessControl
 
 
-# XXX does not work as expected .. need to find a way to bind the action item to the widget property
-def toggle_console(event):
+enamldef ConsoleWindow(Window):
+    attr workbench
+    attr context
+
+    Container: console:
+        alias ipy
+        constraints = [vbox(ipy, spacing=3)]
+
+        IPythonConsole: ipy:
+            initial_ns = context
+
+def show_console(event):
     """ The command handler for toggling the console.
 
     """
     ui = event.workbench.get_plugin('enaml.workbench.ui')
-    console_dockitem = ui.workspace.content.find('console')
-    console_dockitem.visible = event.trigger.checked
-
+    context = ui.workspace.appstate.context.copy()
+    context['ui'] = ui
+    cw = ConsoleWindow(context=context)
+    cw.show()
 
 
 enamldef TaskItemStyleSheet(StyleSheet):
@@ -102,7 +113,7 @@ enamldef WizardView(DockItem): wizard:
             constraints = [
                 vbox(
                     module_content,
-                    hbox(spacer, skip_btn, ok_btn),
+                    hbox(spacer, back_btn, skip_btn, next_btn),
                 ),
             ]
             alias content_include
@@ -112,14 +123,22 @@ enamldef WizardView(DockItem): wizard:
                 Include: content_include:
                     objects << wizard.state.active_widgets
 
-            PushButton: ok_btn:
-                text << state.text_ok_button
-                clicked :: wizard.controller.on_ok(content)
+            PushButton: next_btn:
+                text := state.text_next_button
+                visible := state.show_next_button
+                enabled := state.enable_next_button
+                clicked :: wizard.controller.on_next(content)
+
+            PushButton: back_btn:
+                text := state.text_back_button
+                visible := state.show_back_button
+                enabled := state.enable_back_button
+                clicked :: wizard.controller.on_back(content)
 
             PushButton: skip_btn:
-                text = 'Skip'
-                visible << state.show_skip_button
-                enabled << state.enable_skip_button
+                text := state.text_skip_button
+                visible := state.show_skip_button
+                enabled := state.enable_skip_button
                 clicked :: wizard.controller.on_skip(content)
 
         Container: control:
@@ -132,26 +151,7 @@ enamldef WizardView(DockItem): wizard:
 enamldef WizardDockArea(DockArea): dockarea:
     attr appstate
     attr utic_plugin
-
     name = "calibration_wizard_dockarea"
-
-    layout = TabLayout(
-        'console',
-    )
-
-
-    DockItem:
-        name = 'console'
-        title = 'Console'
-        closable = False
-        visible = False
-
-        Container: console:
-            alias ipy
-            constraints = [vbox(ipy, spacing=3)]
-
-            IPythonConsole: ipy:
-                initial_ns = dockarea.appstate.context
 
 
 enamldef WizardMain(Container): main:
@@ -195,9 +195,7 @@ enamldef WizardManifest(PluginManifest): plugin_manifest:
         ActionItem:
             path = '/view/console'
             label = 'IPython Console'
-            checkable = True
-            checked = True
-            command = 'utic.commands.extensions.calibration_wizard.toggle_console'
+            command = 'utic.commands.extensions.calibration_wizard.show_console'
 
         Include:
             objects << utic_plugin.generateWorkspaceActionItems(plugin_ext)
@@ -207,9 +205,9 @@ enamldef WizardManifest(PluginManifest): plugin_manifest:
         point = 'enaml.workbench.core.commands'
 
         Command:
-            id = 'utic.commands.extensions.calibration_wizard.toggle_console'
+            id = 'utic.commands.extensions.calibration_wizard.show_console'
             description = "Console"
-            handler = toggle_console
+            handler = show_console
 
         Include:
             objects << utic_plugin.generateWorkspaceCommands(plugin_manifest)
