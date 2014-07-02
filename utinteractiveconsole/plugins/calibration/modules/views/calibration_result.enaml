@@ -1,18 +1,17 @@
 from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
-    Container, Html, Page, PushButton, CheckBox
+    Container, Html, PushButton, CheckBox
 )
 
-enamldef CalibrationResultPanel(Page):
+enamldef CalibrationResultPanel(Container):
     attr module
     attr module_state
     attr module_controller
 
-    title = module.get_name()
-    closable = False
-
+    padding = (0, 0, 0, 0)
 
     Container:
+        padding = (0, 0, 0, 0)
         constraints = [
             vbox( content,
                   hbox( spacer, start_module, stop_module ),

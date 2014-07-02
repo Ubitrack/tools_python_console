@@ -1,5 +1,6 @@
 [vharcalibration.default_camera.module]
 calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule
+calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule
 camera_handeye = utinteractiveconsole.plugins.calibration.modules.camera_handeye:CameraHandEyeCalibrationModule
 camera_intrinsics = utinteractiveconsole.plugins.calibration.modules.camera_intrinsics:CameraIntrinsicsCalibrationModule
 
@@ -27,6 +28,7 @@ utic = utinteractiveconsole.main:main
 [vharcalibration.stereo_camera.module]
 calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule
 camera_stereo = utinteractiveconsole.plugins.calibration.modules.camera_stereo:CameraStereoCalibrationModule
+calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule
 camera_intrinsics_left = utinteractiveconsole.plugins.calibration.modules.camera_intrinsics:CameraIntrinsicsCalibrationModule
 camera_handeye = utinteractiveconsole.plugins.calibration.modules.camera_handeye:CameraHandEyeCalibrationModule
 camera_intrinsics_right = utinteractiveconsole.plugins.calibration.modules.camera_intrinsics:CameraIntrinsicsCalibrationModule
