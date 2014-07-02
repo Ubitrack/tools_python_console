@@ -19,3 +19,5 @@ Requires: pyqtgraph
 Requires: pyopengl
 Requires: stevedore
 Requires: lxml
+Requires: atom
+Requires: enaml

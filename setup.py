@@ -45,10 +45,12 @@ This module controls my garden""",
                 'calibration_wizard = utinteractiveconsole.plugins.calibration.wizard:CalibrationWizard',
             ],
             'vharcalibration.default_camera.module': [
+                'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
                 'camera_intrinsics = utinteractiveconsole.plugins.calibration.modules.camera_intrinsics:CameraIntrinsicsCalibrationModule',
                 'camera_handeye = utinteractiveconsole.plugins.calibration.modules.camera_handeye:CameraHandEyeCalibrationModule',
             ],
             'vharcalibration.stereo_camera.module': [
+                'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
                 'camera_intrinsics_left = utinteractiveconsole.plugins.calibration.modules.camera_intrinsics:CameraIntrinsicsCalibrationModule',
                 'camera_intrinsics_right = utinteractiveconsole.plugins.calibration.modules.camera_intrinsics:CameraIntrinsicsCalibrationModule',
                 'camera_stereo = utinteractiveconsole.plugins.calibration.modules.camera_stereo:CameraStereoCalibrationModule',

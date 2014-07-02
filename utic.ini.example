@@ -10,6 +10,11 @@ components_path = /usr/local/lib/ubitrack
 
 [calibration_wizard]
 wizards: default_camera,default_workspace
+domain_name: %(domain_name)s
+setup_name: %(setup_name)s
+user_name: %(user_name)s
+platform_name: %(platform_name)s
+home_directory: %(home_directory)s
 
 [calibration_wizard.default_camera]
 name: Default Camera

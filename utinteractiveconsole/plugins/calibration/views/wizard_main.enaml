@@ -20,6 +20,8 @@ from enaml.layout.api import (
 with enaml.imports():
     from utinteractiveconsole.ui.views.subprocess_control import SubprocessControl
 
+
+# XXX does not work as expected .. need to find a way to bind the action item to the widget property
 def toggle_console(event):
     """ The command handler for toggling the console.
 
@@ -111,12 +113,13 @@ enamldef WizardView(DockItem): wizard:
                     objects << wizard.state.active_widgets
 
             PushButton: ok_btn:
-                text << 'Ok' if len(state.task_list) > state.task_idx + 1 else "Finish"
+                text << state.text_ok_button
                 clicked :: wizard.controller.on_ok(content)
 
             PushButton: skip_btn:
                 text = 'Skip'
-                visible << bool(len(state.task_list) > state.task_idx + 1)
+                visible << state.show_skip_button
+                enabled << state.enable_skip_button
                 clicked :: wizard.controller.on_skip(content)
 
         Container: control:

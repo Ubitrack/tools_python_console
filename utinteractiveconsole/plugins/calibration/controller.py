@@ -54,7 +54,7 @@ class CalibrationController(Atom):
                     return fname
         return ""
 
-    def setupContoller(self, active_widgets=None):
+    def setupController(self, active_widgets=None):
         pass
 
     def teardownController(self, active_widgets=None):

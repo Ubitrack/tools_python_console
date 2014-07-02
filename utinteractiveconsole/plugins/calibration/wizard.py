@@ -106,7 +106,19 @@ class WizardState(Atom):
     calibration_dataok = Bool(False)
 
     config = Dict()
+    wizard_name = Str()
     facade = Typed(UbitrackFacadeBase)
+
+    show_skip_button = Bool(False)
+    enable_skip_button = Bool(True)
+    enable_ok_button = Bool(True)
+    text_ok_button = Str('Save')
+
+    @observe('task_list', 'task_idx')
+    def _update_gui_data(self, change):
+        self.text_ok_button = 'Next' if len(self.task_list) > self.task_idx + 1 else "Save"
+        self.show_skip_button = bool(len(self.task_list) > self.task_idx + 1)
+        self.enable_skip_button = bool(self.task_idx > 0)
 
     def _default_config(self):
         cfg = self.context.get("config")
@@ -115,6 +127,13 @@ class WizardState(Atom):
         else:
             log.error("Missing section: [%s] in config" % self.module_manager.config_ns)
             return dict()
+
+    def _default_wizard_name(self):
+        name = self.config.get("name", None)
+        if name is None:
+            log.warn("Wizard config at: %s does not specify name" % self.module_manager.config_ns)
+            return "Undefined Calibration Wizard"
+        return name
 
     @property
     def facade_handler_type(self):
@@ -236,7 +255,6 @@ class WizardState(Atom):
 class WizardController(Atom):
 
     context = Value()
-
 
     module_manager = Typed(ModuleManager)
     module_graph = Typed(nx.DiGraph)
