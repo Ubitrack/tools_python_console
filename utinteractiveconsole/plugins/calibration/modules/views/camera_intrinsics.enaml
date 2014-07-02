@@ -42,14 +42,33 @@ enamldef CameraIntrinsicsCalibrationPanel(Container):
         scene << scene
 
 
+    Scene3D: scene1:
+        name = "scene1"
+
+        BackgroundTexture:
+            name = "bgtexture1"
+
+    PinholeCamera: camera1:
+        name = "camera1"
+        viewport = PerspectiveViewport()
+
+
+    MonoRenderer: renderer1:
+        name = "renderer1"
+        camera = camera1
+        scene << scene1
+
+
+
     Container:
         padding = (0, 0, 0, 0)
         constraints = [
             vbox( hbox(content, results_txt),
-                  glview,
+                  hbox(glview, glview1,),
                   hbox( spacer, capture_image, start_module, stop_module )
             ),
             content.width == results_txt.width,
+            glview.width == glview1.width,
         ]
 
         Html: content:
@@ -71,7 +90,14 @@ enamldef CameraIntrinsicsCalibrationPanel(Container):
                 if module_controller.is_ready and v.key == 32:
                     module_controller.captureImage()
 
-
+        OpenGLWidget: glview1:
+            name = "glview1"
+            minimum_size = (640, 480)
+            renderer = renderer1
+            key_press_event::
+                v = change['value']
+                if module_controller.is_ready and v.key == 32:
+                    module_controller.captureImage()
 
         PushButton: capture_image:
             text = "Capture Image"

@@ -25,6 +25,10 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
     camera1 = Value()
     renderer1 = Value()
 
+    origin_marker = Value()
+    origin_tracker = Value()
+    verification_alignment = Value()
+
     results_txt = Value()
 
     def setupController(self, active_widgets=None):
@@ -38,6 +42,10 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
             self.bgtexture1 = w.find('bgtexture1')
             self.camera1 = w.find('camera1')
             self.renderer1 = w.find('renderer1')
+
+            self.origin_marker = w.find('origin_marker')
+            self.origin_tracker = w.find('origin_tracker')
+            self.verification_alignment = w.find('verification_alignment')
 
             self.results_txt = w.find('results_txt')
 
@@ -81,8 +89,20 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
         if conn.camera_intrinsics is not None:
             self.camera1.camera_intrinsics = conn.camera_intrinsics.get()
 
-        if conn.camera_pose is not None:
-            self.camera1.modelview_matrix = conn.camera_pose.get().toMatrix()
+        # we don't transform the camera, but model everything in relation to it ..
+        # if conn.camera_pose is not None:
+        #     self.camera1.modelview_matrix = conn.camera_pose.get().toMatrix()
+
+        if conn.origin_marker is not None:
+            self.origin_marker.transform = conn.origin_marker.get().toMatrix()
+
+        if conn.origin_tracker is not None:
+            self.origin_tracker.visible = True
+            self.origin_tracker.transform = conn.origin_tracker.get().toMatrix()
+
+        if conn.verification_alignment is not None:
+            self.verification_alignment.visible = True
+            self.verification_alignment.transform = conn.verification_alignment.get().toMatrix()
 
         self.renderer1.enable_trigger(True)
         if conn.camera_image is not None:
@@ -90,19 +110,35 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
 
 
         results = []
-        if conn.tracker2camera_transform is not None:
-            results.append(conn.tracker2camera_transform)
+        if conn.tracker_camera_transform is not None:
+            results.append(conn.tracker_camera_transform)
+
+        if conn.tracker_marker_transform is not None:
+            results.append(conn.tracker_marker_transform)
 
         if results:
             self.results_txt.text = "Results:\n%s" % "\n\n".join([str(i) for i in results])
 
+    def handle_keypress(self, key):
+        if not self.is_ready:
+            return
+        if key == 32:
+            self.capturePoseHE()
+        elif key == 65:
+            self.capturePoseAlign()
 
-
-    def capturePose(self):
+    def capturePoseHE(self):
         if self.connector is not None:
             # use space a default trigger
-            log.info("Capture Pose")
+            log.info("Capture Pose Hand-Eye")
             self.connector.capture_pose(" ")
+
+    def capturePoseAlign(self):
+        if self.connector is not None:
+            # use space a default trigger
+            log.info("Capture Pose Align")
+            self.connector.capture_pose("a")
+
 
 
 class CameraHandEyeCalibrationModule(ModuleBase):

@@ -17,13 +17,17 @@ class CameraIntrinsicsCalibrationController(LiveCalibrationController):
     is_ready = Bool(False)
 
     bgtexture = Value()
+    bgtexture1 = Value()
+
     results_txt = Value()
 
     def setupController(self, active_widgets=None):
 
         if active_widgets is not None:
-            self.bgtexture = active_widgets[0].find('bgtexture')
-            self.results_txt = active_widgets[0].find('results_txt')
+            w = active_widgets[0]
+            self.bgtexture = w.find('bgtexture')
+            self.bgtexture1 = w.find('bgtexture1')
+            self.results_txt = w.find('results_txt')
 
         # needs to match the SRG !!
         self.sync_source = "corner_image"
@@ -46,6 +50,9 @@ class CameraIntrinsicsCalibrationController(LiveCalibrationController):
 
     def handle_data(self, c):
         self.bgtexture.image_in(c['value'])
+        if self.connector.camera_image is not None:
+            self.bgtexture1.image_in(self.connector.camera_image )
+
         results = []
         if self.connector.camera_intrinsics is not None:
             results.append(self.connector.camera_intrinsics)

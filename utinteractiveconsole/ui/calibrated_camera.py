@@ -14,6 +14,9 @@ class CalibratedCamera(Camera):
 
     camera_intrinsics = Typed(np.ndarray)
 
+    @property
+    def w_h_ratio(self):
+        return float(self.camera_width) / float(self.camera_height)
 
     @observe("camera_intrinsics")
     def _update_intrinsics(self, change):

@@ -56,6 +56,14 @@ enamldef CameraHandEyeCalibrationPanel(Container):
         AxisItem:
             name = "origin_marker"
 
+        AxisItem:
+            name = "origin_tracker"
+            visible = False
+
+        AxisItem:
+            name = "verification_alignment"
+            visible = False
+
     CalibratedCamera: camera1:
         name = "camera1"
         viewport = PerspectiveViewport()
@@ -72,14 +80,16 @@ enamldef CameraHandEyeCalibrationPanel(Container):
         padding = (0, 0, 0, 0)
         constraints = [
             vbox( hbox(content, results_txt),
-                  hbox(glview, glview1,),
-                  hbox( spacer, capture_pose, start_module, stop_module )
+                  hbox(glview, glview1),
+                  hbox(spacer, capture_pose_he, capture_pose_align,
+                       start_module, stop_module )
             ),
             content.width == results_txt.width,
             glview.width == glview1.width,
         ]
 
         Html: content:
+            minimum_size = (600, 100)
             source = """
             <h1>Camera HandEye</h1>
             <p>Please use a fiducial marker and attach a tracking target to the camera.
@@ -94,24 +104,29 @@ enamldef CameraHandEyeCalibrationPanel(Container):
         OpenGLWidget: glview:
             name = "glview"
             minimum_size = (640, 480)
+            constraints = [width == camera1.w_h_ratio * height,]
             renderer = renderer
             key_press_event::
                 v = change['value']
-                if module_controller.is_ready and v.key == 32:
-                    module_controller.capturePose()
+                module_controller.handle_keypress(v.key)
 
         OpenGLWidget: glview1:
             name = "glview1"
             minimum_size = (640, 480)
+            constraints = [width == camera1.w_h_ratio * height,]
             renderer = renderer1
             key_press_event::
                 v = change['value']
-                if module_controller.is_ready and v.key == 32:
-                    module_controller.capturePose()
+                module_controller.handle_keypress(v.key)
 
-        PushButton: capture_pose:
-            text = "Capture Pose"
-            clicked :: module_controller.capturePose()
+        PushButton: capture_pose_he:
+            text = "Capture (Hand-Eye)"
+            clicked :: module_controller.capturePoseHE()
+            enabled := module_controller.is_ready
+
+        PushButton: capture_pose_align:
+            text = "Capture (Align)"
+            clicked :: module_controller.capturePoseAlign()
             enabled := module_controller.is_ready
 
         PushButton: start_module:
