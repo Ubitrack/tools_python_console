@@ -10,11 +10,13 @@ components_path = /usr/local/lib/ubitrack
 
 [calibration_wizard]
 wizards: default_camera,default_workspace
-domain_name: %(domain_name)s
-setup_name: %(setup_name)s
-user_name: %(user_name)s
-platform_name: %(platform_name)s
-home_directory: %(home_directory)s
+
+domain: %(domain_name)s
+setup: %(setup_name)s
+user: %(user_name)s
+platform: %(platform_name)s
+home: %(home_directory)s
+
 
 [calibration_wizard.default_camera]
 name: Default Camera
@@ -28,6 +30,7 @@ config_namespace: vc.default_workspace
 
 
 [vc.default_camera]
+name: Default Camera Calibration
 facade_handler: inprocess
 rootdir: %(home_directory)s/vharcalibration
 datadir: %(rootdir)s/data/default_camera/%(setup_name)s/%(user_name)s
@@ -36,6 +39,8 @@ srgdir: %(rootdir)s/srgs/default_camera/%(domain_name)s/%(setup_name)s/%(user_na
 resultsdir: %(rootdir)s/results/default_camera/%(setup_name)s/%(user_name)s
 
 [vc.default_workspace]
+name: Default Workspace Calibration
+facade_handler: subprocess
 rootdir: %(home_directory)s/vharcalibration
 datadir: %(rootdir)s/data/default_workspace/%(setup_name)s/%(user_name)s
 calibdir: %(rootdir)s/calib/default_workspace/%(domain_name)s/%(setup_name)s/%(user_name)s/
@@ -43,13 +48,29 @@ srgdir: %(rootdir)s/srgs/default_workspace/%(domain_name)s/%(setup_name)s/%(user
 resultsdir: %(rootdir)s/results/default_camera/%(setup_name)s/%(user_name)s
 
 # default_camera configuration
+[vc.default_camera.modules.calibration_start]
+enabled: True
+name: Start Default Camera Calibration
+
 [vc.default_camera.modules.camera_intrinsics]
 enabled: True
 dfg_filename: camera_intrinsics.dfg
+name: Camera Intrinsics
+dependencies: calibration_start
 
 [vc.default_camera.modules.camera_handeye]
 enabled: True
 dfg_filename: camera_handeye.dfg
+name: Camera Hand-Eye
+dependencies: camera_intrinsics
+
+[vc.default_camera.modules.calibration_result]
+enabled: True
+;dfg_filename: vhar_calibration_verification.dfg
+name: Camera Calibration Result
+dependencies: camera_intrinsics,camera_handeye
+report_filename: calibration_report.yaml
+
 
 # default_workspace configuration
 [vc.default_workspace.modules.calibration_start]
