@@ -455,3 +455,11 @@ class UbitrackSubProcessFacade(UbitrackFacadeBase):
         log.info("Create SubProcess UbiTrack facade")
         return SubProcessManager("calibration_wizard_slave", components_path=self.components_path)
 
+
+class UbitrackMasterSlaveFacade(UbitrackFacadeBase):
+
+
+    def _default_instance(self):
+        log.info("Create MasterSlave UbiTrack facade")
+        return facade.AdvancedFacade(self.components_path)
+

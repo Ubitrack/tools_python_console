@@ -16,7 +16,8 @@ from enaml.layout.api import InsertItem
 
 from utinteractiveconsole.extension import ExtensionBase
 from utinteractiveconsole.workspace import ExtensionWorkspace
-from utinteractiveconsole.uthelpers import UbitrackSubProcessFacade, UbitrackFacade, UbitrackFacadeBase
+from utinteractiveconsole.uthelpers import (UbitrackSubProcessFacade, UbitrackFacade,
+                                            UbitrackFacadeBase, UbitrackMasterSlaveFacade)
 
 from .module import ModuleManager
 with enaml.imports():
@@ -171,7 +172,9 @@ class WizardState(Atom):
                                     config_ns=self.module_manager.config_ns,
                                     )
         elif fht == "masterslave":
-            raise NotImplementedError("masterslave mode not yet implemented")
+            facade = UbitrackMasterSlaveFacade(context=self.context,
+                                               config_ns=self.module_manager.config_ns,
+                                               )
         else:
             log.error("Invalid facade_handler configured in section: %s" % self.module_manager.config_ns)
         return facade

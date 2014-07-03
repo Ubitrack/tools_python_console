@@ -15,12 +15,6 @@ class TooltipCalibrationModule(ModuleBase):
     def get_category(self):
         return "Co-location"
 
-    def get_name(self):
-        return "Tooltip Calibration"
-
-    def get_dependencies(self):
-        return ["externaltracker_calibration", "hapticdevice_calibration"]
-
     def get_widget_class(self):
         return TooltipCalibrationPanel
 

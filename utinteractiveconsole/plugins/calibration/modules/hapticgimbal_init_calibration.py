@@ -59,12 +59,6 @@ class HapticGimbalInitCalibrationModule(ModuleBase):
     def get_category(self):
         return "Devices"
 
-    def get_name(self):
-        return "Haptic Gimbal Initial Calibration"
-
-    def get_dependencies(self):
-        return ["hapticworkspace_calibration",]
-
     def get_widget_class(self):
         return HapticGimbalInitCalibrationPanel
 

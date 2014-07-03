@@ -15,12 +15,6 @@ class AbsoluteOrientationCalibrationModule(ModuleBase):
     def get_category(self):
         return "Co-location"
 
-    def get_name(self):
-        return "Absolute Orientation Calibration"
-
-    def get_dependencies(self):
-        return ["hapticworkspace_init_calibration", ]
-
     def get_widget_class(self):
         return AbsoluteOrientationCalibrationPanel
 

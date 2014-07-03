@@ -15,12 +15,6 @@ class HapticWorkspaceCalibrationModule(ModuleBase):
     def get_category(self):
         return "Devices"
 
-    def get_name(self):
-        return "Haptic Workspace Calibration"
-
-    def get_dependencies(self):
-        return ["absolute_orientation_calibration",]
-
     def get_widget_class(self):
         return HapticWorkspaceCalibrationPanel
 

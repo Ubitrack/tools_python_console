@@ -88,7 +88,7 @@ class CalibrationController(Atom):
                 if os.path.isfile(calib_file):
                     shutil.copy(calib_file, fname)
                 else:
-                    log.warn("Calibration file not found: %s" % fname)
+                    log.warn("Calibration file not found: %s" % calib_file)
 
         rec_files = self.getRecordedFiles()
         if rec_files:
@@ -100,7 +100,7 @@ class CalibrationController(Atom):
                     fname = os.path.join(rec_path, os.path.basename(rec_file))
                     shutil.copy(rec_file, fname)
                 else:
-                    log.warn("Recorded file not found: %s" % fname)
+                    log.warn("Recorded file not found: %s" % rec_file)
 
         if extra_files is not None:
             for extra_file in extra_files:
@@ -108,7 +108,7 @@ class CalibrationController(Atom):
                     fname = os.path.join(root_dir, os.path.basename(extra_file))
                     shutil.copy(extra_file, fname)
                 else:
-                    log.warn("Additional file not found: %s" % fname)
+                    log.warn("Additional file not found: %s" % extra_file)
 
 
     def getCalibrationFiles(self):

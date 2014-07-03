@@ -15,12 +15,6 @@ class TimeDelayEstimationModule(ModuleBase):
     def get_category(self):
         return "Synchronization"
 
-    def get_name(self):
-        return "Time-Delay Estimation"
-
-    def get_dependencies(self):
-        return ["absolute_orientation_init_calibration",]
-
     def get_widget_class(self):
         return TimeDelayEstimationPanel
 
