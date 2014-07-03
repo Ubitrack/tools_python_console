@@ -29,7 +29,9 @@ class CalibrationController(Atom):
 
     config = Dict()
 
-    data_dir = Str()
+    calib_dir = Str()
+    srg_dir = Str()
+    results_dir = Str()
     dfg_filename = Str()
 
     def _default_config(self):
@@ -41,18 +43,24 @@ class CalibrationController(Atom):
             log.error("Missing section: [%s] in config" % sname)
             return dict()
 
-    def _default_data_dir(self):
-        return os.path.expanduser(self.wizard_state.config.get("datadir"))
+    def _default_calib_dir(self):
+        return os.path.expanduser(self.wizard_state.config.get("calibdir"))
+
+    def _default_srg_dir(self):
+        return os.path.expanduser(self.wizard_state.config.get("srgdir"))
+
+    def _default_results_dir(self):
+        return os.path.expanduser(self.wizard_state.config.get("resultsdir"))
 
     def _default_dfg_filename(self):
         if "dfg_filename" in self.config:
             fname = os.path.expanduser(self.config["dfg_filename"])
+            # allow absolute paths to be used in configuration
             if os.path.isfile(fname):
                 return fname
-            if "srgdir" in self.wizard_state.config:
-                fname = os.path.join( os.path.expanduser(self.wizard_state.config["srgdir"]), self.config["dfg_filename"])
-                if os.path.isfile(fname):
-                    return fname
+            fname = os.path.join(self.srg_dir, self.config["dfg_filename"])
+            if os.path.isfile(fname):
+                return fname
         return ""
 
     def setupController(self, active_widgets=None):
@@ -72,8 +80,7 @@ class CalibrationController(Atom):
     def saveResults(self, root_dir, extra_files=None):
         calib_files = self.getCalibrationFiles()
         if calib_files:
-            # XXX use config->calibdir here !!!
-            calib_path = os.path.join(root_dir, "calibration")
+            calib_path = root_dir
             if not os.path.isdir(calib_path):
                 os.makedirs(calib_path)
             for calib_file in calib_files:
@@ -85,7 +92,7 @@ class CalibrationController(Atom):
 
         rec_files = self.getRecordedFiles()
         if rec_files:
-            rec_path = os.path.join(root_dir, "data")
+            rec_path = os.path.join(root_dir, "record")
             if not os.path.isdir(rec_path):
                 os.makedirs(rec_path)
             for rec_file in rec_files:
@@ -106,12 +113,12 @@ class CalibrationController(Atom):
 
     def getCalibrationFiles(self):
         if "calib_files" in self.config:
-            return [os.path.join(self.data_dir, f.strip()) for f in self.config["calib_files"].split(",")]
+            return [os.path.join(self.calib_dir, f.strip()) for f in self.config["calib_files"].split(",")]
         return []
 
     def getRecordedFiles(self):
         if "recorddir" in self.config:
-            return glob.glob(os.path.join(self.data_dir, self.config["recorddir"], "*"))
+            return glob.glob(os.path.join(os.path.expanduser(self.config["recorddir"]), "*"))
         return []
 
 

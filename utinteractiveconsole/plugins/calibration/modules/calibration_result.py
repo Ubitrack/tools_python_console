@@ -30,9 +30,9 @@ class CalibrationResultController(CalibrationController):
                 dataok=wizard_state.calibration_dataok,
                 results=[t.to_dict() for t in self.wizard_state.tasks],
             )
-            fname = os.path.join(self.data_dir, self.config["report_filename"])
+            fname = os.path.join(root_dir, self.config["report_filename"])
             yaml.dump(calib_info, open(fname, "w"), default_flow_style=False)
-            extra_files.append(fname)
+            # extra_files.append(fname)
             log.info("Saved calibration report: %s" % fname)
         else:
             log.error("Missing report_filename in section [vharcalib.module.calibration_result]")

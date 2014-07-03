@@ -1,15 +1,22 @@
 [DEFAULT]
-domain_name: net-labs.de
-setup_name: semaphore
-user_name: jack
-platform_name: linux
-home_directory: ~/mvldata
+domain_name: unisa.edu.au
+setup_name: magicvisionlab
+user_name: mvl
+platform_name: win
+config_directory: H:\config
+data_directory: H:\vhardata
+record_directory: H:\record
 
 [ubitrack]
-components_path = /usr/local/lib/ubitrack
+components_path = H:\Libraries\UbiTrack-build\bin\ubitrack
 
+;
+;
+; Calibration Wizard Configuration
+;
+;
 [calibration_wizard]
-wizards: default_camera,default_workspace
+wizards: default_camera,vuzix_hmd,time_delay_estimation,phantom_colocation
 
 domain: %(domain_name)s
 setup: %(setup_name)s
@@ -17,50 +24,53 @@ user: %(user_name)s
 platform: %(platform_name)s
 home: %(home_directory)s
 
-
 [calibration_wizard.default_camera]
 name: Default Camera
 module_namespace: vharcalibration.default_camera.module
 config_namespace: vc.default_camera
 
-[calibration_wizard.default_workspace]
-name: Default Workspace
-module_namespace: vharcalibration.default_workspace.module
-config_namespace: vc.default_workspace
+[calibration_wizard.vuzix_hmd]
+name: Vuzix HMD
+module_namespace: vharcalibration.stereo_camera.module
+config_namespace: vc.vuzix_hmd
 
+[calibration_wizard.time_delay_estimation]
+name: Time-Delay Estimation
+module_namespace: vharcalibration.time_delay_estimation.module
+config_namespace: vc.time_delay_estimation
 
+[calibration_wizard.phantom_colocation]
+name: Phantom Co-Location
+module_namespace: vharcalibration.phantom_colocation.module
+config_namespace: vc.phantom_colocation
+
+;
+;
+; Default Camera Calibration
+;
+;
 [vc.default_camera]
 name: Default Camera Calibration
 facade_handler: inprocess
-rootdir: %(home_directory)s/vharcalibration
-datadir: %(rootdir)s/data/default_camera/%(setup_name)s/%(user_name)s
-calibdir: %(rootdir)s/calib/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/
-srgdir: %(rootdir)s/srgs/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
-resultsdir: %(rootdir)s/results/default_camera/%(setup_name)s/%(user_name)s
+rootdir: %(config_directory)s\vharcalibration
+calibdir: %(rootdir)s\calib\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s
+srgdir: %(rootdir)s\srgs\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
+datadir: %(data_directory)s\data\default_camera\%(setup_name)s\%(user_name)s
+resultsdir: %(data_directory)s\results\default_camera\%(setup_name)s\%(user_name)s
 
-[vc.default_workspace]
-name: Default Workspace Calibration
-facade_handler: subprocess
-rootdir: %(home_directory)s/vharcalibration
-datadir: %(rootdir)s/data/default_workspace/%(setup_name)s/%(user_name)s
-calibdir: %(rootdir)s/calib/default_workspace/%(domain_name)s/%(setup_name)s/%(user_name)s/
-srgdir: %(rootdir)s/srgs/default_workspace/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
-resultsdir: %(rootdir)s/results/default_camera/%(setup_name)s/%(user_name)s
-
-# default_camera configuration
 [vc.default_camera.modules.calibration_start]
 enabled: True
 name: Start Default Camera Calibration
 
 [vc.default_camera.modules.camera_intrinsics]
 enabled: True
-dfg_filename: camera_intrinsics.dfg
+dfg_filename: camera_intrinsics_flea2.dfg
 name: Camera Intrinsics
 dependencies: calibration_start
 
 [vc.default_camera.modules.camera_handeye]
 enabled: True
-dfg_filename: camera_handeye.dfg
+dfg_filename: camera_handeye_calibration_flea2.dfg
 name: Camera Hand-Eye
 dependencies: camera_intrinsics
 
@@ -71,84 +81,164 @@ name: Camera Calibration Result
 dependencies: camera_intrinsics,camera_handeye
 report_filename: calibration_report.yaml
 
+;
+;
+; VUZIX HMD Calibration
+;
+;
+[vc.vuzix_hmd]
+name: Vuzix HMD Calibration
+facade_handler: inprocess
+rootdir: %(config_directory)s\vharcalibration
+calibdir: %(rootdir)s\calib\vuzix_hmd\%(domain_name)s\%(setup_name)s\%(user_name)s
+srgdir: %(rootdir)s\srgs\vuzix_hmd\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
+datadir: %(data_directory)s\data\vuzix_hmd\%(setup_name)s\%(user_name)s
+resultsdir: %(data_directory)s\results\vuzix_hmd\%(setup_name)s\%(user_name)s
 
-# default_workspace configuration
-[vc.default_workspace.modules.calibration_start]
+[vc.vuzix_hmd.modules.calibration_start]
 enabled: True
+name: Start Vuzix HMD Calibration
 
-[vc.default_workspace.modules.optitrack_calibration]
+[vc.vuzix_hmd.modules.camera_intrinsics_left]
 enabled: True
+dfg_filename: camera_intrinsics_vuzix_left.dfg
+name: Camera Intrinsics Left
+dependencies: calibration_start
 
-[vc.default_workspace.modules.hapticdevice_calibration]
+[vc.vuzix_hmd.modules.camera_intrinsics_right]
 enabled: True
+dfg_filename: camera_intrinsics_vuzix_right.dfg
+name: Camera Intrinsics Right
+dependencies: camera_intrinsics_left
 
-[vc.default_workspace.modules.tooltip_calibration]
+[vc.vuzix_hmd.modules.camera_handeye]
 enabled: True
-dfg_filename: calibration_tooltip.dfg
-calib_files: tooltip_calibration.calib
-recorddir: record/01_tooltip
+dfg_filename: camera_handeye_calibration_vuzix.dfg
+name: Camera Hand-Eye
+dependencies: camera_intrinsics_left,camera_intrinsics_right
 
-[vc.default_workspace.modules.absolute_orientation_init_calibration]
+[vc.vuzix_hmd.modules.camera_stereo]
 enabled: True
-dfg_filename: calibration_absolute_orientation_init.dfg
-calib_files: absolut_orientation_calibration.calib
-recorddir: record/02_absolute_orienation_init
+dfg_filename: camera_stereocalib_vuzix.dfg
+name: Camera Stereo Transform
+dependencies: camera_intrinsics_left,camera_intrinsics_right,camera_handeye
 
-[vc.default_workspace.modules.absolute_orientation_calibration]
+[vc.vuzix_hmd.modules.calibration_result]
 enabled: True
-dfg_filename: calibration_absolute_orientation.dfg
-calib_files: absolut_orientation_calibration.calib
-recorddir: record/04_absolute_orientation
-
-[vc.default_workspace.modules.timedelay_estimation_calibration]
-enabled: True
-dfg_filename: calibration_timedelay.dfg
-
-[vc.default_workspace.modules.hapticworkspace_init_calibration]
-enabled: True
-dfg_filename: calibration_haptic_workspace.dfg
-calib_files: phantom_angle_correction.calib
-recorddir: record/03_haptic_workspace_position
-
-[vc.default_workspace.modules.hapticworkspace_calibration]
-enabled: True
-dfg_filename: calibration_haptic_workspace.dfg
-calib_files: phantom_angle_correction.calib
-recorddir: record/03_haptic_workspace_position
-
-[vc.default_workspace.modules.hapticgimbal_init_calibration]
-enabled: True
-dfg_filename: calibration_hapticgimbal_initialization.dfg
-calib_files: zref_axis.calib
-recorddir: record/05_haptic_workspace_initialize_orientation
-
-[vc.default_workspace.modules.hapticgimbal_calibration]
-enabled: True
-dfg_filename: calibration_hapticgimbal_workspace.dfg
-calib_files: phantom_angle_correction_5dof.calib
-recorddir: record/05_haptic_workspace_orientation
-
-[vc.default_workspace.modules.calibration_result]
-enabled: True
-dfg_filename: vhar_calibration_verification.dfg
+;dfg_filename: vhar_calibration_verification.dfg
+name: Vuxiz HMD Calibration Result
+dependencies: camera_intrinsics_left,camera_intrinsics_right,camera_handeye,camera_stereo
 report_filename: calibration_report.yaml
 
+;
+;
+; Time-Delay Estimation Calibration
+;
+;
+[vc.time_delay_estimation]
+name: Time-Delay Estimation
+facade_handler: masteslave
+rootdir: %(config_directory)s\vharcalibration
+calibdir: %(rootdir)s\calib\default_workspace\%(domain_name)s\%(setup_name)s\%(user_name)s
+srgdir: %(rootdir)s\srgs\default_workspace\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
+datadir: %(data_directory)s\data\default_workspace\%(setup_name)s\%(user_name)s
+resultsdir: %(data_directory)s\results\default_workspace\%(setup_name)s\%(user_name)s
 
-[calibration_wizard.devices.phantom_omni]
-joint_length1: 0.13335
-joint_length2: 0.13335
+[vc.time_delay_estimation.modules.calibration_start]
+enabled: True
+name: Start Time-Delay Estimation
 
+[vc.time_delay_estimation.modules.tooltip_calibration]
+enabled: True
+name: Tooltip Calibration
+dependencies: calibration_start
+dfg_filename: calibration_tooltip.dfg
+calib_files: tooltip_calibration.calib
+recorddir: %(record_directory)s\tooltip
 
-# not yet adapted
+[vc.time_delay_estimation.modules.absolute_orientation_calibration]
+enabled: True
+name: Absolute Orientation
+dependencies: tooltip_calibration
+dfg_filename: calibration_absolute_orientation2.dfg
+calib_files: absolut_orientation_calibration.calib
+recorddir: %(record_directory)s\absolute_orientation
 
-[vc.default_workspace.verification]
-dfgfile: vhar_calibration_host_flea2.dfg
-#dfgfile: vhar_visualizer_flea2_v1.dfg
-camera_width: 1024
-camera_height: 768
+[vc.time_delay_estimation.modules.timedelay_estimation_calibration]
+enabled: True
+name: Time-Delay Estimation
+dependencies: tooltip_calibration,absolute_orientation_calibration
+dfg_filename: calibration_timedelay.dfg
 
-[haptic_gimbal_calibration]
-rootdir: H:/develop/haptic_gimbal_calibration
-calibdir: calibration
-recorddir: record
-testdatadir: test_data
+[vc.time_delay_estimation.modules.calibration_result]
+enabled: True
+name: Time-Delay Estimation Result
+dependencies:tooltip_calibration,absolute_orientation_calibration,timedelay_estimation_calibration
+;dfg_filename: vhar_calibration_verification2.dfg
+report_filename: calibration_report.yaml
+
+;
+;
+; Phantom Co-Location Calibration
+;
+;
+[vc.phantom_colocation]
+name: Phantom Co-Location Calibration
+facade_handler: masterslave
+rootdir: %(config_directory)s\vharcalibration
+calibdir: %(rootdir)s\calib\default_workspace\%(domain_name)s\%(setup_name)s\%(user_name)s
+srgdir: %(rootdir)s\srgs\default_workspace\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
+datadir: %(data_directory)s\data\default_workspace\%(setup_name)s\%(user_name)s
+resultsdir: %(data_directory)s\results\default_workspace\%(setup_name)s\%(user_name)s
+; use_2ndorder: True
+
+[vc.phantom_colocation.modules.calibration_start]
+enabled: True
+name: Start Phantom Co-Location Calibration
+
+[vc.phantom_colocation.modules.tooltip_calibration]
+enabled: True
+name: Tooltip Calibration
+dependencies: calibration_start
+dfg_filename: calibration_tooltip.dfg
+calib_files: tooltip_calibration.calib
+recorddir: %(record_directory)s\tooltip
+
+[vc.phantom_colocation.modules.absolute_orientation_calibration]
+enabled: True
+name: Absolute Orientation
+dependencies: tooltip_calibration
+dfg_filename: calibration_absolute_orientation2.dfg
+calib_files: absolut_orientation_calibration.calib
+recorddir: %(record_directory)s\absolute_orientation
+
+[vc.phantom_colocation.modules.hapticworkspace_calibration]
+enabled: True
+name: Joint-Angle Calibration
+dependencies: tooltip_calibration,absolute_orientation_calibration
+dfg_filename: calibration_haptic_workspace2.dfg
+calib_files: phantom_jointangle_correction.calib
+recorddir: %(record_directory)s\haptic_workspace_position
+
+[vc.phantom_colocation.modules.hapticgimbal_init_calibration]
+enabled: True
+name: Gimbal Reference-Axis Initialization
+dependencies: tooltip_calibration,absolute_orientation_calibration,hapticworkspace_calibration
+dfg_filename: calibration_hapticgimbal_initialization.dfg
+calib_files: zref_axis.calib
+recorddir: %(record_directory)s\haptic_workspace_initialize_orientation
+
+[vc.phantom_colocation.modules.hapticgimbal_calibration]
+enabled: True
+name: Gimbal-Angle Calibration
+dependencies: tooltip_calibration,absolute_orientation_calibration,hapticworkspace_calibration,hapticgimbal_init_calibration
+dfg_filename: calibration_hapticgimbal_workspace2.dfg
+calib_files: phantom_gimbalangle_correction.calib
+recorddir: %(record_directory)s\haptic_workspace_orientation
+
+[vc.phantom_colocation.modules.calibration_result]
+enabled: True
+name: Phantom Co-Location Result
+dependencies: tooltip_calibration,absolute_orientation_calibration,hapticworkspace_calibration,hapticgimbal_init_calibration,hapticgimbal_calibration
+;dfg_filename: vhar_calibration_verification2.dfg
+report_filename: calibration_report.yaml

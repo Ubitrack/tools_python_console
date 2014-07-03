@@ -168,10 +168,10 @@ class WizardState(Atom):
                                               )
         elif fht == "inprocess":
             facade = UbitrackFacade(context=self.context,
-                                              config_ns=self.module_manager.config_ns,
-                                              )
+                                    config_ns=self.module_manager.config_ns,
+                                    )
         elif fht == "masterslave":
-            NotImplementedError("masterslave mode not yet implemented")
+            raise NotImplementedError("masterslave mode not yet implemented")
         else:
             log.error("Invalid facade_handler configured in section: %s" % self.module_manager.config_ns)
         return facade
@@ -330,8 +330,7 @@ class WizardController(Atom):
                 if mctrl.save_results:
                     if 'resultsdir' in state.config:
                         results_path = os.path.join(os.path.expanduser(state.config["resultsdir"]),
-                                                    state.wizard_name, state.calibration_datetime,
-                                                    mctrl.module_name)
+                                                    state.calibration_datetime)
                         if not os.path.isdir(results_path):
                             os.makedirs(results_path)
                         mctrl.saveResults(results_path)
