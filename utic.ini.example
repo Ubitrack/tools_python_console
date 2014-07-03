@@ -46,7 +46,7 @@ config_namespace: vc.phantom_colocation
 
 ;
 ;
-; Default Camera Calibration
+; Default Camera Calibration Wizard
 ;
 ;
 [vc.default_camera]
@@ -55,8 +55,7 @@ facade_handler: inprocess
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s
 srgdir: %(rootdir)s\srgs\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
-datadir: %(data_directory)s\data\default_camera\%(setup_name)s\%(user_name)s
-resultsdir: %(data_directory)s\results\default_camera\%(setup_name)s\%(user_name)s
+resultsdir: %(data_directory)s\default_camera\%(setup_name)s\%(user_name)s
 
 [vc.default_camera.modules.calibration_start]
 enabled: True
@@ -67,12 +66,14 @@ enabled: True
 dfg_filename: camera_intrinsics_flea2.dfg
 name: Camera Intrinsics
 dependencies: calibration_start
+calib_files: flea2_intrinsics.calib,flea2_distortion.calib
 
 [vc.default_camera.modules.camera_handeye]
 enabled: True
 dfg_filename: camera_handeye_calibration_flea2.dfg
 name: Camera Hand-Eye
 dependencies: camera_intrinsics
+calib_files: flea2_hand_eye_calibration.calib,tracker_marker_transform.calib
 
 [vc.default_camera.modules.calibration_result]
 enabled: True
@@ -92,8 +93,7 @@ facade_handler: inprocess
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\vuzix_hmd\%(domain_name)s\%(setup_name)s\%(user_name)s
 srgdir: %(rootdir)s\srgs\vuzix_hmd\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
-datadir: %(data_directory)s\data\vuzix_hmd\%(setup_name)s\%(user_name)s
-resultsdir: %(data_directory)s\results\vuzix_hmd\%(setup_name)s\%(user_name)s
+resultsdir: %(data_directory)s\vuzix_hmd\%(setup_name)s\%(user_name)s
 
 [vc.vuzix_hmd.modules.calibration_start]
 enabled: True
@@ -104,24 +104,28 @@ enabled: True
 dfg_filename: camera_intrinsics_vuzix_left.dfg
 name: Camera Intrinsics Left
 dependencies: calibration_start
+calib_files: vuzix_left_intrinsics.calib,vuzix_left_distortion.calib
 
 [vc.vuzix_hmd.modules.camera_intrinsics_right]
 enabled: True
 dfg_filename: camera_intrinsics_vuzix_right.dfg
 name: Camera Intrinsics Right
 dependencies: camera_intrinsics_left
+calib_files: vuzix_right_intrinsics.calib,vuzix_right_distortion.calib
 
 [vc.vuzix_hmd.modules.camera_handeye]
 enabled: True
 dfg_filename: camera_handeye_calibration_vuzix.dfg
 name: Camera Hand-Eye
 dependencies: camera_intrinsics_left,camera_intrinsics_right
+calib_files: vuzix_hand_eye_calibration.calib,tracker_marker_transform.calib
 
 [vc.vuzix_hmd.modules.camera_stereo]
 enabled: True
 dfg_filename: camera_stereocalib_vuzix.dfg
 name: Camera Stereo Transform
 dependencies: camera_intrinsics_left,camera_intrinsics_right,camera_handeye
+calib_files: vuzix_stereo_transform.calib
 
 [vc.vuzix_hmd.modules.calibration_result]
 enabled: True
@@ -139,10 +143,9 @@ report_filename: calibration_report.yaml
 name: Time-Delay Estimation
 facade_handler: masteslave
 rootdir: %(config_directory)s\vharcalibration
-calibdir: %(rootdir)s\calib\default_workspace\%(domain_name)s\%(setup_name)s\%(user_name)s
-srgdir: %(rootdir)s\srgs\default_workspace\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
-datadir: %(data_directory)s\data\default_workspace\%(setup_name)s\%(user_name)s
-resultsdir: %(data_directory)s\results\default_workspace\%(setup_name)s\%(user_name)s
+calibdir: %(rootdir)s\calib\time_delay_estimation\%(domain_name)s\%(setup_name)s\%(user_name)s
+srgdir: %(rootdir)s\srgs\time_delay_estimation\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
+resultsdir: %(data_directory)s\time_delay_estimation\%(setup_name)s\%(user_name)s
 
 [vc.time_delay_estimation.modules.calibration_start]
 enabled: True
@@ -186,10 +189,9 @@ report_filename: calibration_report.yaml
 name: Phantom Co-Location Calibration
 facade_handler: masterslave
 rootdir: %(config_directory)s\vharcalibration
-calibdir: %(rootdir)s\calib\default_workspace\%(domain_name)s\%(setup_name)s\%(user_name)s
-srgdir: %(rootdir)s\srgs\default_workspace\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
-datadir: %(data_directory)s\data\default_workspace\%(setup_name)s\%(user_name)s
-resultsdir: %(data_directory)s\results\default_workspace\%(setup_name)s\%(user_name)s
+calibdir: %(rootdir)s\calib\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s
+srgdir: %(rootdir)s\srgs\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
+resultsdir: %(data_directory)s\phantom_colocation\%(setup_name)s\%(user_name)s
 ; use_2ndorder: True
 
 [vc.phantom_colocation.modules.calibration_start]
