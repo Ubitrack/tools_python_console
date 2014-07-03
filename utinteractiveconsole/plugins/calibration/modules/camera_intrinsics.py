@@ -22,7 +22,7 @@ class CameraIntrinsicsCalibrationController(LiveCalibrationController):
     results_txt = Value()
 
     def setupController(self, active_widgets=None):
-
+        super(CameraIntrinsicsCalibrationController, self).setupController(active_widgets=active_widgets)
         if active_widgets is not None:
             w = active_widgets[0]
             self.bgtexture = w.find('bgtexture')

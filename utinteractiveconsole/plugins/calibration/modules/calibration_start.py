@@ -49,6 +49,7 @@ class CalibrationStartController(CalibrationController):
         return sys.platform
 
     def setupController(self, active_widgets=None):
+        super(CalibrationStartController, self).setupController(active_widgets=active_widgets)
         self.wizard_state.calibration_domain_name = self.domain_name
         self.wizard_state.calibration_setup_name = self.setup_name
         self.wizard_state.calibration_user_name = self.user_name

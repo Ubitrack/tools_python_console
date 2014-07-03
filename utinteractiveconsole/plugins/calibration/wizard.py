@@ -221,14 +221,6 @@ class WizardState(Atom):
                                                           module_name=self.current_module.module_name,
                                                           config_ns=self.module_manager.config_ns)
 
-        # XXX this is duplicated code - check with calibration controller and see where it belongs ..
-        if self.facade is not None and ctrl.dfg_filename:
-            fname = os.path.join(self.facade.dfg_basedir, ctrl.dfg_filename)
-            if os.path.isfile(fname):
-                self.facade.dfg_filename = fname
-            else:
-                log.error("Invalid file specified for module: %s" % fname)
-
         widget_cls = ModuleContainer(widget_content_cls, type(self.facade))
         aw = widget_cls(module=self.current_module,
                         module_state=self.tasks[self.task_idx],
@@ -237,10 +229,6 @@ class WizardState(Atom):
         ctrl.setupController(active_widgets=aw)
         ctrl.setupPreview(active_widgets=aw)
         return aw
-
-    @observe("calibration_setup_idx")
-    def _handle_calibration_setup_idx_change(self, change):
-        self.calibration_setup = ["optitrack_omni", "art_premium", "faro_premium", "optitrack_omni_2nd", "art_premium_2nd", "faro_premium_2nd"][change["value"]]
 
     @observe("task_idx")
     def _handle_idx_change(self, change):
@@ -263,16 +251,6 @@ class WizardState(Atom):
                                                               state=self.tasks[self.task_idx],
                                                               wizard_state=self,
                                                               config_ns=self.module_manager.config_ns)
-
-            if self.facade is not None and ctrl.dfg_filename:
-                if os.path.isfile(ctrl.dfg_filename):
-                    self.facade.dfg_filename = ctrl.dfg_filename
-                else:
-                    fname = os.path.join(self.facade.dfg_basedir, ctrl.dfg_filename)
-                    if os.path.isfile(fname):
-                        self.facade.dfg_filename = fname
-                    else:
-                        log.error("Invalid file specified for module: %s" % fname)
 
             widget_cls = ModuleContainer(widget_content_cls, type(self.facade))
             self.active_widgets = widget_cls(module=self.current_module,

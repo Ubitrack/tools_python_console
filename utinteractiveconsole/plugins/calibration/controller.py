@@ -54,17 +54,18 @@ class CalibrationController(Atom):
 
     def _default_dfg_filename(self):
         if "dfg_filename" in self.config:
-            fname = os.path.expanduser(self.config["dfg_filename"])
-            # allow absolute paths to be used in configuration
-            if os.path.isfile(fname):
-                return fname
-            fname = os.path.join(self.srg_dir, self.config["dfg_filename"])
-            if os.path.isfile(fname):
-                return fname
+            return self.config["dfg_filename"]
         return ""
 
     def setupController(self, active_widgets=None):
-        pass
+        log.info("Setup %s controller" % self.module_name)
+        if self.facade is not None and self.dfg_filename:
+            fname = os.path.join(self.facade.dfg_basedir, self.dfg_filename)
+            if os.path.isfile(fname):
+                self.facade.dfg_filename = fname
+            else:
+                log.error("Module %s: Invalid dfg_filename specified for facade: %s" % (self.module_name, fname))
+
 
     def teardownController(self, active_widgets=None):
         pass
@@ -134,7 +135,11 @@ class LiveCalibrationController(CalibrationController):
 
     def _default_connector(self):
         if self.dfg_filename and self.sync_source:
-            utconnector = ubitrack_connector_class(self.dfg_filename)(sync_source=self.sync_source)
-            return utconnector
+            fname = os.path.join(self.facade.dfg_basedir, self.dfg_filename)
+            if os.path.isfile(fname):
+                utconnector = ubitrack_connector_class(fname)(sync_source=self.sync_source)
+                return utconnector
+            # else:
+            #     log.error("Module %s: Invalid dfg_filename specified for utconnector of module: %s" % (self.module_name, fname))
         return None
 

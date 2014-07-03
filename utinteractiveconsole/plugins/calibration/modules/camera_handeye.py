@@ -32,6 +32,7 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
     results_txt = Value()
 
     def setupController(self, active_widgets=None):
+        super(CameraHandEyeCalibrationController, self).setupController(active_widgets=active_widgets)
 
         if active_widgets is not None:
             w = active_widgets[0]

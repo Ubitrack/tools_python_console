@@ -28,6 +28,7 @@ class CameraStereoCalibrationController(LiveCalibrationController):
     results_txt = Value()
 
     def setupController(self, active_widgets=None):
+        super(CameraStereoCalibrationController, self).setupController(active_widgets=active_widgets)
 
         if active_widgets is not None:
             w = active_widgets[0]

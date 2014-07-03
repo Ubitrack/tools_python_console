@@ -356,10 +356,11 @@ class UbitrackFacadeBase(Atom):
         if self.context is not None and self.context.get("config") is not None:
             cfg = self.context.get("config")
             srg_dir = None
-            if cfg.has_section(self.config_ns):
-                vc_cfg = dict(cfg.items(self.config_ns))
-                srg_dir = vc_cfg["srgdir"]
-            basedir = os.path.expanduser(srg_dir)
+            if cfg.has_section(self.config_ns) and cfg.has_option(self.config_ns, 'srgdir'):
+                srg_dir = cfg.get(self.config_ns, 'srgdir')
+                basedir = os.path.expanduser(srg_dir)
+            else:
+                log.warn("Missing srgdir option for config_ns: %s" % self.config_ns)
         else:
             raise ValueError("Invalid Config")
 
@@ -379,15 +380,18 @@ class UbitrackFacadeBase(Atom):
         if self.is_loaded and not force_reload:
             return
 
-        if fname is not None:
+        if fname in [None, '']:
+            log.warn("loadDataflow called without filename")
+            return
+
+        if not os.path.isfile(fname):
+            fname = os.path.join(self.dfg_basedir, fname)
             if not os.path.isfile(fname):
-                fname = os.path.join(self.dfg_basedir, fname)
-                if not os.path.isfile(fname):
-                    log.error("Invalid DFG filename: %s" % fname)
-                    return
-            log.info("Load DFG: %s" % fname)
-            self.instance.loadDataflow(fname, True)
-            self.is_loaded = True
+                log.error("Invalid DFG filename: %s" % fname)
+                return
+        log.info("Load DFG: %s" % fname)
+        self.instance.loadDataflow(fname, True)
+        self.is_loaded = True
 
     def startDataflow(self):
         if not self.is_loaded:
