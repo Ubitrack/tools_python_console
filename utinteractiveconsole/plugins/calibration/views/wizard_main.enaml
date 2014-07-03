@@ -1,9 +1,8 @@
 import enaml
-from enaml.layout.api import hbox, vbox, spacer
 from enaml.widgets.api import (
-    Window, Label, Container, Action, Menu, Notebook, PushButton, ScrollArea
+    Label, Container, PushButton, ScrollArea
 )
-from enaml.widgets.api import DockArea, DockItem, StatusBar, StatusItem, MultilineField
+from enaml.widgets.api import DockArea, DockItem, StatusBar, StatusItem
 from enaml.widgets.ipython_console import IPythonConsole
 
 from enaml.core.api import Looper
@@ -14,22 +13,26 @@ from enaml.workbench.ui.api import ActionItem, MenuItem
 from enaml.workbench.core.command import Command
 
 from enaml.layout.api import (
-    HSplitLayout, VSplitLayout, TabLayout, InsertItem, hbox, vbox, spacer
+    InsertItem, FloatItem, hbox, vbox, spacer
 )
 
 with enaml.imports():
     from utinteractiveconsole.ui.views.subprocess_control import SubprocessControl
 
 
-enamldef ConsoleWindow(Window):
+enamldef ConsoleWindow(DockItem):
     attr workbench
     attr context
 
+    title = "IPython Console"
+
     Container: console:
+        padding = (0, 0, 0, 0)
         alias ipy
         constraints = [vbox(ipy, spacing=3)]
 
         IPythonConsole: ipy:
+            minimum_size = (400,200)
             initial_ns = context
 
 def show_console(event):
@@ -37,10 +40,15 @@ def show_console(event):
 
     """
     ui = event.workbench.get_plugin('enaml.workbench.ui')
+    da = ui.workspace.content.find("wizard_dockarea")
+
     context = ui.workspace.appstate.context.copy()
     context['ui'] = ui
-    cw = ConsoleWindow(context=context)
-    cw.show()
+
+    cw = ConsoleWindow(da, name="ipython_console", context=context)
+    op = InsertItem(item=cw.name, target='new', position='bottom')
+    da.update_layout(op)
+
 
 
 enamldef TaskItemStyleSheet(StyleSheet):
@@ -80,6 +88,7 @@ enamldef WizardView(DockItem): wizard:
     attr module_manager
     attr controller
     attr state
+    attr preview
 
     alias looper
     alias content
@@ -163,6 +172,7 @@ enamldef WizardMain(Container): main:
     padding = (0, 0, 0, 0)
     constraints = [vbox(area, spacing=0)]
     WizardDockArea: area:
+        name = "wizard_dockarea"
         appstate := main.appstate
 
 

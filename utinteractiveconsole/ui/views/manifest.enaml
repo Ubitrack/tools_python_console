@@ -55,6 +55,7 @@ enamldef ApplicationManifest(PluginManifest): plugin_manifest:
     Include:
         objects << extension_mgr.generateWorkspaceExtensions(plugin_manifest)
 
+    # add if cmd-line arg is present ...
     # Extension:
     #     id = 'autostart'
     #     point = 'enaml.workbench.ui.autostart'

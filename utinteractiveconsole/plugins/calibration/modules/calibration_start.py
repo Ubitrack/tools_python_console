@@ -54,6 +54,16 @@ class CalibrationStartController(CalibrationController):
         self.wizard_state.calibration_user_name = self.user_name
         self.wizard_state.calibration_platform_name = self.platform_name
 
+    def teardownController(self, active_widgets=None):
+        if self.wizard_state.calibration_existing_delete_files:
+            for m in self.wizard_state.module_manager.modules.values():
+                if m.is_enabled():
+                    cfs = m.get_calib_files()
+                    for cf in cfs:
+                        if os.path.isfile(cf):
+                            log.info("Deleting calibration file: %s" % cf)
+                            os.unlink(cf)
+
 class CalibrationStartModule(ModuleBase):
 
     def get_category(self):

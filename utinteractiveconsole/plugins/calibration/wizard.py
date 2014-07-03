@@ -103,6 +103,10 @@ class WizardState(Atom):
 
     active_widgets = Value()
 
+    config = Dict()
+    wizard_name = Str()
+    facade = Typed(UbitrackFacadeBase)
+
     calibration_domain_name = Str()
     calibration_setup_name = Str()
     calibration_user_name = Str()
@@ -113,10 +117,7 @@ class WizardState(Atom):
 
     calibration_external_tracker_change = Bool(False)
     calibration_haptic_device_change = Bool(False)
-
-    config = Dict()
-    wizard_name = Str()
-    facade = Typed(UbitrackFacadeBase)
+    calibration_existing_delete_files = Bool(True)
 
     enable_start_calibration_button = Bool(False)
     enable_stop_calibration_button = Bool(False)
@@ -287,6 +288,7 @@ class WizardController(Atom):
     current_state = Typed(WizardState)
 
     wizview = Value()
+    preview = Value()
 
     def initialize(self, config):
 
@@ -315,6 +317,8 @@ class WizardController(Atom):
     def show(self):
         if self.wizview is not None:
             self.wizview.show()
+        if self.preview is not None:
+            self.preview.show()
 
     def on_next(self, content):
         state = self.current_state
@@ -391,6 +395,7 @@ class WizardController(Atom):
 class CalibrationWizard(ExtensionBase):
 
     wizard_instances = {}
+    live_previews = {}
 
     def register(self, mgr):
         name = "calibration_wizard"
@@ -506,19 +511,25 @@ class CalibrationWizard(ExtensionBase):
     def launch_wizard(self, ev):
         params = ev.parameters
         wizard_instances = self.wizard_instances
+        live_previews = self.live_previews
         name = params.get('wizard_name')
         wizard_def = params.get('wizard_def')
+        wizard_cfg = params.get('wizard_cfg')
 
 
 
-        if name in self.wizard_instances:
-            wizard = self.wizard_instances[name]
+        if name in wizard_instances:
+            wizard = wizard_instances[name]
             wizard.show()
-            # add to layout
-            # XXX maybe better to use workspace.find("content") or simlar
-            parent = ev.workbench.get_plugin('enaml.workbench.ui').workspace.content.area
-            op = InsertItem(item=name,)
-            parent.update_layout(op)
+            da = ev.workbench.get_plugin('enaml.workbench.ui').workspace.content.find("wizard_dockarea")
+            op = InsertItem(item=name, target="new", position="right")
+            da.update_layout(op)
+
+            if name in live_previews:
+                preview = live_previews[name]
+                preview.show()
+                op = InsertItem(item=preview.name, target=name, position="right")
+                da.update_layout(op)
 
         else:
             wizard = WizardController(context=self.context)
@@ -528,6 +539,7 @@ class CalibrationWizard(ExtensionBase):
 
             with enaml.imports():
                 from .views.wizard_main import WizardView
+                from .views.live_preview import LivePreview
 
             workspace = ev.workbench.get_plugin('enaml.workbench.ui').workspace
 
@@ -543,6 +555,9 @@ class CalibrationWizard(ExtensionBase):
 
                 if name in wizard_instances:
                     wizard_instances.pop(name)
+                if name in live_previews:
+                    lp = live_previews.pop(name)
+                    lp.destroy()
                 workspace.unobserve("stopped", cleanup)
 
             if wizard.current_state is not None:
@@ -557,9 +572,23 @@ class CalibrationWizard(ExtensionBase):
                 workspace.observe("stopped", cleanup)
 
                 # add to layout
-                parent = workspace.content.area
+                parent = workspace.content.find("wizard_dockarea")
                 wizard.wizview.set_parent(parent)
-                op = InsertItem(item=name,)
+                op = InsertItem(item=wizard.wizview.name,)
+                parent.update_layout(op)
+
+            if wizard.preview is None and wizard_cfg.get("livepreview", "false").lower() == "true":
+                wizard.preview = LivePreview(name="%s_preview" % name,
+                                             title="LivePreview: %s" % wizard_def.get('name'),
+                                             controller=wizard,
+                                             state=wizard.current_state)
+                # make available to wizview
+                wizard.wizview.preview = wizard.preview
+
+                # add to layout
+                parent = workspace.content.find("wizard_dockarea")
+                wizard.preview.set_parent(parent)
+                op = InsertItem(item=wizard.preview.name, target=name, position='right')
                 parent.update_layout(op)
 
             wizard.show()

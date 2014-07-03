@@ -1,0 +1,18 @@
+from enaml.layout.api import vbox
+from enaml.widgets.api import (
+    DockItem, Container
+)
+from enaml_opengl.widgets.opengl_widget import OpenGLWidget
+
+enamldef LivePreview(DockItem):
+    attr controller
+    attr state
+
+    Container:
+        constraints = [
+            vbox(glview, ),
+        ]
+        padding = (0, 0, 0, 0)
+        OpenGLWidget: glview:
+            name = 'live_preview_widget'
+            minimum_size = (640, 480)

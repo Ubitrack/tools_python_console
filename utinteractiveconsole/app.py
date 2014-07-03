@@ -91,6 +91,7 @@ class ExtensionManager(Atom):
                 except Exception, e:
                     log.error("error while adding plugin extension: %s" % plugin.id)
                     log.exception(e)
+        # XXX add autostart if present in cmd-line args
         return result
 
 
