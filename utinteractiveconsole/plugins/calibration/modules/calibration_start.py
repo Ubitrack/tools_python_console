@@ -16,31 +16,37 @@ log = logging.getLogger(__name__)
 
 class CalibrationStartController(CalibrationController):
     save_results = False
-
-    ubitrack_config = Dict()
+    show_facade_controls = False
 
     domain_name = Str()
     setup_name = Str()
     user_name = Str()
     platform_name = Str()
 
-    def _default_ubitrack_config(self):
-        cfg = self.wizard_state.context.get('config')
-        if cfg is not None and cfg.has_section('ubitrack'):
-            return dict(cfg.items('ubitrack'))
-        return {}
 
     def _default_domain_name(self):
-        return self.ubitrack_config.get("domain", "ubitrack.local")
+        cfg = self.wizard_state.context.get('config')
+        if cfg is not None and cfg.has_option("calibration_wizard", "domain"):
+            return cfg.get("calibration_wizard", "domain")
+        return "ubitrack.local"
 
     def _default_setup_name(self):
-        return self.ubitrack_config.get("setup", "default")
+        cfg = self.wizard_state.context.get('config')
+        if cfg is not None and cfg.has_option("calibration_wizard", "setup"):
+            return cfg.get("calibration_wizard", "setup")
+        return "default"
 
     def _default_user_name(self):
-        return self.ubitrack_config.get("user", "default")
+        cfg = self.wizard_state.context.get('config')
+        if cfg is not None and cfg.has_option("calibration_wizard", "user"):
+            return cfg.get("calibration_wizard", "user")
+        return "default"
 
     def _default_platform_name(self):
-        return self.ubitrack_config.get("platform", sys.platform)
+        cfg = self.wizard_state.context.get('config')
+        if cfg is not None and cfg.has_option("calibration_wizard", "platform"):
+            return cfg.get("calibration_wizard", "platform")
+        return sys.platform
 
     def setupController(self, active_widgets=None):
         self.wizard_state.calibration_domain_name = self.domain_name

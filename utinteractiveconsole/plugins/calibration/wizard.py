@@ -17,7 +17,11 @@ from enaml.layout.api import InsertItem
 from utinteractiveconsole.extension import ExtensionBase
 from utinteractiveconsole.workspace import ExtensionWorkspace
 from utinteractiveconsole.uthelpers import UbitrackSubProcessFacade, UbitrackFacade, UbitrackFacadeBase
+
 from .module import ModuleManager
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import ModuleContainer
+
 
 
 log = logging.getLogger(__name__)
@@ -106,9 +110,15 @@ class WizardState(Atom):
     calibration_datetime = Str()
     calibration_dataok = Bool(False)
 
+    calibration_external_tracker_change = Bool(False)
+    calibration_haptic_device_change = Bool(False)
+
     config = Dict()
     wizard_name = Str()
     facade = Typed(UbitrackFacadeBase)
+
+    enable_start_calibration_button = Bool(False)
+    enable_stop_calibration_button = Bool(False)
 
     show_back_button = Bool(True)
     show_skip_button = Bool(True)
@@ -160,6 +170,8 @@ class WizardState(Atom):
             facade = UbitrackFacade(context=self.context,
                                               config_ns=self.module_manager.config_ns,
                                               )
+        elif fht == "masterslave":
+            NotImplementedError("masterslave mode not yet implemented")
         else:
             log.error("Invalid facade_handler configured in section: %s" % self.module_manager.config_ns)
         return facade
@@ -195,14 +207,13 @@ class WizardState(Atom):
     def _default_active_widgets(self):
         if self.current_module is None:
             return []
-        widget_cls = self.current_module.get_widget_class()
+        widget_content_cls = self.current_module.get_widget_class()
         ctrl = self.current_module.get_controller_class()(context=self.context,
                                                           facade=self.facade,
                                                           wizard_state=self,
                                                           state=self.tasks[self.task_idx],
                                                           module_name=self.current_module.module_name,
                                                           config_ns=self.module_manager.config_ns)
-
 
         # XXX this is duplicated code - check with calibration controller and see where it belongs ..
         if self.facade is not None and ctrl.dfg_filename:
@@ -212,12 +223,11 @@ class WizardState(Atom):
             else:
                 log.error("Invalid file specified for module: %s" % fname)
 
-        # eventually cache the module widgets and/or controllers ?
-        aw = [widget_cls(module=self.current_module,
-                         module_state=self.tasks[self.task_idx],
-                         module_controller=ctrl,),
-              ]
-
+        widget_cls = ModuleContainer(widget_content_cls, type(self.facade))
+        aw = widget_cls(module=self.current_module,
+                        module_state=self.tasks[self.task_idx],
+                        module_controller=ctrl,
+                        )
         ctrl.setupController(active_widgets=aw)
         return aw
 
@@ -238,7 +248,7 @@ class WizardState(Atom):
             self.current_module = self.module_manager.modules[self.current_task]
 
             # create controller and widgets for current task
-            widget_cls = self.current_module.get_widget_class()
+            widget_content_cls = self.current_module.get_widget_class()
             ctrl = self.current_module.get_controller_class()(module_name=self.current_module.get_module_name(),
                                                               context=self.context,
                                                               facade=self.facade,
@@ -256,11 +266,11 @@ class WizardState(Atom):
                     else:
                         log.error("Invalid file specified for module: %s" % fname)
 
-            # eventually cache the module widgets and/or controllers ?
-            self.active_widgets = [widget_cls(module=self.current_module,
-                                              module_state=self.tasks[self.task_idx],
-                                              module_controller=ctrl,),
-                                   ]
+            widget_cls = ModuleContainer(widget_content_cls, type(self.facade))
+            self.active_widgets = widget_cls(module=self.current_module,
+                                             module_state=self.tasks[self.task_idx],
+                                             module_controller=ctrl,
+                                             )
             ctrl.setupController(active_widgets=self.active_widgets)
 
 

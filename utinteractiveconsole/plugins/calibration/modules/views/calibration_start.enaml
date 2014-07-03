@@ -1,64 +1,62 @@
-from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.layout.api import vbox
 from enaml.widgets.api import (
-    Container, Html, Field, ComboBox, Form, Label, MultilineField
+    Container, Field, CheckBox, Form, Label, MultilineField
 )
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
+
+enamldef CalibrationStartPanel(WizardPanel): panel:
+    constraints = [
+        vbox( metadata, form,)
+    ]
+
+    Form: metadata:
+        Label:
+            text = "Date/Time"
+        Field:
+            read_only = True
+            text << panel.main.module_controller.wizard_state.calibration_datetime
+
+        Label:
+            text = "Domain"
+        Field:
+            read_only = True
+            text << panel.main.module_controller.wizard_state.calibration_domain_name
+
+        Label:
+            text = "Setup"
+        Field:
+            read_only = True
+            text << panel.main.module_controller.wizard_state.calibration_setup_name
+
+        Label:
+            text = "User"
+        Field:
+            read_only = True
+            text << panel.main.module_controller.wizard_state.calibration_user_name
+
+        Label:
+            text = "Platform"
+        Field:
+            read_only = True
+            text << panel.main.module_controller.wizard_state.calibration_platform_name
+
+    Form: form:
+        CheckBox:
+            checked := panel.main.module_controller.wizard_state.calibration_external_tracker_change
+        Label:
+            text = "External tracker or target changed"
+
+        CheckBox:
+            checked := panel.main.module_controller.wizard_state.calibration_haptic_device_change
+        Label:
+            text = "Haptic device calibration changed"
+
+        Label:
+            text = "Comments"
+        MultilineField:
+            text := panel.main.module_controller.wizard_state.calibration_comments
 
 
-enamldef CalibrationStartPanel(Container): cpanel:
-    attr module
-    attr module_state
-    attr module_controller
-
-    padding = (0, 0, 0, 0)
-
-    Container:
-        padding = (0, 0, 0, 0)
-        constraints = [
-            vbox( content,
-                  hbox( form, ),
-            )
-        ]
-
-        Html: content:
-            minimum_size = (600, 100)
-            source << """
-            <h1>%s</h1>
-            """ % cpanel.module_controller.wizard_state.wizard_name
-
-
-        Form: form:
-            Label:
-                text = "Date/Time"
-            Field:
-                read_only = True
-                text << cpanel.module_controller.wizard_state.calibration_datetime
-
-            Label:
-                text = "Domain"
-            Field:
-                read_only = True
-                text << cpanel.module_controller.wizard_state.calibration_domain_name
-
-            Label:
-                text = "Setup"
-            Field:
-                read_only = True
-                text << cpanel.module_controller.wizard_state.calibration_setup_name
-
-            Label:
-                text = "User"
-            Field:
-                read_only = True
-                text << cpanel.module_controller.wizard_state.calibration_user_name
-
-            Label:
-                text = "Platform"
-            Field:
-                read_only = True
-                text << cpanel.module_controller.wizard_state.calibration_platform_name
-
-            Label:
-                text = "Comments"
-            MultilineField:
-                text := cpanel.module_controller.wizard_state.calibration_comments
 

@@ -1,0 +1,65 @@
+from enaml.layout.api import vbox, hbox, spacer
+from enaml.widgets.api import (
+    Container, Label, PushButton
+)
+
+from utinteractiveconsole.uthelpers import UbitrackFacade, UbitrackSubProcessFacade
+
+enamldef WizardPanel(Container):
+    padding = (0, 0, 0, 0)
+    attr main
+
+
+template ModuleContainer(Content: WizardPanel, FacadeType):
+    """ Basic Module Content Container """
+    Container: ctr:
+        attr module
+        attr module_state
+        attr module_controller
+
+        padding = (0, 0, 0, 0)
+        constraints = [
+            vbox( headline, content,)
+        ]
+
+        Label: headline:
+            text := ctr.module_controller.wizard_state.wizard_name
+            font = '18pt Verdana-Bold'
+
+        Content: content:
+            main = ctr
+
+
+template ModuleContainer(Content: WizardPanel, FacadeType: UbitrackFacade):
+    """ Basic Module Content Container """
+    Container: ctr:
+        attr module
+        attr module_state
+        attr module_controller
+
+        padding = (0, 0, 0, 0)
+        constraints = [
+            vbox(headline,
+                 content,
+                 hbox(spacer, start_calibration, stop_calibration),
+                 )
+        ]
+
+        Label: headline:
+            text := ctr.module_controller.wizard_state.wizard_name
+            font = '18pt Verdana-Bold'
+
+        Content: content:
+            main = ctr
+
+        PushButton: start_calibration:
+            text = "Start Calibration"
+            visible = ctr.module_controller.show_facade_controls
+            enabled << bool(not ctr.module_controller.facade.is_running)
+            clicked :: ctr.module_controller.startCalibration()
+
+        PushButton: stop_calibration:
+            text = "Stop Calibration"
+            visible = ctr.module_controller.show_facade_controls
+            enabled << bool(ctr.module_controller.facade.is_running)
+            clicked :: ctr.module_controller.stopCalibration()

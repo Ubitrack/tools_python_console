@@ -12,6 +12,7 @@ from utinteractiveconsole.plugins.calibration.controller import CalibrationContr
 log = logging.getLogger(__name__)
 
 class CalibrationResultController(CalibrationController):
+    show_facade_controls = False
 
     def saveResults(self, root_dir):
         wizard_state = self.wizard_state
@@ -24,6 +25,8 @@ class CalibrationResultController(CalibrationController):
                 platform=wizard_state.calibration_platform_name,
                 datetime=wizard_state.calibration_datetime,
                 comments=wizard_state.calibration_comments,
+                external_tracker_change=wizard_state.calibration_external_tracker_change,
+                haptic_device_change=wizard_state.calibration_haptic_device_change,
                 dataok=wizard_state.calibration_dataok,
                 results=[t.to_dict() for t in self.wizard_state.tasks],
             )

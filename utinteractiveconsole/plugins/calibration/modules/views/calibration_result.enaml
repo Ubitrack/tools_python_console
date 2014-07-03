@@ -1,39 +1,25 @@
-from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.layout.api import hbox, vbox, spacer
 from enaml.widgets.api import (
-    Container, Html, PushButton, CheckBox
+    Container, Html, CheckBox
 )
-
-enamldef CalibrationResultPanel(Container):
-    attr module
-    attr module_state
-    attr module_controller
-
-    padding = (0, 0, 0, 0)
-
-    Container:
-        padding = (0, 0, 0, 0)
-        constraints = [
-            vbox( content,
-                  hbox( spacer, start_module, stop_module ),
-                  hbox( spacer, cb_dataok ),
-            )
-        ]
-
-        Html: content:
-            minimum_size = (600, 100)
-            source << """
-            <h1>Calibration Result:</h1>""" + "\n".join(t.to_html() for t in module_controller.wizard_state.tasks)
-
-        CheckBox: cb_dataok:
-            text = "Use Calibration Results"
-            checked := module_controller.wizard_state.calibration_dataok
-
-        PushButton: start_module:
-            text = "Start Verification"
-            clicked :: module_controller.startCalibration()
-
-        PushButton: stop_module:
-            text = "Stop Verification"
-            clicked :: module_controller.stopCalibration()
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
 
 
+enamldef CalibrationResultPanel(WizardPanel):
+    constraints = [
+        vbox( content,
+              hbox( spacer, cb_dataok ),
+        )
+    ]
+
+    Html: content:
+        minimum_size = (600, 400)
+        source << """
+        <h1>Calibration Result:</h1>""" + "\n".join(t.to_html() for t in module_controller.wizard_state.tasks
+                                                    if t.name not in ['calibration_start', 'calibration_result'])
+
+    CheckBox: cb_dataok:
+        text = "Use Calibration Results"
+        checked := module_controller.wizard_state.calibration_dataok

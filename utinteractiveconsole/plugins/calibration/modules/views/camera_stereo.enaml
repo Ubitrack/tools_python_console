@@ -2,8 +2,11 @@ from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
     Container, Html, PushButton, MultilineField
 )
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
 
-from enaml_opengl.widgets.opengl_widget import OpenGLWidget
+
 from enaml_opengl.widgets.opengl_widget import OpenGLWidget
 
 from enaml_opengl.renderer import MonoRenderer
@@ -15,16 +18,7 @@ from enaml_opengl.nodes.api import AxisItem
 from utinteractiveconsole.ui.background_texture import BackgroundTexture
 from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
 
-
-
-
-
-enamldef CameraStereoCalibrationPanel(Container):
-    attr module
-    attr module_state
-    attr module_controller
-
-    padding = (0, 0, 0, 0)
+enamldef CameraStereoCalibrationPanel(WizardPanel):
 
     Scene3D: scene_left:
         name = "scene_left"
@@ -64,61 +58,50 @@ enamldef CameraStereoCalibrationPanel(Container):
 
 
 
-    Container:
-        padding = (0, 0, 0, 0)
-        constraints = [
-            vbox( hbox(content, results_txt),
-                  hbox(glview_left, glview_right),
-                  hbox(spacer, capture_image,
-                       start_module, stop_module )
-            ),
-            content.width == results_txt.width,
-            glview_left.width == glview_right.width,
-        ]
+    constraints = [
+        vbox( hbox(content, results_txt),
+              hbox(glview_left, glview_right),
+              hbox(spacer, capture_image,
+                   start_module, stop_module )
+        ),
+        content.width == results_txt.width,
+        glview_left.width == glview_right.width,
+    ]
 
-        Html: content:
-            minimum_size = (600, 100)
-            source = """
-            <h1>%s</h1>
-            <p>Please use a checkerboard.
-               Then capture poses from different viewpoints to
-               calibrate the left-to-right camera transform.</p>
-            """ % module.get_name()
+    Html: content:
+        minimum_size = (600, 100)
+        source = """
+        <h1>%s</h1>
+        <p>Please use a checkerboard.
+           Then capture poses from different viewpoints to
+           calibrate the left-to-right camera transform.</p>
+        """ % module.get_name()
 
-        MultilineField: results_txt:
-            name = 'results_txt'
-            text = """No results."""
+    MultilineField: results_txt:
+        name = 'results_txt'
+        text = """No results."""
 
-        OpenGLWidget: glview_left:
-            name = "glview_left"
-            minimum_size = (640, 480)
-            constraints = [width == camera_left.w_h_ratio * height,]
-            renderer = renderer_left
-            key_press_event::
-                v = change['value']
-                module_controller.handle_keypress(v.key)
+    OpenGLWidget: glview_left:
+        name = "glview_left"
+        minimum_size = (640, 480)
+        constraints = [width == camera_left.w_h_ratio * height,]
+        renderer = renderer_left
+        key_press_event::
+            v = change['value']
+            module_controller.handle_keypress(v.key)
 
-        OpenGLWidget: glview_right:
-            name = "glview_right"
-            minimum_size = (640, 480)
-            constraints = [width == camera_right.w_h_ratio * height,]
-            renderer = renderer_right
-            key_press_event::
-                v = change['value']
-                module_controller.handle_keypress(v.key)
+    OpenGLWidget: glview_right:
+        name = "glview_right"
+        minimum_size = (640, 480)
+        constraints = [width == camera_right.w_h_ratio * height,]
+        renderer = renderer_right
+        key_press_event::
+            v = change['value']
+            module_controller.handle_keypress(v.key)
 
-        PushButton: capture_image:
-            text = "Capture Image"
-            clicked :: module_controller.captureImage()
-            enabled := module_controller.is_ready
-
-        PushButton: start_module:
-            text = "Start Calibration"
-            clicked :: module_controller.startCalibration()
-
-        PushButton: stop_module:
-            text = "Stop Calibration"
-            clicked :: module_controller.stopCalibration()
-
+    PushButton: capture_image:
+        text = "Capture Image"
+        clicked :: module_controller.captureImage()
+        enabled := module_controller.is_ready
 
 

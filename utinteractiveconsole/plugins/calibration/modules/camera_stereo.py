@@ -91,7 +91,7 @@ class CameraStereoCalibrationController(LiveCalibrationController):
             results.append(conn.stereo_left_right_transform)
 
         if results:
-            self.state.results.value = [str(i) for i in results]
+            self.state.result.value = [str(i) for i in results]
             self.results_txt.text = "Results:\n%s" % "\n\n".join([str(i) for i in results])
 
     def handle_keypress(self, key):

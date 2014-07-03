@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 class CalibrationController(Atom):
     # class variable
     save_results = True
+    show_facade_controls = True
 
     module_name = Str()
     config_ns = Str()

@@ -2,8 +2,10 @@ from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
     Container, Html, PushButton, MultilineField
 )
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
 
-from enaml_opengl.widgets.opengl_widget import OpenGLWidget
 from enaml_opengl.widgets.opengl_widget import OpenGLWidget
 
 from enaml_opengl.renderer import MonoRenderer
@@ -15,16 +17,7 @@ from enaml_opengl.nodes.api import AxisItem
 from utinteractiveconsole.ui.background_texture import BackgroundTexture
 from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
 
-
-
-
-
-enamldef CameraHandEyeCalibrationPanel(Container):
-    attr module
-    attr module_state
-    attr module_controller
-
-    padding = (0, 0, 0, 0)
+enamldef CameraHandEyeCalibrationPanel(WizardPanel):
 
     Scene3D: scene:
         name = "scene"
@@ -73,67 +66,54 @@ enamldef CameraHandEyeCalibrationPanel(Container):
         scene << scene1
 
 
+    constraints = [
+        vbox( hbox(content, results_txt),
+              hbox(glview, glview1),
+              hbox(spacer, capture_pose_he, capture_pose_align,
+              )
+        ),
+        content.width == results_txt.width,
+        glview.width == glview1.width,
+    ]
 
-    Container:
-        padding = (0, 0, 0, 0)
-        constraints = [
-            vbox( hbox(content, results_txt),
-                  hbox(glview, glview1),
-                  hbox(spacer, capture_pose_he, capture_pose_align,
-                       start_module, stop_module )
-            ),
-            content.width == results_txt.width,
-            glview.width == glview1.width,
-        ]
+    Html: content:
+        minimum_size = (600, 100)
+        source = """
+        <h1>%s</h1>
+        <p>Please use a fiducial marker and attach a tracking target to the camera.
+           then capture poses from different viewpoints to
+           calibrate the target to camera transform.</p>
+        """ % module.get_name()
 
-        Html: content:
-            minimum_size = (600, 100)
-            source = """
-            <h1>%s</h1>
-            <p>Please use a fiducial marker and attach a tracking target to the camera.
-               then capture poses from different viewpoints to
-               calibrate the target to camera transform.</p>
-            """ % module.get_name()
+    MultilineField: results_txt:
+        name = 'results_txt'
+        text = """No results."""
 
-        MultilineField: results_txt:
-            name = 'results_txt'
-            text = """No results."""
+    OpenGLWidget: glview:
+        name = "glview"
+        minimum_size = (640, 480)
+        constraints = [width == camera1.w_h_ratio * height,]
+        renderer = renderer
+        key_press_event::
+            v = change['value']
+            module_controller.handle_keypress(v.key)
 
-        OpenGLWidget: glview:
-            name = "glview"
-            minimum_size = (640, 480)
-            constraints = [width == camera1.w_h_ratio * height,]
-            renderer = renderer
-            key_press_event::
-                v = change['value']
-                module_controller.handle_keypress(v.key)
+    OpenGLWidget: glview1:
+        name = "glview1"
+        minimum_size = (640, 480)
+        constraints = [width == camera1.w_h_ratio * height,]
+        renderer = renderer1
+        key_press_event::
+            v = change['value']
+            module_controller.handle_keypress(v.key)
 
-        OpenGLWidget: glview1:
-            name = "glview1"
-            minimum_size = (640, 480)
-            constraints = [width == camera1.w_h_ratio * height,]
-            renderer = renderer1
-            key_press_event::
-                v = change['value']
-                module_controller.handle_keypress(v.key)
+    PushButton: capture_pose_he:
+        text = "Capture (Hand-Eye)"
+        clicked :: module_controller.capturePoseHE()
+        enabled := module_controller.is_ready
 
-        PushButton: capture_pose_he:
-            text = "Capture (Hand-Eye)"
-            clicked :: module_controller.capturePoseHE()
-            enabled := module_controller.is_ready
-
-        PushButton: capture_pose_align:
-            text = "Capture (Align)"
-            clicked :: module_controller.capturePoseAlign()
-            enabled := module_controller.is_ready
-
-        PushButton: start_module:
-            text = "Start Calibration"
-            clicked :: module_controller.startCalibration()
-
-        PushButton: stop_module:
-            text = "Stop Calibration"
-            clicked :: module_controller.stopCalibration()
-
-
+    PushButton: capture_pose_align:
+        text = "Capture (Align)"
+        clicked :: module_controller.capturePoseAlign()
+        enabled := module_controller.is_ready
 
