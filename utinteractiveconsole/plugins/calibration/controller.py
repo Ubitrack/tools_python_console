@@ -69,6 +69,12 @@ class CalibrationController(Atom):
     def teardownController(self, active_widgets=None):
         pass
 
+    def setupPreview(self, active_widgets=None):
+        pass
+
+    def teardownPreview(self, active_widgets=None):
+        pass
+
     def startCalibration(self):
         self.facade.loadDataflow(self.dfg_filename)
         self.facade.startDataflow()

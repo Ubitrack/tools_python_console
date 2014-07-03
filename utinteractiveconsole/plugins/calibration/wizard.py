@@ -92,6 +92,8 @@ class TaskStatus(Atom):
 
 class WizardState(Atom):
     context = Value()
+    controller = Value()
+
     module_manager = Value()
     task_list = List(Coerced(str))
     task_idx = Int()
@@ -233,6 +235,7 @@ class WizardState(Atom):
                         module_controller=ctrl,
                         )
         ctrl.setupController(active_widgets=aw)
+        ctrl.setupPreview(active_widgets=aw)
         return aw
 
     @observe("calibration_setup_idx")
@@ -245,6 +248,7 @@ class WizardState(Atom):
             # teardown the existing controller
             for w in self.active_widgets:
                 if w.module_controller is not None:
+                    w.module_controller.teardownPreview(active_widgets=self.active_widgets)
                     w.module_controller.teardownController(active_widgets=self.active_widgets)
 
             # switch to selected task
@@ -276,6 +280,7 @@ class WizardState(Atom):
                                              module_controller=ctrl,
                                              )
             ctrl.setupController(active_widgets=self.active_widgets)
+            ctrl.setupPreview(active_widgets=self.active_widgets)
 
 
 
@@ -310,6 +315,7 @@ class WizardController(Atom):
                                                         if self.module_manager.modules[m].is_enabled()],
                                              module_manager=self.module_manager,
                                              context=self.context,
+                                             controller=self,
                                              )
 
         return True
@@ -371,6 +377,8 @@ class WizardController(Atom):
             else:
                 state.completed = True
                 self.wizview.destroy()
+                if self.preview is not None:
+                    self.preview.destroy()
                 return
 
             log.info("Start task: %s" % state.task_list[state.task_idx])
