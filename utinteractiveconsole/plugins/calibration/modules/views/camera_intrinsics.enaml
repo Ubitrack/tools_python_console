@@ -34,35 +34,16 @@ enamldef CameraIntrinsicsCalibrationPanel(WizardPanel):
         scene << scene
 
 
-    Scene3D: scene1:
-        name = "scene1"
-
-        BackgroundTexture:
-            name = "bgtexture1"
-
-    PinholeCamera: camera1:
-        name = "camera1"
-        viewport = PerspectiveViewport()
-
-
-    MonoRenderer: renderer1:
-        name = "renderer1"
-        camera = camera1
-        scene << scene1
-
-
-
     constraints = [
         vbox( hbox(content, results_txt),
-              hbox(glview, glview1,),
+              hbox(glview, ),
               hbox( spacer, capture_image )
         ),
         content.width == results_txt.width,
-        glview.width == glview1.width,
     ]
 
     Html: content:
-        minimum_size = (600, 100)
+        minimum_size = (200, 50)
         source = """
         <h1>%s</h1>
         <p>Please use a calibration checkerboard to capture images from different viewpoints to
@@ -76,15 +57,6 @@ enamldef CameraIntrinsicsCalibrationPanel(WizardPanel):
     OpenGLWidget: glview:
         minimum_size = (640, 480)
         renderer = renderer
-        key_press_event::
-            v = change['value']
-            if module_controller.is_ready and v.key == 32:
-                module_controller.captureImage()
-
-    OpenGLWidget: glview1:
-        name = "glview1"
-        minimum_size = (640, 480)
-        renderer = renderer1
         key_press_event::
             v = change['value']
             if module_controller.is_ready and v.key == 32:

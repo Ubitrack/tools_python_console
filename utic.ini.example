@@ -10,6 +10,10 @@ record_directory: H:\record
 [ubitrack]
 components_path = H:\Libraries\UbiTrack-build\bin\ubitrack
 
+; not yet working
+;[extensions]
+;autostart: calibration_wizard
+
 ;
 ;
 ; Calibration Wizard Configuration
@@ -52,6 +56,7 @@ config_namespace: vc.phantom_colocation
 [vc.default_camera]
 name: Default Camera Calibration
 facade_handler: inprocess
+livepreview: default_camera
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s
 srgdir: %(rootdir)s\srgs\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
@@ -89,6 +94,7 @@ report_filename: calibration_report.yaml
 ;
 [vc.vuzix_hmd]
 name: Vuzix HMD Calibration
+livepreview: stereo_camera
 facade_handler: inprocess
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\vuzix_hmd\%(domain_name)s\%(setup_name)s\%(user_name)s
@@ -141,11 +147,15 @@ report_filename: calibration_report.yaml
 ;
 [vc.time_delay_estimation]
 name: Time-Delay Estimation
-facade_handler: masteslave
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\time_delay_estimation\%(domain_name)s\%(setup_name)s\%(user_name)s
 srgdir: %(rootdir)s\srgs\time_delay_estimation\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
 resultsdir: %(data_directory)s\time_delay_estimation\%(setup_name)s\%(user_name)s
+
+facade_handler: masterslave
+master_dfg_basedir: %(srgdir)s
+master_dfg_filename: vhar_calibration_host_flea2.dfg
+livepreview: time_delay_estimation
 
 [vc.time_delay_estimation.modules.calibration_start]
 enabled: True
@@ -176,7 +186,7 @@ dfg_filename: calibration_timedelay.dfg
 [vc.time_delay_estimation.modules.calibration_result]
 enabled: True
 name: Time-Delay Estimation Result
-dependencies:tooltip_calibration,absolute_orientation_calibration,timedelay_estimation_calibration
+dependencies: tooltip_calibration,absolute_orientation_calibration,timedelay_estimation_calibration
 ;dfg_filename: vhar_calibration_verification2.dfg
 report_filename: calibration_report.yaml
 
@@ -188,6 +198,7 @@ report_filename: calibration_report.yaml
 [vc.phantom_colocation]
 name: Phantom Co-Location Calibration
 facade_handler: masterslave
+livepreview: phantom_colocation
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s
 srgdir: %(rootdir)s\srgs\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s

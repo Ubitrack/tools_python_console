@@ -21,10 +21,6 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
     camera = Value()
     renderer = Value()
 
-    bgtexture1 = Value()
-    camera1 = Value()
-    renderer1 = Value()
-
     origin_marker = Value()
     origin_tracker = Value()
     verification_alignment = Value()
@@ -39,14 +35,6 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
             self.bgtexture = w.find('bgtexture')
             self.camera = w.find('camera')
             self.renderer = w.find('renderer')
-
-            self.bgtexture1 = w.find('bgtexture1')
-            self.camera1 = w.find('camera1')
-            self.renderer1 = w.find('renderer1')
-
-            self.origin_marker = w.find('origin_marker')
-            self.origin_tracker = w.find('origin_tracker')
-            self.verification_alignment = w.find('verification_alignment')
 
             self.results_txt = w.find('results_txt')
 
@@ -80,30 +68,32 @@ class CameraHandEyeCalibrationController(LiveCalibrationController):
         self.renderer.enable_trigger(True)
         self.bgtexture.image_in(c['value'])
 
-        # set marker tracking for glview1
-        self.renderer1.enable_trigger(False)
+        if self.preview_controller is not None:
+            pc = self.preview_controller
+            # set marker tracking for glview1
+            pc.renderer.enable_trigger(False)
 
-        # could be optimized to fetch only once ...
-        if conn.camera_resolution is not None:
-            self.camera1.camera_width, self.camera1.camera_height = conn.camera_resolution.get().astype(np.int)
+            # could be optimized to fetch only once ...
+            if conn.camera_resolution is not None:
+                pc.camera.camera_width, pc.camera.camera_height = conn.camera_resolution.get().astype(np.int)
 
-        if conn.camera_intrinsics is not None:
-            self.camera1.camera_intrinsics = conn.camera_intrinsics.get()
+            if conn.camera_intrinsics is not None:
+                pc.camera.camera_intrinsics = conn.camera_intrinsics.get()
 
-        if conn.origin_marker is not None:
-            self.origin_marker.transform = conn.origin_marker.get().toMatrix()
+            if conn.origin_marker is not None:
+                pc.origin_marker.transform = conn.origin_marker.get().toMatrix()
 
-        if conn.origin_tracker is not None:
-            self.origin_tracker.visible = True
-            self.origin_tracker.transform = conn.origin_tracker.get().toMatrix()
+            if conn.origin_tracker is not None:
+                pc.origin_tracker.visible = True
+                pc.origin_tracker.transform = conn.origin_tracker.get().toMatrix()
 
-        if conn.verification_alignment is not None:
-            self.verification_alignment.visible = True
-            self.verification_alignment.transform = conn.verification_alignment.get().toMatrix()
+            if conn.verification_alignment is not None:
+                pc.verification_alignment.visible = True
+                pc.verification_alignment.transform = conn.verification_alignment.get().toMatrix()
 
-        self.renderer1.enable_trigger(True)
-        if conn.camera_image is not None:
-            self.bgtexture1.image_in(conn.camera_image)
+            pc.renderer.enable_trigger(True)
+            if conn.camera_image is not None:
+                pc.bgtexture.image_in(conn.camera_image)
 
 
         results = []

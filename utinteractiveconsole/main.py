@@ -33,6 +33,10 @@ def main():
                   action="store", dest="logconfig", default="/etc/mvl/log4cpp.conf",
                   help="log4cpp config file")
 
+    # parser.add_option("-w", "--workspace",
+    #               action="store", dest="autostart_workspace", default=None,
+    #               help="Automatically select workspace on startup")
+    #
     parser.add_option("-L", "--show-logwindow",
                   action="store_true", dest="show_logwindow", default=False,
                   help="Show logging window in gui")
@@ -59,7 +63,6 @@ def main():
         logger.setLevel(logging.INFO)
         logger.addHandler(syslog.handler)
 
-
     appstate.args = args
     appstate.options = options
 
@@ -67,7 +70,6 @@ def main():
     appstate.context['options'] = options
 
     # XXX care about windows default paths here
-
     cfgfiles = []
     if (os.path.isfile(os.environ.get("UTIC_CONFIG_FILE", "/etc/mvl/utic.conf"))):
         cfgfiles.append(os.environ["UTIC_CONFIG_FILE"])

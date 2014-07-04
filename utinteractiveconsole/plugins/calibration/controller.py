@@ -2,8 +2,9 @@ __author__ = 'jack'
 
 import os, sys
 import glob
+import abc
 import shutil
-from atom.api import Atom, Value, Str, Typed, Dict
+from atom.api import Atom, Value, Str, Typed, Dict, Float
 
 import logging
 
@@ -11,6 +12,43 @@ from utinteractiveconsole.uthelpers import UbitrackFacadeBase, UbitrackConnector
 
 log = logging.getLogger(__name__)
 
+
+class PreviewControllerFactory(object):
+
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, parent, context):
+        self.parent = parent
+        self.context = context
+
+    @abc.abstractmethod
+    def create(self, workspace, name, widget_parent):
+        """
+        create a controller instance
+        """
+
+class PreviewControllerBase(Atom):
+    parent = Value()
+    widget_parent = Value()
+    widget_name = Str()
+    workspace = Value()
+    context = Value()
+
+    content = Value()
+
+    screen_ratio = Float(640./480.)
+
+    def setupPreview(self):
+        pass
+
+    def teardownPreview(self):
+        pass
+
+    def moduleSetupPreview(self, controller):
+        pass
+
+    def moduleTeardownPreview(self, controller):
+        pass
 
 
 class CalibrationController(Atom):
@@ -57,6 +95,16 @@ class CalibrationController(Atom):
             return self.config["dfg_filename"]
         return ""
 
+    @property
+    def preview_controller(self):
+        if self.wizard_state.controller.preview_controller is not None:
+            return self.wizard_state.controller.preview_controller
+
+    @property
+    def preview_widget(self):
+        if self.wizard_state.controller.preview is not None:
+            return self.wizard_state.controller.preview
+
     def setupController(self, active_widgets=None):
         log.info("Setup %s controller" % self.module_name)
         if self.facade is not None and self.dfg_filename:
@@ -71,10 +119,12 @@ class CalibrationController(Atom):
         pass
 
     def setupPreview(self, active_widgets=None):
-        pass
+        if self.preview_controller is not None:
+            self.preview_controller.moduleSetupPreview(self)
 
     def teardownPreview(self, active_widgets=None):
-        pass
+        if self.preview_controller is not None:
+            self.preview_controller.moduleTeardownPreview(self)
 
     def startCalibration(self):
         self.facade.loadDataflow(self.dfg_filename)
@@ -141,5 +191,22 @@ class LiveCalibrationController(CalibrationController):
                 return utconnector
             # else:
             #     log.error("Module %s: Invalid dfg_filename specified for utconnector of module: %s" % (self.module_name, fname))
+        return None
+
+
+class MasterSlaveCalibrationController(CalibrationController):
+    connector = Typed(UbitrackConnectorBase)
+    sync_source = Str()
+
+    def _default_connector(self):
+        if self.facade.master is not None:
+            facade = self.facade.master
+            if facade.dfg_filename and self.sync_source:
+                fname = os.path.join(facade.dfg_basedir, facade.dfg_filename)
+                if os.path.isfile(fname):
+                    utconnector = ubitrack_connector_class(fname)(sync_source=self.sync_source)
+                    return utconnector
+                # else:
+                #     log.error("Module %s: Invalid dfg_filename specified for utconnector of module: %s" % (self.module_name, fname))
         return None
 

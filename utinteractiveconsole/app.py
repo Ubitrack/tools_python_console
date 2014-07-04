@@ -4,8 +4,8 @@ import logging
 
 import enaml
 from atom.api import Atom, Value, Typed, List, Dict, ForwardTyped
-from enaml.workbench.ui.api import ActionItem
 from enaml.workbench.api import Extension
+from enaml.workbench.ui.autostart import Autostart
 
 from .guilogging import Syslog
 
@@ -86,16 +86,38 @@ class ExtensionManager(Atom):
         for name, category, plugins in self.extensions_workspaceplugins:
             for plugin in plugins:
                 try:
+                    log.info("Workspace Plugin: %s" % plugin.id)
                     plugin.set_parent(plugin_manifest)
                     result.append(plugin)
                 except Exception, e:
                     log.error("error while adding plugin extension: %s" % plugin.id)
                     log.exception(e)
-        # XXX add autostart if present in cmd-line args
+
+        # autostart = self.get_autostart_config()
+        # if autostart is not None:
+        #     def autostart_factory(workbench):
+        #         log.info("Autostart workspace: %r" % autostart)
+        #         return Autostart(plugin_id="utic.%s" % autostart)
+        #
+        #     ext = Extension(parent=plugin_manifest,
+        #                     id='autostart',
+        #                     point="enaml.workbench.ui.autostart",
+        #                     factory=autostart_factory)
+        #     result.append(ext)
         return result
 
-
-
+    def get_autostart_config(self):
+        ctx = self.appstate.context
+        # preference to command line
+        opt = ctx.get('options')
+        if opt.autostart_workspace is not None:
+            return opt.autostart_workspace
+        # use config file
+        cfg = ctx.get('config')
+        if cfg and cfg.has_option('extensions', 'autostart'):
+            return cfg.get('extensions', 'autostart')
+        # no autostart
+        return None
 
 class AppState(Atom):
     context = Dict()

@@ -65,6 +65,10 @@ class CalibrationStartController(CalibrationController):
                             log.info("Deleting calibration file: %s" % cf)
                             os.unlink(cf)
 
+        if self.preview_controller is not None:
+            self.preview_controller.setupPreview()
+
+
 class CalibrationStartModule(ModuleBase):
 
     def get_category(self):

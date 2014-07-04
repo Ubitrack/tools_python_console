@@ -8,7 +8,7 @@ from lxml import etree
 import new
 
 from atom.catom import Member
-from atom.api import (List, Dict, Str, Long, Atom, Value, Event, Bool, observe)
+from atom.api import (List, Dict, Str, Long, Typed, Atom, Value, Event, Bool, observe)
 
 # import all ubitrack modules to setup boost-python inline converters
 from ubitrack.core import math, calibration, util, measurement
@@ -384,6 +384,7 @@ class UbitrackFacadeBase(Atom):
             log.warn("loadDataflow called without filename")
             return
 
+        # XXX expand user required here ?
         if not os.path.isfile(fname):
             fname = os.path.join(self.dfg_basedir, fname)
             if not os.path.isfile(fname):
@@ -460,10 +461,16 @@ class UbitrackSubProcessFacade(UbitrackFacadeBase):
         return SubProcessManager("calibration_wizard_slave", components_path=self.components_path)
 
 
-class UbitrackMasterSlaveFacade(UbitrackFacadeBase):
+class UbitrackMasterSlaveFacade(UbitrackSubProcessFacade):
+
+    master = Typed(UbitrackFacade)
 
 
-    def _default_instance(self):
-        log.info("Create MasterSlave UbiTrack facade")
-        return facade.AdvancedFacade(self.components_path)
+    def setupMaster(self, base_dir, dfg_filename):
+        self.master = UbitrackFacade(context=self.context,
+                                     config_ns=self.config_ns,
+                                     components_path=self.components_path,
+                                     dfg_basedir=base_dir,
+                                     dfg_filename=dfg_filename,)
+
 

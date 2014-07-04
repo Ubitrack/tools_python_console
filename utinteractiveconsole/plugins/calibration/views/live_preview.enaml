@@ -4,15 +4,20 @@ from enaml.widgets.api import (
 )
 from enaml_opengl.widgets.opengl_widget import OpenGLWidget
 
-enamldef LivePreview(DockItem):
+enamldef LivePreview(DockItem): preview:
     attr controller
     attr state
+    attr renderer
+
+    alias glview
 
     Container:
         constraints = [
-            vbox(glview, ),
+            vbox(glview,),
         ]
         padding = (0, 0, 0, 0)
         OpenGLWidget: glview:
             name = 'live_preview_widget'
-            minimum_size = (640, 480)
+            constraints = [width == preview.controller.screen_ratio * height,]
+            minimum_size = (320, 240)
+            renderer << preview.renderer

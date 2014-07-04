@@ -17,7 +17,6 @@ class CameraIntrinsicsCalibrationController(LiveCalibrationController):
     is_ready = Bool(False)
 
     bgtexture = Value()
-    bgtexture1 = Value()
 
     results_txt = Value()
 
@@ -26,7 +25,6 @@ class CameraIntrinsicsCalibrationController(LiveCalibrationController):
         if active_widgets is not None:
             w = active_widgets[0]
             self.bgtexture = w.find('bgtexture')
-            self.bgtexture1 = w.find('bgtexture1')
             self.results_txt = w.find('results_txt')
 
         # needs to match the SRG !!
@@ -50,8 +48,9 @@ class CameraIntrinsicsCalibrationController(LiveCalibrationController):
 
     def handle_data(self, c):
         self.bgtexture.image_in(c['value'])
-        if self.connector.camera_image is not None:
-            self.bgtexture1.image_in(self.connector.camera_image )
+        if self.preview_controller is not None:
+            if self.connector.camera_image is not None:
+                self.preview_controller.bgtexture.image_in(self.connector.camera_image)
 
         results = []
         if self.connector.camera_intrinsics is not None:

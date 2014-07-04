@@ -60,5 +60,5 @@ enamldef ApplicationManifest(PluginManifest): plugin_manifest:
     #     id = 'autostart'
     #     point = 'enaml.workbench.ui.autostart'
     #     Autostart:
-    #         plugin_id = 'calibration_wizard'
+    #         plugin_id = 'utic.calibration_wizard'
 

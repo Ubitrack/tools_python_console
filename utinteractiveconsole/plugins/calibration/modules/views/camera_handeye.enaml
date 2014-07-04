@@ -12,7 +12,6 @@ from enaml_opengl.renderer import MonoRenderer
 from enaml_opengl.viewport import PerspectiveViewport
 
 from enaml_opengl.scenegraph_node import Scene3D
-from enaml_opengl.nodes.api import AxisItem
 
 from utinteractiveconsole.ui.background_texture import BackgroundTexture
 from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
@@ -37,47 +36,17 @@ enamldef CameraHandEyeCalibrationPanel(WizardPanel):
         scene << scene
 
 
-
-    Scene3D: scene1:
-        name = "scene1"
-
-        BackgroundTexture:
-            name = "bgtexture1"
-
-        AxisItem:
-            name = "origin_marker"
-
-        AxisItem:
-            name = "origin_tracker"
-            visible = False
-
-        AxisItem:
-            name = "verification_alignment"
-            visible = False
-
-    CalibratedCamera: camera1:
-        name = "camera1"
-        viewport = PerspectiveViewport()
-
-
-    MonoRenderer: renderer1:
-        name = "renderer1"
-        camera = camera1
-        scene << scene1
-
-
     constraints = [
         vbox( hbox(content, results_txt),
-              hbox(glview, glview1),
+              hbox(glview),
               hbox(spacer, capture_pose_he, capture_pose_align,
               )
         ),
         content.width == results_txt.width,
-        glview.width == glview1.width,
     ]
 
     Html: content:
-        minimum_size = (600, 100)
+        minimum_size = (200, 50)
         source = """
         <h1>%s</h1>
         <p>Please use a fiducial marker and attach a tracking target to the camera.
@@ -92,17 +61,8 @@ enamldef CameraHandEyeCalibrationPanel(WizardPanel):
     OpenGLWidget: glview:
         name = "glview"
         minimum_size = (640, 480)
-        constraints = [width == camera1.w_h_ratio * height,]
+        # constraints = [width == camera.w_h_ratio * height,]
         renderer = renderer
-        key_press_event::
-            v = change['value']
-            module_controller.handle_keypress(v.key)
-
-    OpenGLWidget: glview1:
-        name = "glview1"
-        minimum_size = (640, 480)
-        constraints = [width == camera1.w_h_ratio * height,]
-        renderer = renderer1
         key_press_event::
             v = change['value']
             module_controller.handle_keypress(v.key)

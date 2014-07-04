@@ -4,6 +4,7 @@ import os
 import sys
 import datetime
 import logging
+import stevedore
 
 import networkx as nx
 from atom.api import Atom, Value, List, Dict, Bool, Int, Str, Coerced, Typed, observe
@@ -139,9 +140,9 @@ class WizardState(Atom):
     @observe('task_list', 'task_idx')
     def _update_gui_data(self, change):
         self.text_next_button = 'Next' if len(self.task_list) > self.task_idx + 1 else "Finish"
-        self.show_back_button = bool(self.task_idx > 0)
+        self.show_back_button = bool(self.task_idx > 1)
         self.show_skip_button = bool(len(self.task_list) > self.task_idx + 1)
-        self.enable_back_button = bool(self.task_idx > 0)
+        self.enable_back_button = bool(self.task_idx > 1)
         self.enable_skip_button = bool(self.task_idx > 0 and len(self.task_list) > self.task_idx + 1)
 
     def _default_config(self):
@@ -271,7 +272,9 @@ class WizardController(Atom):
     current_state = Typed(WizardState)
 
     wizview = Value()
+    # XXX needs better structure ..
     preview = Value()
+    preview_controller = Value()
 
     def initialize(self, config):
 
@@ -407,7 +410,7 @@ class CalibrationWizard(ExtensionBase):
         action = ActionItem(path="/workspace/calibration_wizard",
                             label="Calibration Wizard",
                             shortcut= "Ctrl+W",
-                            before="load_dataflow",
+                            before="close",
                             command="enaml.workbench.ui.select_workspace",
                             parameters={'workspace': "utic.%s" % name, }
                             )
@@ -525,25 +528,26 @@ class CalibrationWizard(ExtensionBase):
 
             with enaml.imports():
                 from .views.wizard_main import WizardView
-                from .views.live_preview import LivePreview
 
             workspace = ev.workbench.get_plugin('enaml.workbench.ui').workspace
 
             def cleanup(*args):
                 log.info("cleanup for wizard: %s" % name)
+
+                if wizard.preview is not None:
+                    wizard.preview.destroy()
+                    wizard.preview = None
+
                 if wizard.wizview is not None:
                     wizard.wizview.unobserve("closed", cleanup)
-                wizard.wizview = None
+                    wizard.wizview = None
 
                 if wizard.current_state is not None:
                     wizard.current_state.stop()
-                wizard.current_state = None
+                    wizard.current_state = None
 
                 if name in wizard_instances:
                     wizard_instances.pop(name)
-                if name in live_previews:
-                    lp = live_previews.pop(name)
-                    lp.destroy()
                 workspace.unobserve("stopped", cleanup)
 
             if wizard.current_state is not None:
@@ -563,19 +567,18 @@ class CalibrationWizard(ExtensionBase):
                 op = InsertItem(item=wizard.wizview.name,)
                 parent.update_layout(op)
 
-            if wizard.preview is None and wizard_cfg.get("livepreview", "false").lower() == "true":
-                wizard.preview = LivePreview(name="%s_preview" % name,
-                                             title="LivePreview: %s" % wizard_def.get('name'),
-                                             controller=wizard,
-                                             state=wizard.current_state)
-                # make available to wizview
-                wizard.wizview.preview = wizard.preview
-
-                # add to layout
-                parent = workspace.content.find("wizard_dockarea")
-                wizard.preview.set_parent(parent)
-                op = InsertItem(item=wizard.preview.name, target=name, position='right')
-                parent.update_layout(op)
+            if wizard.preview is None and wizard_cfg.get("livepreview", None) is not None:
+                preview_controller_name = wizard_cfg.get("livepreview")
+                mgr = stevedore.extension.ExtensionManager
+                pce = mgr(namespace="vharcalibration.controllers.preview",
+                          invoke_on_load=True,
+                          invoke_args=(wizard, self.context, ),
+                          )
+                if preview_controller_name in pce.names():
+                    pc = pce[preview_controller_name].obj.create(workspace, name, parent)
+                    wizard.preview_controller = pc
+                else:
+                    log.warn("Invalid LivePreview config: %s" % preview_controller_name)
 
             wizard.show()
 

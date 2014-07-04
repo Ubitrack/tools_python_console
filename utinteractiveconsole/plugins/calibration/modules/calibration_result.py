@@ -14,6 +14,11 @@ log = logging.getLogger(__name__)
 class CalibrationResultController(CalibrationController):
     show_facade_controls = False
 
+    def teardownController(self, active_widgets=None):
+        if self.preview_controller is not None:
+            self.preview_controller.teardownPreview()
+        super(CalibrationResultController, self).teardownController(active_widgets=active_widgets)
+
     def saveResults(self, root_dir):
         wizard_state = self.wizard_state
         extra_files = []

@@ -41,8 +41,14 @@ This module controls my garden""",
                 'utic = utinteractiveconsole.main:main',
                 ],
             'utinteractiveconsole.extension': [
-                'load_dataflow = utinteractiveconsole.plugins.load_dataflow:LoadDataflow',
+                # 'load_dataflow = utinteractiveconsole.plugins.load_dataflow:LoadDataflow',
                 'calibration_wizard = utinteractiveconsole.plugins.calibration.wizard:CalibrationWizard',
+            ],
+            'vharcalibration.controllers.preview': [
+                'default_camera = utinteractiveconsole.plugins.calibration.controllers.preview_camera_calibration:CameraCalibrationPreviewFactory',
+                'stereo_camera = utinteractiveconsole.plugins.calibration.controllers.preview_stereocamera_calibration:StereoCameraCalibrationPreviewFactory',
+                'time_delay_estimation = utinteractiveconsole.plugins.calibration.controllers.preview_time_delay_estimation:TimeDelayEstimationPreviewFactory',
+                'phantom_colocation = utinteractiveconsole.plugins.calibration.controllers.preview_phantom_colocation:PhantomColocationPreviewFactory',
             ],
             'vharcalibration.default_camera.module': [
                 'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
