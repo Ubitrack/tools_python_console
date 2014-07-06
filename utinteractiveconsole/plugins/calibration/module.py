@@ -43,7 +43,7 @@ class ModuleBase(object):
         enabled = False
         if cfg.has_section(sname):
             enabled = cfg.getboolean(sname, "enabled")
-        log.info("CalibrationWizard module: %s is %s" % (self.module_name, "enabled" if enabled else "disabled"))
+        # log.info("CalibrationWizard module: %s is %s" % (self.module_name, "enabled" if enabled else "disabled"))
         return enabled
 
     def get_name(self):

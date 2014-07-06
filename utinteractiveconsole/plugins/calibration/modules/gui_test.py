@@ -3,19 +3,19 @@ import numpy as np
 from atom.api import Bool, Value
 import enaml
 with enaml.imports():
-    from .views.tooltip_calibration import TooltipCalibrationPanel
+    from .views.gui_test import GuiTestPanel
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import MasterSlaveCalibrationController
 
-class TooltipCalibrationController(MasterSlaveCalibrationController):
+class GuiTestController(MasterSlaveCalibrationController):
 
     is_ready = Bool(False)
 
     results_txt = Value()
 
     def setupController(self, active_widgets=None):
-        super(TooltipCalibrationController, self).setupController(active_widgets=active_widgets)
+        super(GuiTestController, self).setupController(active_widgets=active_widgets)
 
         if active_widgets is not None:
             w = active_widgets[0]
@@ -33,6 +33,7 @@ class TooltipCalibrationController(MasterSlaveCalibrationController):
     def teardownController(self, active_widgets=None):
         if self.connector is not None:
             self.connector.unobserve("camera_image", self.handle_data)
+            self.connector.teardown(self.facade.master.instance)
 
 
     def connector_setup(self, change):
@@ -47,6 +48,7 @@ class TooltipCalibrationController(MasterSlaveCalibrationController):
 
     def handle_data(self, c):
         conn = self.connector
+        print "handle_data", c
 
         if self.preview_controller is not None:
             pc = self.preview_controller
@@ -89,13 +91,13 @@ class TooltipCalibrationController(MasterSlaveCalibrationController):
     def handle_keypress(self, key):
         pass
 
-class TooltipCalibrationModule(ModuleBase):
+class GuiTestModule(ModuleBase):
 
     def get_category(self):
-        return "Co-location"
+        return "Testing"
 
     def get_widget_class(self):
-        return TooltipCalibrationPanel
+        return GuiTestPanel
 
     def get_controller_class(self):
-        return TooltipCalibrationController
+        return GuiTestController

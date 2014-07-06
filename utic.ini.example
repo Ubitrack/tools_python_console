@@ -56,7 +56,7 @@ config_namespace: vc.phantom_colocation
 [vc.default_camera]
 name: Default Camera Calibration
 facade_handler: inprocess
-livepreview: default_camera
+livepreview: default_camera_preview
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s
 srgdir: %(rootdir)s\srgs\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
@@ -94,7 +94,7 @@ report_filename: calibration_report.yaml
 ;
 [vc.vuzix_hmd]
 name: Vuzix HMD Calibration
-livepreview: stereo_camera
+livepreview: stereo_camera_preview
 facade_handler: inprocess
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\vuzix_hmd\%(domain_name)s\%(setup_name)s\%(user_name)s
@@ -155,7 +155,7 @@ resultsdir: %(data_directory)s\time_delay_estimation\%(setup_name)s\%(user_name)
 facade_handler: masterslave
 master_dfg_basedir: %(srgdir)s
 master_dfg_filename: vhar_calibration_host_flea2.dfg
-livepreview: time_delay_estimation
+livepreview: time_delay_estimation_preview
 
 [vc.time_delay_estimation.modules.calibration_start]
 enabled: True
@@ -198,7 +198,7 @@ report_filename: calibration_report.yaml
 [vc.phantom_colocation]
 name: Phantom Co-Location Calibration
 facade_handler: masterslave
-livepreview: phantom_colocation
+livepreview: phantom_colocation_preview
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s
 srgdir: %(rootdir)s\srgs\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s

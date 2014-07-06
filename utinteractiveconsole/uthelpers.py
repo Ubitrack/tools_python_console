@@ -224,8 +224,17 @@ class UbitrackConnectorBase(Atom):
 
     def teardown(self, facade):
         log.info("Teardown Ubitrack Connector")
-        # XXX implement connector teardown
+        for pi in self.ports:
+            if pi.name not in self.adapters:
+                continue
+            if pi.port_type == PORT_TYPE_SINK:
+                if pi.mode == PORT_MODE_PUSH:
+                    self.adapters[pi.name].disconnect(self.handleSinkData)
+            else:
+                if pi.mode == PORT_MODE_PULL:
+                    self.adapters[pi.name].disconnect(self.handleSourceData)
 
+        self.adapters = {}
 
 
     def handleSinkData(self, ts):

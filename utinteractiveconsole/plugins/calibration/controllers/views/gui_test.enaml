@@ -1,0 +1,45 @@
+
+from enaml.core.api import Declarative
+from enaml_opengl.renderer import MonoRenderer
+from enaml_opengl.viewport import PerspectiveViewport
+from enaml_opengl.scenegraph_node import Scene3D
+from enaml_opengl.nodes.api import AxisItem
+
+from utinteractiveconsole.ui.background_texture import BackgroundTexture
+from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
+
+enamldef GuiTestPreviewContent(Declarative): content:
+
+    attr controller
+
+    alias renderer
+    alias camera
+    alias scene
+
+    Scene3D: scene:
+        name = "preview_scene"
+
+        BackgroundTexture: bgtexture:
+            name = "preview_bgtexture"
+
+        # AxisItem:
+        #     name = "origin_marker"
+        #
+        # AxisItem:
+        #     name = "origin_tracker"
+        #     visible = False
+        #
+        # AxisItem:
+        #     name = "verification_alignment"
+        #     visible = False
+        #
+
+    CalibratedCamera: camera:
+        name = "preview_camera"
+        viewport = PerspectiveViewport()
+
+
+    MonoRenderer: renderer:
+        name = "preview_renderer"
+        camera = camera
+        scene << scene
