@@ -7,7 +7,7 @@ import logging
 import stevedore
 
 import networkx as nx
-from atom.api import Atom, Value, List, Dict, Bool, Int, Str, Coerced, Typed, observe
+from atom.api import Atom, Value, Event, List, Dict, Bool, Int, Str, Coerced, Typed, observe
 import enaml
 from enaml.workbench.ui.api import ActionItem
 from enaml.workbench.api import Extension
@@ -18,7 +18,7 @@ from enaml.layout.api import InsertItem
 from utinteractiveconsole.extension import ExtensionBase
 from utinteractiveconsole.workspace import ExtensionWorkspace
 from utinteractiveconsole.uthelpers import (UbitrackSubProcessFacade, UbitrackFacade,
-                                            UbitrackFacadeBase, UbitrackMasterSlaveFacade)
+                                            UbitrackFacadeBase)
 
 from .module import ModuleManager
 with enaml.imports():
@@ -137,6 +137,15 @@ class WizardState(Atom):
     text_skip_button = Str('Skip')
     text_next_button = Str('Next')
 
+    # Events
+    on_wizard_after_start = Event()
+    on_module_after_load = Event()
+    on_module_after_start = Event()
+    on_module_before_stop = Event()
+    on_module_before_unload = Event()
+    on_wizard_before_stop = Event()
+
+
     @observe('task_list', 'task_idx')
     def _update_gui_data(self, change):
         self.text_next_button = 'Next' if len(self.task_list) > self.task_idx + 1 else "Finish"
@@ -168,17 +177,9 @@ class WizardState(Atom):
         fht = self.facade_handler_type
         facade = None
         if fht == "subprocess":
-            facade = UbitrackSubProcessFacade(context=self.context,
-                                              config_ns=self.module_manager.config_ns,
-                                              )
+            facade = UbitrackSubProcessFacade(context=self.context,)
         elif fht == "inprocess":
-            facade = UbitrackFacade(context=self.context,
-                                    config_ns=self.module_manager.config_ns,
-                                    )
-        elif fht == "masterslave":
-            facade = UbitrackMasterSlaveFacade(context=self.context,
-                                               config_ns=self.module_manager.config_ns,
-                                               )
+            facade = UbitrackFacade(context=self.context,)
         else:
             log.error("Invalid facade_handler configured in section: %s" % self.module_manager.config_ns)
         return facade
@@ -228,7 +229,7 @@ class WizardState(Atom):
                         module_controller=ctrl,
                         )
         ctrl.setupController(active_widgets=aw)
-        ctrl.setupPreview(active_widgets=aw)
+        self.on_module_after_load(ctrl.module_name)
         return aw
 
     @observe("task_idx")
@@ -237,7 +238,7 @@ class WizardState(Atom):
             # teardown the existing controller
             for w in self.active_widgets:
                 if w.module_controller is not None:
-                    w.module_controller.teardownPreview(active_widgets=self.active_widgets)
+                    self.on_module_before_unload(w.module_controller.module_name)
                     w.module_controller.teardownController(active_widgets=self.active_widgets)
 
             # switch to selected task
@@ -259,7 +260,7 @@ class WizardState(Atom):
                                              module_controller=ctrl,
                                              )
             ctrl.setupController(active_widgets=self.active_widgets)
-            ctrl.setupPreview(active_widgets=self.active_widgets)
+            self.on_module_after_load(ctrl.module_name)
 
 
 
@@ -272,7 +273,7 @@ class WizardController(Atom):
     current_state = Typed(WizardState)
 
     wizview = Value()
-    # XXX needs better structure ..
+    # XXX needs better structure .. maybe ..
     preview = Value()
     preview_controller = Value()
 
@@ -298,14 +299,31 @@ class WizardController(Atom):
                                              context=self.context,
                                              controller=self,
                                              )
+                                            # XXX something missing here ?
 
+        self.current_state.on_wizard_after_start()
         return True
+
+    def teardown(self):
+        if self.preview_controller is not None:
+            self.preview_controller.teardown()
+
+        self.current_state.on_wizard_before_stop()
+        self.wizview.destroy()
+        if self.preview is not None:
+            self.preview.destroy()
 
     def show(self):
         if self.wizview is not None:
             self.wizview.show()
         if self.preview is not None:
             self.preview.show()
+
+    def hide(self):
+        if self.wizview is not None:
+            self.wizview.hide()
+        if self.preview is not None:
+            self.preview.hide()
 
     def on_next(self, content):
         state = self.current_state
@@ -357,9 +375,7 @@ class WizardController(Atom):
                 state.task_idx += 1
             else:
                 state.completed = True
-                self.wizview.destroy()
-                if self.preview is not None:
-                    self.preview.destroy()
+                self.teardown()
                 return
 
             log.info("Start task: %s" % state.task_list[state.task_idx])
@@ -572,11 +588,12 @@ class CalibrationWizard(ExtensionBase):
                 mgr = stevedore.extension.ExtensionManager
                 pce = mgr(namespace="vharcalibration.controllers.preview",
                           invoke_on_load=True,
-                          invoke_args=(wizard, self.context, ),
+                          invoke_args=(wizard, self.context, wizard_def.get("config_namespace") ),
                           )
                 if preview_controller_name in pce.names():
                     pc = pce[preview_controller_name].obj.create(workspace, name, parent)
                     wizard.preview_controller = pc
+                    pc.initialize()
                 else:
                     log.warn("Invalid LivePreview config: %s" % preview_controller_name)
 

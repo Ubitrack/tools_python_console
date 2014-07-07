@@ -330,10 +330,7 @@ class UbitrackFacadeBase(Atom):
     context = Member()
     components_path = Str()
     instance = Member()
-    dfg_basedir = Str()
     dfg_filename = Str()
-
-    config_ns = Str()
 
     is_loaded = Bool()
     is_running = Bool()
@@ -360,24 +357,6 @@ class UbitrackFacadeBase(Atom):
                 log.warn("Missing UBITRACK_COMPONENTS_PATH environment variable")
         return cpath
 
-    def _default_dfg_basedir(self):
-        basedir = None
-        if self.context is not None and self.context.get("config") is not None:
-            cfg = self.context.get("config")
-            srg_dir = None
-            if cfg.has_section(self.config_ns) and cfg.has_option(self.config_ns, 'srgdir'):
-                srg_dir = cfg.get(self.config_ns, 'srgdir')
-                basedir = os.path.expanduser(srg_dir)
-            else:
-                log.warn("Missing srgdir option for config_ns: %s" % self.config_ns)
-        else:
-            raise ValueError("Invalid Config")
-
-        if basedir is None or not os.path.isdir(basedir):
-            log.error("Invalid Basedir for CalibrationModules: %s" % basedir)
-        return basedir
-
-
     @observe("dfg_filename")
     def _handle_dfg_change(self, change):
         if self.is_loaded:
@@ -395,10 +374,8 @@ class UbitrackFacadeBase(Atom):
 
         # XXX expand user required here ?
         if not os.path.isfile(fname):
-            fname = os.path.join(self.dfg_basedir, fname)
-            if not os.path.isfile(fname):
-                log.error("Invalid DFG filename: %s" % fname)
-                return
+            log.error("Invalid DFG filename: %s" % fname)
+            return
         log.info("Load DFG: %s" % fname)
         self.instance.loadDataflow(fname, True)
         self.is_loaded = True
@@ -468,18 +445,4 @@ class UbitrackSubProcessFacade(UbitrackFacadeBase):
     def _default_instance(self):
         log.info("Create SubProcess UbiTrack facade")
         return SubProcessManager("calibration_wizard_slave", components_path=self.components_path)
-
-
-class UbitrackMasterSlaveFacade(UbitrackSubProcessFacade):
-
-    master = Typed(UbitrackFacade)
-
-
-    def setupMaster(self, base_dir, dfg_filename):
-        self.master = UbitrackFacade(context=self.context,
-                                     config_ns=self.config_ns,
-                                     components_path=self.components_path,
-                                     dfg_basedir=base_dir,
-                                     dfg_filename=dfg_filename,)
-
 

@@ -6,9 +6,9 @@ with enaml.imports():
     from .views.tooltip_calibration import TooltipCalibrationPanel
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
-from utinteractiveconsole.plugins.calibration.controller import MasterSlaveCalibrationController
+from utinteractiveconsole.plugins.calibration.controller import CalibrationController
 
-class TooltipCalibrationController(MasterSlaveCalibrationController):
+class TooltipCalibrationController(CalibrationController):
 
     is_ready = Bool(False)
 

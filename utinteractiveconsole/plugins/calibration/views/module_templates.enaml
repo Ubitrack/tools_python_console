@@ -3,8 +3,6 @@ from enaml.widgets.api import (
     Container, Label, PushButton
 )
 
-from utinteractiveconsole.uthelpers import UbitrackFacade, UbitrackSubProcessFacade, UbitrackMasterSlaveFacade
-
 enamldef WizardPanel(Container):
     padding = (0, 0, 0, 0)
     attr main

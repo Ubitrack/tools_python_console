@@ -8,12 +8,12 @@ with enaml.imports():
 from atom.api import Bool, Value
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
-from utinteractiveconsole.plugins.calibration.controller import LiveCalibrationController
+from utinteractiveconsole.plugins.calibration.controller import CalibrationController
 
 import logging
 log = logging.getLogger(__name__)
 
-class CameraStereoCalibrationController(LiveCalibrationController):
+class CameraStereoCalibrationController(CalibrationController):
 
     is_ready = Bool(False)
 

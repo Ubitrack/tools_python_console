@@ -60,7 +60,7 @@ name: Default Camera Calibration
 facade_handler: inprocess
 rootdir: %(config_directory)s/vharcalibration
 calibdir: %(rootdir)s/calib/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s
-srgdir: %(rootdir)s/srgs/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+dfgdir: %(rootdir)s/dfgs/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
 resultsdir: %(data_directory)s/default_camera/%(setup_name)s/%(user_name)s
 
 [vc.default_camera.modules.calibration_start]
@@ -98,7 +98,7 @@ report_filename: calibration_report.yaml
 ;facade_handler: inprocess
 ;rootdir: %(config_directory)s/vharcalibration
 ;calibdir: %(rootdir)s/calib/vuzix_hmd/%(domain_name)s/%(setup_name)s/%(user_name)s
-;srgdir: %(rootdir)s/srgs/vuzix_hmd/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+;dfgdir: %(rootdir)s/dfgs/vuzix_hmd/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
 ;resultsdir: %(data_directory)s/vuzix_hmd/%(setup_name)s/%(user_name)s
 ;
 ;[vc.vuzix_hmd.modules.calibration_start]
@@ -150,7 +150,7 @@ report_filename: calibration_report.yaml
 ;facade_handler: masteslave
 ;rootdir: %(config_directory)s/vharcalibration
 ;calibdir: %(rootdir)s/calib/time_delay_estimation/%(domain_name)s/%(setup_name)s/%(user_name)s
-;srgdir: %(rootdir)s/srgs/time_delay_estimation/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+;dfgdir: %(rootdir)s/dfgs/time_delay_estimation/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
 ;resultsdir: %(data_directory)s/time_delay_estimation/%(setup_name)s/%(user_name)s
 ;
 ;[vc.time_delay_estimation.modules.calibration_start]
@@ -196,7 +196,7 @@ report_filename: calibration_report.yaml
 ;facade_handler: masterslave
 ;rootdir: %(config_directory)s/vharcalibration
 ;calibdir: %(rootdir)s/calib/phantom_colocation/%(domain_name)s/%(setup_name)s/%(user_name)s
-;srgdir: %(rootdir)s/srgs/phantom_colocation/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+;dfgdir: %(rootdir)s/dfgs/phantom_colocation/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
 ;resultsdir: %(data_directory)s/phantom_colocation/%(setup_name)s/%(user_name)s
 ;; use_2ndorder: True
 ;
@@ -263,10 +263,10 @@ facade_handler: masterslave
 livepreview: True
 rootdir: %(config_directory)s/vharcalibration
 calibdir: %(rootdir)s/calib/gui_test/%(domain_name)s/%(setup_name)s/%(user_name)s
-srgdir: %(rootdir)s/srgs/gui_test/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+dfgdir: %(rootdir)s/dfgs/gui_test/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
 resultsdir: %(data_directory)s/gui_test/%(setup_name)s/%(user_name)s
 
-livepreview_dfg_basedir: %(srgdir)s
+livepreview_dfg_basedir: %(dfgdir)s
 livepreview_dfg_filename: guitest_master.dfg
 
 [vc.gui_test.modules.calibration_start]

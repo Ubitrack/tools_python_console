@@ -6,9 +6,9 @@ with enaml.imports():
     from .views.gui_test import GuiTestPanel
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
-from utinteractiveconsole.plugins.calibration.controller import MasterSlaveCalibrationController
+from utinteractiveconsole.plugins.calibration.controller import CalibrationController
 
-class GuiTestController(MasterSlaveCalibrationController):
+class GuiTestController(CalibrationController):
 
     is_ready = Bool(False)
 
@@ -21,49 +21,36 @@ class GuiTestController(MasterSlaveCalibrationController):
             w = active_widgets[0]
             self.results_txt = w.find('results_txt')
 
-        # needs to match the SRG !!
-        self.sync_source = "camera_image"
-
-        if self.facade.master is not None:
-            if self.facade.master.is_loaded:
-                self.connector_setup(dict(value=True))
-            else:
-                self.facade.master.observe("is_loaded", self.connector_setup)
-
-    def teardownController(self, active_widgets=None):
-        if self.connector is not None:
-            self.connector.unobserve("camera_image", self.handle_data)
-            self.connector.teardown(self.facade.master.instance)
-
-
     def connector_setup(self, change):
         # XXX Add SRG Verification to Controllers !!!
         if change['value'] == True:
-            self.connector.setup(self.facade.master.instance)
+            self.connector.setup(self.facade.instance)
             self.connector.observe("camera_image", self.handle_data)
             self.is_ready = True
 
-        if self.facade.master is not None:
-            self.facade.master.unobserve("is_loaded", self.connector_setup)
+        if self.facade is not None:
+            self.facade.unobserve("is_loaded", self.connector_setup)
 
     def handle_data(self, c):
         conn = self.connector
         print "handle_data", c
 
         if self.preview_controller is not None:
-            pc = self.preview_controller
-            # set debug image texture for glview
-            pc.renderer.enable_trigger(False)
+            pass
+            # pc = self.preview_controller
+            # # set debug image texture for glview
+            # pc.renderer.enable_trigger(False)
+            #
+            # # could be optimized to fetch only once ...
+            # if conn.camera_resolution is not None:
+            #     pc.camera.camera_width, pc.camera.camera_height = conn.camera_resolution.get().astype(np.int)
+            #
+            # if conn.camera_intrinsics is not None:
+            #     pc.camera.camera_intrinsics = conn.camera_intrinsics.get()
+            #
+            # pc.renderer.enable_trigger(True)
+            # pc.bgtexture.image_in(c['value'])
 
-            # could be optimized to fetch only once ...
-            if conn.camera_resolution is not None:
-                pc.camera.camera_width, pc.camera.camera_height = conn.camera_resolution.get().astype(np.int)
-
-            if conn.camera_intrinsics is not None:
-                pc.camera.camera_intrinsics = conn.camera_intrinsics.get()
-
-            pc.renderer.enable_trigger(True)
-            pc.bgtexture.image_in(c['value'])
 
             # if conn.origin_marker is not None:
             #     pc.origin_marker.transform = conn.origin_marker.get().toMatrix()

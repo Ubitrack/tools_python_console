@@ -24,7 +24,7 @@ enamldef SubprocessControl(Container): scmain:
 
     constraints = [
         grid(
-            [playing, stopped, reloadsrg],
+            [playing, stopped, reloaddfg],
             column_align='width',
             row_align='v_center',
         ),
@@ -40,7 +40,7 @@ enamldef SubprocessControl(Container): scmain:
         icon_size = (32, 32)
         enabled << not state.dataflow_running
 
-    PushButton: reloadsrg:
+    PushButton: reloaddfg:
         icon = Icon(images=[IconImage(image=Image(data=resource_stream("utinteractiveconsole", "resources/icons/btn_repeat.png").read())),])
         icon_size = (32, 32)
         clicked::
@@ -49,7 +49,7 @@ enamldef SubprocessControl(Container): scmain:
 
 
     Timer: timer:
-        interval = 500
+        interval = 2000
         attr ignore_next_checks = 0
         timeout ::
             if scmain.facade is not None:
@@ -71,7 +71,7 @@ enamldef SubprocessControl(Container): scmain:
                     result = critical(scmain, 'Error occured', 'The dataflow subprocess unexpectedly terminated.', btns)
                     if result.text == "Restart":
                         scmain.facade.restart(autostart=scmain.state.dataflow_running)
-                        self.ignore_next_checks = 20
+                        self.ignore_next_checks = 5
 
 
 

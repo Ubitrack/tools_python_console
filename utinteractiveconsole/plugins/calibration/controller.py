@@ -8,7 +8,7 @@ from atom.api import Atom, Value, Str, Typed, Dict, Float
 
 import logging
 
-from utinteractiveconsole.uthelpers import UbitrackFacadeBase, UbitrackConnectorBase, ubitrack_connector_class
+from utinteractiveconsole.uthelpers import UbitrackFacadeBase, UbitrackConnectorBase, UbitrackFacade, ubitrack_connector_class
 
 log = logging.getLogger(__name__)
 
@@ -17,9 +17,10 @@ class PreviewControllerFactory(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, parent, context):
+    def __init__(self, parent, context, config_ns):
         self.parent = parent
         self.context = context
+        self.config_ns = config_ns
 
     @abc.abstractmethod
     def create(self, workspace, name, widget_parent):
@@ -27,16 +28,110 @@ class PreviewControllerFactory(object):
         create a controller instance
         """
 
+
+
 class PreviewControllerBase(Atom):
     parent = Value()
     widget_parent = Value()
     widget_name = Str()
     workspace = Value()
     context = Value()
+    config_ns = Str()
+
+    config = Dict()
+    wizard_config = Dict()
+
+    facade = Typed(UbitrackFacadeBase)
+    dfg_dir = Str()
+    dfg_filename = Str()
+
+    connector = Typed(UbitrackConnectorBase)
+    sync_source = Str()
+
 
     content = Value()
-
     screen_ratio = Float(640./480.)
+
+    def _default_config(self):
+        cfg = self.context.get("config")
+        sname = "%s.preview" % self.config_ns
+        if cfg.has_section(sname):
+            return dict(cfg.items(sname))
+        else:
+            log.error("Missing section: [%s] in config" % sname)
+            return dict()
+
+    def _default_wizard_config(self):
+        cfg = self.context.get("config")
+        if cfg.has_section(self.config_ns):
+            return dict(cfg.items(self.config_ns))
+        else:
+            log.error("Missing section: [%s] in config" % self.config_ns)
+            return dict()
+
+    def _default_dfg_dir(self):
+        return os.path.expanduser(self.wizard_config.get("dfgdir"))
+
+    def _default_dfg_filename(self):
+        return os.path.expanduser(self.config.get("dfg_filename"))
+
+    def _default_facade(self):
+        facade = UbitrackFacade(context=self.context,)
+        fname = os.path.join(self.dfg_dir, self.dfg_filename)
+        if os.path.isfile(fname):
+            facade.dfg_filename = fname
+        else:
+            log.warn("Invalid dfg_filename for preview controller: %s" % fname)
+        return facade
+
+    def _default_connector(self):
+        if not self.sync_source:
+            self.sync_source = self.config.get("sync_source")
+
+        if self.sync_source:
+            fname = os.path.join(self.dfg_dir, self.facade.dfg_filename)
+            if os.path.isfile(fname):
+                log.info("Setup Preview Connector with sync_source: %s" % self.sync_source)
+                utconnector = ubitrack_connector_class(fname)(sync_source=self.sync_source)
+                return utconnector
+            else:
+                log.error("Invalid dfg_filename specified for preview utconnector of module: %s" % fname)
+        else:
+            log.error("Missing sync_source for live preview")
+        return None
+
+
+
+    def initialize(self):
+        log.info("Initialize Preview Controller")
+        widget_state = self.parent.current_state
+        widget_state.observe("on_module_after_load", self.on_module_after_load)
+        widget_state.observe("on_module_after_start", self.on_module_after_start)
+        widget_state.observe("on_module_before_stop", self.on_module_before_stop)
+        widget_state.observe("on_module_before_unload", self.on_module_before_unload)
+
+    def teardown(self):
+        log.info("Teardown Preview Controller")
+        widget_state = self.parent.current_state
+        widget_state.unobserve("on_module_after_load", self.on_module_after_load)
+        widget_state.unobserve("on_module_after_start", self.on_module_after_start)
+        widget_state.unobserve("on_module_before_stop", self.on_module_before_stop)
+        widget_state.unobserve("on_module_before_unload", self.on_module_before_unload)
+
+
+
+    def on_module_after_load(self, change):
+        pass
+
+    def on_module_after_start(self, change):
+        pass
+
+    def on_module_before_stop(self, change):
+        pass
+
+    def on_module_before_unload(self, change):
+        pass
+
 
     def setupPreview(self):
         pass
@@ -49,6 +144,8 @@ class PreviewControllerBase(Atom):
 
     def moduleTeardownPreview(self, controller):
         pass
+
+
 
 
 class CalibrationController(Atom):
@@ -68,7 +165,7 @@ class CalibrationController(Atom):
     config = Dict()
 
     calib_dir = Str()
-    srg_dir = Str()
+    dfg_dir = Str()
     results_dir = Str()
     dfg_filename = Str()
 
@@ -84,8 +181,8 @@ class CalibrationController(Atom):
     def _default_calib_dir(self):
         return os.path.expanduser(self.wizard_state.config.get("calibdir"))
 
-    def _default_srg_dir(self):
-        return os.path.expanduser(self.wizard_state.config.get("srgdir"))
+    def _default_dfg_dir(self):
+        return os.path.expanduser(self.wizard_state.config.get("dfgdir"))
 
     def _default_results_dir(self):
         return os.path.expanduser(self.wizard_state.config.get("resultsdir"))
@@ -95,20 +192,10 @@ class CalibrationController(Atom):
             return self.config["dfg_filename"]
         return ""
 
-    @property
-    def preview_controller(self):
-        if self.wizard_state.controller.preview_controller is not None:
-            return self.wizard_state.controller.preview_controller
-
-    @property
-    def preview_widget(self):
-        if self.wizard_state.controller.preview is not None:
-            return self.wizard_state.controller.preview
-
     def setupController(self, active_widgets=None):
         log.info("Setup %s controller" % self.module_name)
         if self.facade is not None and self.dfg_filename:
-            fname = os.path.join(self.facade.dfg_basedir, self.dfg_filename)
+            fname = os.path.join(self.dfg_dir, self.dfg_filename)
             if os.path.isfile(fname):
                 self.facade.dfg_filename = fname
             else:
@@ -116,21 +203,16 @@ class CalibrationController(Atom):
 
 
     def teardownController(self, active_widgets=None):
-        pass
-
-    def setupPreview(self, active_widgets=None):
-        if self.preview_controller is not None:
-            self.preview_controller.moduleSetupPreview(self)
-
-    def teardownPreview(self, active_widgets=None):
-        if self.preview_controller is not None:
-            self.preview_controller.moduleTeardownPreview(self)
+        if self.facade.is_running:
+            self.stopCalibration()
 
     def startCalibration(self):
         self.facade.loadDataflow(self.dfg_filename)
         self.facade.startDataflow()
+        self.wizard_state.on_module_after_start(self.module_name)
 
     def stopCalibration(self):
+        self.wizard_state.on_module_before_stop(self.module_name)
         self.facade.stopDataflow()
         self.facade.clearDataflow()
 
@@ -185,28 +267,12 @@ class LiveCalibrationController(CalibrationController):
 
     def _default_connector(self):
         if self.dfg_filename and self.sync_source:
-            fname = os.path.join(self.facade.dfg_basedir, self.dfg_filename)
+            fname = os.path.join(self.dfg_dir, self.dfg_filename)
             if os.path.isfile(fname):
+                log.info("Setup LiveCalibration Connector with sync_source: %s" % self.sync_source)
                 utconnector = ubitrack_connector_class(fname)(sync_source=self.sync_source)
                 return utconnector
             # else:
             #     log.error("Module %s: Invalid dfg_filename specified for utconnector of module: %s" % (self.module_name, fname))
-        return None
-
-
-class MasterSlaveCalibrationController(CalibrationController):
-    connector = Typed(UbitrackConnectorBase)
-    sync_source = Str()
-
-    def _default_connector(self):
-        if self.facade.master is not None:
-            facade = self.facade.master
-            if facade.dfg_filename and self.sync_source:
-                fname = os.path.join(facade.dfg_basedir, facade.dfg_filename)
-                if os.path.isfile(fname):
-                    utconnector = ubitrack_connector_class(fname)(sync_source=self.sync_source)
-                    return utconnector
-                # else:
-                #     log.error("Module %s: Invalid dfg_filename specified for utconnector of module: %s" % (self.module_name, fname))
         return None
 

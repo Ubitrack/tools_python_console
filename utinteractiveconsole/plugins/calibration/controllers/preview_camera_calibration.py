@@ -15,6 +15,7 @@ class CameraCalibrationPreviewFactory(PreviewControllerFactory):
     def create(self, workspace, name, widget_parent):
         return CameraCalibrationPreview(parent=self.parent,
                                         context=self.context,
+                                        config_ns=self.config_ns,
                                         widget_parent=widget_parent,
                                         widget_name=name,
                                         workspace=workspace)

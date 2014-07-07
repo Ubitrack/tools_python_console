@@ -8,7 +8,10 @@ log = logging.getLogger(__name__)
 class PhantomColocationPreviewFactory(PreviewControllerFactory):
 
     def create(self):
-        return PhantomColocationPreview(parent=self.parent, context=self.context)
+        return PhantomColocationPreview(parent=self.parent,
+                                        context=self.context,
+                                        config_ns=self.config_ns,
+                                        )
 
 
 class PhantomColocationPreview(PreviewControllerBase):
