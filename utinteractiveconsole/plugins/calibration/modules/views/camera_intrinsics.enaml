@@ -1,6 +1,6 @@
 from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
-    Container, Html, PushButton, MultilineField
+    Container, Html, PushButton, MultilineField, ComboBox
 )
 import enaml
 with enaml.imports():
@@ -17,7 +17,7 @@ from enaml_opengl.scenegraph_node import Scene3D
 
 from utinteractiveconsole.ui.background_texture import BackgroundTexture
 
-enamldef CameraIntrinsicsCalibrationPanel(WizardPanel):
+enamldef CameraIntrinsicsCalibrationPanel(WizardPanel): panel:
 
     Scene3D: scene:
         name = "scene"
@@ -37,7 +37,7 @@ enamldef CameraIntrinsicsCalibrationPanel(WizardPanel):
     constraints = [
         vbox( hbox(content, results_txt),
               hbox(glview, ),
-              hbox( spacer, capture_image )
+              hbox( spacer, select_image, capture_image )
         ),
         content.width == results_txt.width,
     ]
@@ -61,6 +61,11 @@ enamldef CameraIntrinsicsCalibrationPanel(WizardPanel):
             v = change['value']
             if module_controller.is_ready and v.key == 32:
                 module_controller.captureImage()
+
+    ComboBox: select_image:
+        items = ['calibration', 'verification']
+        index = items.index('calibration')
+        index:: module_controller.image_selector = items[index]
 
     PushButton: capture_image:
         text = "Capture Image"

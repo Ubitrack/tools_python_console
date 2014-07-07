@@ -4,7 +4,7 @@ import os, sys
 import glob
 import abc
 import shutil
-from atom.api import Atom, Value, Str, Typed, Dict, Float
+from atom.api import Atom, Value, Str, Typed, Dict, List, Float
 
 import logging
 
@@ -265,6 +265,8 @@ class LiveCalibrationController(CalibrationController):
     connector = Typed(UbitrackConnectorBase)
     sync_source = Str()
 
+    required_sinks = List()
+
     def _default_connector(self):
         if self.dfg_filename and self.sync_source:
             fname = os.path.join(self.dfg_dir, self.dfg_filename)
@@ -276,3 +278,14 @@ class LiveCalibrationController(CalibrationController):
             #     log.error("Module %s: Invalid dfg_filename specified for utconnector of module: %s" % (self.module_name, fname))
         return None
 
+    def verify_connector(self):
+        is_valid = True
+        if self.connector is not None:
+            members = [k for k in self.connector.members().keys() if not k.startswith('_')]
+            for sink in self.required_sinks:
+                if not sink in members:
+                    log.error("Missing sink in DFG with name: %s" % sink)
+                    is_valid = False
+        else:
+            is_valid = False
+        return is_valid

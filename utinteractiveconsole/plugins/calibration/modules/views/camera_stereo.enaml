@@ -69,7 +69,7 @@ enamldef CameraStereoCalibrationPanel(WizardPanel):
     ]
 
     Html: content:
-        minimum_size = (600, 100)
+        minimum_size = (200, 50)
         source = """
         <h1>%s</h1>
         <p>Please use a checkerboard.
@@ -83,7 +83,7 @@ enamldef CameraStereoCalibrationPanel(WizardPanel):
 
     OpenGLWidget: glview_left:
         name = "glview_left"
-        minimum_size = (640, 480)
+        minimum_size = (320, 240)
         constraints = [width == camera_left.w_h_ratio * height,]
         renderer = renderer_left
         key_press_event::
@@ -92,7 +92,7 @@ enamldef CameraStereoCalibrationPanel(WizardPanel):
 
     OpenGLWidget: glview_right:
         name = "glview_right"
-        minimum_size = (640, 480)
+        minimum_size = (320, 240)
         constraints = [width == camera_right.w_h_ratio * height,]
         renderer = renderer_right
         key_press_event::

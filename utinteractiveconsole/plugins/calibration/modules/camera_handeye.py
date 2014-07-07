@@ -5,15 +5,15 @@ import enaml
 with enaml.imports():
     from .views.camera_handeye import CameraHandEyeCalibrationPanel
 
-from atom.api import Bool, Value
+from atom.api import Bool, Value, Enum
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
-from utinteractiveconsole.plugins.calibration.controller import CalibrationController
+from utinteractiveconsole.plugins.calibration.controller import LiveCalibrationController
 
 import logging
 log = logging.getLogger(__name__)
 
-class CameraHandEyeCalibrationController(CalibrationController):
+class CameraHandEyeCalibrationController(LiveCalibrationController):
 
     is_ready = Bool(False)
 
@@ -27,6 +27,8 @@ class CameraHandEyeCalibrationController(CalibrationController):
 
     results_txt = Value()
 
+    image_selector = Enum("calibration", "verification")
+
     def setupController(self, active_widgets=None):
         super(CameraHandEyeCalibrationController, self).setupController(active_widgets=active_widgets)
 
@@ -39,23 +41,24 @@ class CameraHandEyeCalibrationController(CalibrationController):
             self.results_txt = w.find('results_txt')
 
         # needs to match the SRG !!
-        self.sync_source = "debug_image"
+        self.sync_source = 'debug_image'
+        self.required_sinks = ['debug_image', 'camera_image', 'camera_resolution', 'camera_intrinsics',
+                               'origin_marker', 'origin_tracker', 'verification_alignment']
 
         if self.facade is not None:
             self.facade.observe("is_loaded", self.connector_setup)
 
     def teardownController(self, active_widgets=None):
         if self.connector is not None:
-            self.connector.unobserve("debug_image", self.handle_data)
+            self.connector.unobserve(self.sync_source, self.handle_data)
         if self.facade is not None:
             self.facade.unobserve("is_loaded", self.connector_setup)
 
 
     def connector_setup(self, change):
-        # XXX Add SRG Verification to Controllers !!!
-        if change['value'] == True:
+        if change['value'] == True and self.verify_connector() == True:
             self.connector.setup(self.facade.instance)
-            self.connector.observe("debug_image", self.handle_data)
+            self.connector.observe(self.sync_source, self.handle_data)
             self.is_ready = True
 
     def handle_data(self, c):

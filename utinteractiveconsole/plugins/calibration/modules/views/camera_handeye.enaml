@@ -1,6 +1,6 @@
 from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
-    Container, Html, PushButton, MultilineField
+    Container, Html, PushButton, MultilineField, ComboBox
 )
 import enaml
 with enaml.imports():
@@ -39,7 +39,7 @@ enamldef CameraHandEyeCalibrationPanel(WizardPanel):
     constraints = [
         vbox( hbox(content, results_txt),
               hbox(glview),
-              hbox(spacer, capture_pose_he, capture_pose_align,
+              hbox(spacer, select_image, capture_pose_he, capture_pose_align,
               )
         ),
         content.width == results_txt.width,
@@ -66,6 +66,12 @@ enamldef CameraHandEyeCalibrationPanel(WizardPanel):
         key_press_event::
             v = change['value']
             module_controller.handle_keypress(v.key)
+
+    ComboBox: select_image:
+        items = ['calibration', 'verification']
+        index = items.index('calibration')
+        index:: module_controller.image_selector = items[index]
+
 
     PushButton: capture_pose_he:
         text = "Capture (Hand-Eye)"
