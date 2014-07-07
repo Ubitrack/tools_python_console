@@ -309,9 +309,8 @@ class WizardController(Atom):
             self.preview_controller.teardown()
 
         self.current_state.on_wizard_before_stop()
-        self.wizview.destroy()
-        if self.preview is not None:
-            self.preview.destroy()
+        self.wizview.proxy.widget.close()
+
 
     def show(self):
         if self.wizview is not None:
@@ -548,7 +547,7 @@ class CalibrationWizard(ExtensionBase):
             workspace = ev.workbench.get_plugin('enaml.workbench.ui').workspace
 
             def cleanup(*args):
-                log.info("cleanup for wizard: %s" % name)
+                log.info("Cleanup for wizard: %s" % name)
 
                 if wizard.preview is not None:
                     wizard.preview.destroy()
