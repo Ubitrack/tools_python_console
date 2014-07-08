@@ -48,7 +48,7 @@ class CameraStereoCalibrationController(LiveCalibrationController):
         self.sync_source = 'corner_image_left'
         self.required_sinks = ['corner_image_left', 'corner_image_right',
                                # 'camera_image_left', 'camera_image_right',
-                               'camera_instrinsics_left', 'camera_intrinsics_right',
+                               'camera_intrinsics_left', 'camera_intrinsics_right',
                                'camera_resolution_left', 'camera_resolution_right',
                                'stereo_left_right_transform',
                                ]

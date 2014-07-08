@@ -61,8 +61,7 @@ enamldef CameraStereoCalibrationPanel(WizardPanel):
     constraints = [
         vbox( hbox(content, results_txt),
               hbox(glview_left, glview_right),
-              hbox(spacer, capture_image,
-                   start_module, stop_module )
+              hbox(spacer, capture_image )
         ),
         content.width == results_txt.width,
         glview_left.width == glview_right.width,

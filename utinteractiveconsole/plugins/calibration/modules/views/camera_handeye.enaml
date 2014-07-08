@@ -12,6 +12,7 @@ from enaml_opengl.renderer import MonoRenderer
 from enaml_opengl.viewport import PerspectiveViewport
 
 from enaml_opengl.scenegraph_node import Scene3D
+from enaml_opengl.nodes.api import AxisItem
 
 from utinteractiveconsole.ui.background_texture import BackgroundTexture
 from utinteractiveconsole.ui.calibrated_camera import CalibratedCamera
@@ -23,6 +24,18 @@ enamldef CameraHandEyeCalibrationPanel(WizardPanel):
 
         BackgroundTexture:
             name = "bgtexture"
+
+        AxisItem:
+            name = "origin_marker"
+            visible = False
+
+        AxisItem:
+            name = "origin_tracker"
+            visible = False
+
+        AxisItem:
+            name = "verification_alignment"
+            visible = False
 
 
     CalibratedCamera: camera:
