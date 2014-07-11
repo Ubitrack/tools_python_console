@@ -48,6 +48,11 @@ name: Phantom Co-Location
 module_namespace: vharcalibration.phantom_colocation.module
 config_namespace: vc.phantom_colocation
 
+;[calibration_wizard.gui_test]
+;name: Gui Test
+;module_namespace: vharcalibration.gui_test.module
+;config_namespace: vc.gui_test
+
 ;
 ;
 ; Default Camera Calibration Wizard
@@ -56,7 +61,6 @@ config_namespace: vc.phantom_colocation
 [vc.default_camera]
 name: Default Camera Calibration
 facade_handler: inprocess
-livepreview: default_camera_preview
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s
 dfgdir: %(rootdir)s\dfgs\default_camera\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
@@ -94,7 +98,6 @@ report_filename: calibration_report.yaml
 ;
 [vc.vuzix_hmd]
 name: Vuzix HMD Calibration
-livepreview: stereo_camera_preview
 facade_handler: inprocess
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\vuzix_hmd\%(domain_name)s\%(setup_name)s\%(user_name)s
@@ -135,7 +138,6 @@ calib_files: vuzix_stereo_transform.calib
 
 [vc.vuzix_hmd.modules.calibration_result]
 enabled: True
-;dfg_filename: vhar_calibration_verification.dfg
 name: Vuxiz HMD Calibration Result
 dependencies: camera_intrinsics_left,camera_intrinsics_right,camera_handeye,camera_stereo
 report_filename: calibration_report.yaml
@@ -151,11 +153,12 @@ rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\time_delay_estimation\%(domain_name)s\%(setup_name)s\%(user_name)s
 dfgdir: %(rootdir)s\dfgs\time_delay_estimation\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
 resultsdir: %(data_directory)s\time_delay_estimation\%(setup_name)s\%(user_name)s
-
-facade_handler: masterslave
-master_dfg_basedir: %(dfgdir)s
-master_dfg_filename: vhar_calibration_host_flea2.dfg
 livepreview: time_delay_estimation_preview
+facade_handler: subprocess
+
+[vc.time_delay_estimation.preview]
+dfg_filename: vhar_calibration_host_flea2.dfg
+sync_source: camera_image
 
 [vc.time_delay_estimation.modules.calibration_start]
 enabled: True
@@ -173,8 +176,8 @@ recorddir: %(record_directory)s\tooltip
 enabled: True
 name: Absolute Orientation
 dependencies: tooltip_calibration
-dfg_filename: calibration_absolute_orientation2.dfg
-calib_files: absolut_orientation_calibration.calib
+dfg_filename: calibration_absolute_orientation_init.dfg
+calib_files: absolute_orientation_calibration.calib
 recorddir: %(record_directory)s\absolute_orientation
 
 [vc.time_delay_estimation.modules.timedelay_estimation_calibration]
@@ -197,13 +200,17 @@ report_filename: calibration_report.yaml
 ;
 [vc.phantom_colocation]
 name: Phantom Co-Location Calibration
-facade_handler: masterslave
-livepreview: phantom_colocation_preview
 rootdir: %(config_directory)s\vharcalibration
 calibdir: %(rootdir)s\calib\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s
 dfgdir: %(rootdir)s\dfgs\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
 resultsdir: %(data_directory)s\phantom_colocation\%(setup_name)s\%(user_name)s
+facade_handler: subprocess
+livepreview: phantom_colocation
 ; use_2ndorder: True
+
+[vc.phantom_colocation.preview]
+dfg_filename: vhar_calibration_host_flea2.dfg
+sync_source: camera_image
 
 [vc.phantom_colocation.modules.calibration_start]
 enabled: True
@@ -255,3 +262,38 @@ name: Phantom Co-Location Result
 dependencies: tooltip_calibration,absolute_orientation_calibration,hapticworkspace_calibration,hapticgimbal_init_calibration,hapticgimbal_calibration
 ;dfg_filename: vhar_calibration_verification2.dfg
 report_filename: calibration_report.yaml
+
+;
+;
+; Gui Test
+;
+;
+;[vc.gui_test]
+;name: Gui Test for Calibration Wizard
+;facade_handler: subprocess
+;livepreview: gui_test_preview
+;rootdir: %(config_directory)s/vharcalibration
+;calibdir: %(rootdir)s/calib/gui_test/%(domain_name)s/%(setup_name)s/%(user_name)s
+;dfgdir: %(rootdir)s/dfgs/gui_test/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+;resultsdir: %(data_directory)s/gui_test/%(setup_name)s/%(user_name)s
+
+;[vc.time_delay_estimation.preview]
+;dfg_filename: guitest_master.dfg
+;sync_source: camera_image
+
+;[vc.gui_test.modules.calibration_start]
+;enabled: True
+;name: Start Gui Test
+
+;[vc.gui_test.modules.step1]
+;enabled: True
+;dfg_filename: guitest_slave1.dfg
+;name: Step 1
+;dependencies: calibration_start
+;calib_files: isight_intrinsics.calib,isight_distortion.calib
+
+;[vc.gui_test.modules.calibration_result]
+;enabled: True
+;name: Gui Test Result
+;dependencies: step1
+;report_filename: calibration_report.yaml
