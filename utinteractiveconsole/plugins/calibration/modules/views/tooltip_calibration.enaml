@@ -8,7 +8,7 @@ with enaml.imports():
 
 enamldef TooltipCalibrationPanel(WizardPanel):
     constraints = [
-        hbox(content, results_txt),
+        hbox(content, ),
     ]
 
     Html: content:
@@ -18,8 +18,8 @@ enamldef TooltipCalibrationPanel(WizardPanel):
         <p>Then start the the task and move the stylus to cover as many orientations as possible.</p>
         """
 
-    MultilineField: results_txt:
-        name = 'results_txt'
-        text = """No results."""
+    # MultilineField: results_txt:
+    #     name = 'results_txt'
+    #     text = """No results."""
 
 
