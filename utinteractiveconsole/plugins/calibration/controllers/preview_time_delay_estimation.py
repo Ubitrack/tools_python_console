@@ -1,11 +1,13 @@
 __author__ = 'MVL'
 import numpy as np
+import os
 from atom.api import Value, Typed
 import enaml
 from enaml.layout.api import InsertItem
 from enaml_opengl.geometry import Size
 
 from utinteractiveconsole.plugins.calibration.controller import PreviewControllerBase, PreviewControllerFactory
+from ubitrack.core import util, math, measurement
 
 import logging
 log = logging.getLogger(__name__)
@@ -30,10 +32,22 @@ class TimeDelayEstimationPreview(PreviewControllerBase):
     tooltip_marker = Value()
 
     def initialize(self):
+        super(TimeDelayEstimationPreview, self).initialize()
         log.info("Setup LivePreview")
         with enaml.imports():
             from .views.time_delay_estimation import TimeDelayEstimationPreviewContent
             from utinteractiveconsole.plugins.calibration.views.live_preview import LivePreview
+
+        # write null-calib files for livepreview
+        # XXX should be implemented in a more generic fashion
+        no_tooltip = measurement.Position(measurement.now(), np.array([0, 0, 0]))
+        tooltip_calib_fname = os.path.join(self.config.get("shared_calibdir"), "tooltip_calibration.calib")
+        util.writeCalibMeasurementPosition(tooltip_calib_fname, no_tooltip)
+
+        no_ao = measurement.Pose(measurement.now(), math.Pose(math.Quaternion(), np.array([0, 0, 0])))
+        ao_calib_fname = os.path.join(self.config.get("shared_calibdir"), "absolute_orientation_calibration.calib")
+        util.writeCalibMeasurementPose(ao_calib_fname, no_ao)
+
 
         self.content = TimeDelayEstimationPreviewContent(parent=self.widget_parent, controller=self)
         self.content.initialize()
@@ -81,7 +95,10 @@ class TimeDelayEstimationPreview(PreviewControllerBase):
         # XXX Add SRG Verification to Controllers !!!
         if change['value'] == True:
             if self.connector is not None:
-                self.connector.setup(self.facade.instance)
+                self.connector.setup(self.facade.instance,
+                                     update_ignore_ports=["cam2et_tracker_markers", "cam2et_tracker_target",
+                                                          "cam2et_origin", "cam2oh_hip_target",
+                                                          "cam2et_hip_target", "cam2fwk_hip_target"])
                 self.connector.observe(self.sync_source, self.handle_data)
 
         if self.facade is not None:
@@ -100,6 +117,12 @@ class TimeDelayEstimationPreview(PreviewControllerBase):
         if conn.camera_intrinsics is not None:
             self.camera.camera_intrinsics = conn.camera_intrinsics.get()
 
+        if self.target_marker.visible and conn.cam2et_tracker_target is not None:
+            self.target_marker.transform = conn.cam2et_tracker_target.get().toMatrix()
+
+        if self.tooltip_marker.visible and conn.cam2et_hip_target is not None:
+            self.tooltip_marker.transform = conn.cam2et_hip_target.get().toMatrix()
+
         self.renderer.enable_trigger(True)
         self.bgtexture.image_in(c['value'])
 
@@ -107,6 +130,28 @@ class TimeDelayEstimationPreview(PreviewControllerBase):
 
     def on_module_after_load(self, change):
         log.info("LivePreview: setup for module %s" % change['value'])
+        current_module = change['value']
+        if current_module == "tooltip_calibration":
+            if self.connector is not None:
+                uip = self.connector.update_ignore_ports
+                if "cam2et_tracker_target" in uip:
+                    uip.pop(uip.index("cam2et_tracker_target"))
+                if "cam2et_hip_target" in uip:
+                    uip.pop(uip.index("cam2et_hip_target"))
+
+                self.target_marker.visible = True
+                self.tooltip_marker.visible = True
 
     def on_module_before_unload(self, change):
         log.info("LivePreview: teardown for module %s" % change['value'])
+        current_module = change['value']
+        if current_module == "tooltip_calibration":
+            if self.connector is not None:
+                uip = self.connector.update_ignore_ports
+                if "cam2et_tracker_target" not in uip:
+                    uip.append("cam2et_tracker_target")
+                if "cam2et_hip_target" not in uip:
+                    uip.append("cam2et_hip_target")
+
+                self.target_marker.visible = False
+                self.tooltip_marker.visible = False

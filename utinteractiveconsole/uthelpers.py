@@ -174,9 +174,14 @@ class UbitrackConnectorBase(Atom):
     adapters = Dict()
     current_timestamp = Long()
 
-    def setup(self, facade):
+    update_ignore_ports = List()
+
+    def setup(self, facade, update_ignore_ports=None):
         if not hasattr(self, "ports"):
             raise TypeError("UbitrackConnector is not set up correctly: ports attribute is missing.")
+
+        if update_ignore_ports is not None:
+            self.update_ignore_ports = update_ignore_ports
 
         log.info("Setup Ubitrack Connector with %d ports and sync source: %s" % (len(self.ports), self.sync_source))
         adapters = {}
@@ -238,7 +243,10 @@ class UbitrackConnectorBase(Atom):
 
 
     def handleSinkData(self, ts):
+        uip = self.update_ignore_ports
         for pi in self.ports:
+            if pi.name in uip:
+                continue
             if pi.port_type == PORT_TYPE_SINK:
                 try:
                     val = self.adapters[pi.name].get(ts)
