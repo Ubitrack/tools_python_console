@@ -4,6 +4,7 @@ import ConfigParser
 from optparse import OptionParser
 import logging
 
+
 # hack to register the opengl widget factory
 from enaml.qt import qt_factories
 def create_openglwidget():
@@ -20,9 +21,11 @@ from ubitrack.core import util
 from utinteractiveconsole.app import AppState, ExtensionManager
 from utinteractiveconsole.guilogging import Syslog
 
-
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+
+
 
 
 def main():
@@ -99,9 +102,9 @@ def main():
     workbench = UIWorkbench()
 
     util.initLogging(options.logconfig)
-    extensions.initExtensions()
     # XXX use weakref here !!
     appstate.context['appstate'] = appstate
+    extensions.initExtensions()
 
     manifest = ApplicationManifest(appstate=appstate, extension_mgr=extensions)
     manifest.initialize()

@@ -3,7 +3,7 @@ import stevedore
 import logging
 
 import enaml
-from atom.api import Atom, Value, Typed, List, Dict, ForwardTyped
+from atom.api import Atom, Value, Typed, List, Dict, ForwardTyped, Event
 from enaml.workbench.api import Extension
 from enaml.workbench.ui.autostart import Autostart
 
@@ -128,5 +128,8 @@ class AppState(Atom):
     options = Value()
 
     syslog = Typed(Syslog)
+
+    workspace_started = Event()
+    workspace_stopped = Event()
 
 

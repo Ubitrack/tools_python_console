@@ -55,6 +55,8 @@ class ExtensionWorkspace(Workspace):
 
 
         self.started()
+        if self.appstate is not None:
+            self.appstate.workspace_started(self)
 
     def stop(self):
         """ Stop the workspace instance.
@@ -63,6 +65,8 @@ class ExtensionWorkspace(Workspace):
         registered on start.
 
         """
+        if self.appstate is not None:
+            self.appstate.workspace_stopped(self)
         self.stopped()
 
         # XXX check for running processes / unsaved changes here ?

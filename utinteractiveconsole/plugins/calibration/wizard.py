@@ -520,8 +520,6 @@ class CalibrationWizard(ExtensionBase):
         wizard_def = params.get('wizard_def')
         wizard_cfg = params.get('wizard_cfg')
 
-
-
         if name in wizard_instances:
             wizard = wizard_instances[name]
             wizard.show()

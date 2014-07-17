@@ -23,6 +23,7 @@ setup(name = "utinteractiveconsole",
         'lxml',
         'atom',
         'enaml',
+        'twisted',
       ),
       zip_safe=False,
       long_description = """\
@@ -43,6 +44,7 @@ This module controls my garden""",
             'utinteractiveconsole.extension': [
                 # 'load_dataflow = utinteractiveconsole.plugins.load_dataflow:LoadDataflow',
                 'calibration_wizard = utinteractiveconsole.plugins.calibration.wizard:CalibrationWizard',
+                'remote_control = utinteractiveconsole.plugins.remote_control.main:RemoteControl',
             ],
             'vharcalibration.controllers.preview': [
                 'time_delay_estimation_preview = utinteractiveconsole.plugins.calibration.controllers.preview_time_delay_estimation:TimeDelayEstimationPreviewFactory',
