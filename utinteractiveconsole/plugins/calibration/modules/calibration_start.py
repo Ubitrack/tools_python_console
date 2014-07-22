@@ -1,5 +1,6 @@
 __author__ = 'MVL'
 import os
+import shutil
 import sys
 import yaml
 import logging
@@ -57,11 +58,24 @@ class CalibrationStartController(CalibrationController):
 
     def teardownController(self, active_widgets=None):
         if self.wizard_state.calibration_existing_delete_files:
+            cfg = self.context.get("config")
+            sname = "%s.initialize_files" % (self.config_ns,)
+            init_files = {}
+            if cfg.has_section(sname):
+                init_files = dict(cfg.items(sname))
+
             for m in self.wizard_state.module_manager.modules.values():
                 if m.is_enabled():
                     cfs = m.get_calib_files()
                     for cf in cfs:
-                        if os.path.isfile(cf):
+                        bb_cf = os.path.basename(cf)
+                        if bb_cf in init_files:
+                            if os.path.isfile(init_files[bb_cf]):
+                                log.info("Set calibration file to default: %s" % bb_cf)
+                                shutil.copyfile(init_files[bb_cf], cf)
+                            else:
+                                log.warn("Missing default calibration file: %s" % init_files[bb_cf])
+                        elif os.path.isfile(cf):
                             log.info("Deleting calibration file: %s" % cf)
                             os.unlink(cf)
 

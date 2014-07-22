@@ -38,17 +38,6 @@ class TimeDelayEstimationPreview(PreviewControllerBase):
             from .views.time_delay_estimation import TimeDelayEstimationPreviewContent
             from utinteractiveconsole.plugins.calibration.views.live_preview import LivePreview
 
-        # write null-calib files for livepreview
-        # XXX should be implemented in a more generic fashion
-        no_tooltip = measurement.Position(measurement.now(), np.array([0, 0, 0]))
-        tooltip_calib_fname = os.path.join(self.config.get("shared_calibdir"), "tooltip_calibration.calib")
-        util.writeCalibMeasurementPosition(tooltip_calib_fname, no_tooltip)
-
-        no_ao = measurement.Pose(measurement.now(), math.Pose(math.Quaternion(), np.array([0, 0, 0])))
-        ao_calib_fname = os.path.join(self.config.get("shared_calibdir"), "absolute_orientation_calibration.calib")
-        util.writeCalibMeasurementPose(ao_calib_fname, no_ao)
-
-
         self.content = TimeDelayEstimationPreviewContent(parent=self.widget_parent, controller=self)
         self.content.initialize()
 
