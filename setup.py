@@ -31,6 +31,8 @@ setup(name = "utinteractiveconsole",
         'atom',
         'enaml',
         'twisted',
+        'numpy',
+        'scipy',
       ),
       zip_safe=False,
       long_description = """\

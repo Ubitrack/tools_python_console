@@ -10,45 +10,46 @@ with enaml.imports():
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import CalibrationController
-
-try:
-    from vharcalib.gimbal_initialization import CalculateZRefAxis
-except ImportError:
-    def CalculateZRefAxis(data_dir, calib_dir, joint_lengths, use_2ndorder=False):
-        raise NotImplementedError("needs to be implemented !!!")
+from utinteractiveconsole.plugins.calibration.hapticdevice.gimbal_initialization import CalculateZRefAxis
 
 class HapticGimbalInitCalibrationController(CalibrationController):
 
     def calculate_zaxis(self):
-            cfg = self.context.get("config")
-            root_dir = None
-            calib_dir = None
-            data_dir = None
+            wiz_cfg = self.wizard_state.config
+            gbl_cfg = self.context.get("config")
+
+            # file paths for reading config and recorded data
+            calib_dir = os.path.expanduser(wiz_cfg.get("calibdir").strip())
+            record_dir = os.path.expanduser(self.config.get("recorddir").strip())
             use_2ndorder = False
+            # eventually enable 2nd-order again using a config entry .. but it's not done now..
+
+            # XXX this should also be determined using a calibration step (component already exists in ubitrack)
             joint_lengths = None
-            if cfg.has_section("vharcalib"):
-                vc_cfg = dict(cfg.items("vharcalib"))
-                root_dir = vc_cfg["rootdir"]
-                calib_dir = os.path.join(root_dir, vc_cfg["datadir"])
-                if "use_2ndorder" in vc_cfg:
-                    use_2ndorder = cfg.getboolean("vharcalib", "use_2ndorder")
-            else:
-                log.error("Missing section: [vharcalib] in config")
+            origin_offset = np.array([0.0, 0.0, 0.0])
+            try:
+                haptidevice_name = wiz_cfg.get("haptic_device").strip()
+                hd_cfg = dict(gbl_cfg.items("ubitrack.devices.%s" % haptidevice_name))
+                joint_lengths = np.array([float(hd_cfg["joint_length1"]), float(hd_cfg["joint_length2"]), ])
+                origin_offset = np.array([float(hd_cfg["origin_offset_x"]),
+                                          float(hd_cfg["origin_offset_y"]),
+                                          float(hd_cfg["origin_offset_z"]),])
+            except Exception, e:
+                log.error("Error reading Haptic device configuration. Make sure, the configuration file is correct.")
+                log.exception(e)
 
-            if "recorddir" in self.config:
-                data_dir = os.path.join(calib_dir, self.config["recorddir"])
-            else:
-                log.error("Missing recorddir entry in module config [vharcalib.module.hapticgimbal_init_calibration]")
+            config_ok = True
+            if not os.path.isdir(calib_dir):
+                log.error("Calibration directory not found: %s" % calib_dir)
+                config_ok = False
 
-            if cfg.has_section("vharcalib.devices.phantom"):
-                vcph_cfg = dict(cfg.items("vharcalib.devices.phantom"))
-                joint_lengths = map(float, [vcph_cfg["joint_length1"], vcph_cfg["joint_length2"]])
-            else:
-                log.error("Missing section: [vharcalib.devices.phantom] in config")
+            if not os.path.isdir(record_dir):
+                log.error("Record directory not found: %s" % record_dir)
+                config_ok = False
 
 
-            if os.path.isdir(calib_dir) and os.path.isdir(data_dir):
-                cza = CalculateZRefAxis(data_dir, calib_dir, joint_lengths, use_2ndorder=use_2ndorder)
+            if config_ok:
+                cza = CalculateZRefAxis(record_dir, calib_dir, joint_lengths, origin_offset, use_2ndorder=use_2ndorder)
                 cza.run()
             else:
                 log.warn("Calibration or recorder directories not found.")
