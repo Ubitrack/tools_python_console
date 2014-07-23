@@ -40,6 +40,10 @@ origin_offset_x: 0.0
 origin_offset_y: 0.0
 origin_offset_z: 0.0
 
+; not yet working
+;[extensions]
+;autostart: calibration_wizard
+
 ;
 ;
 ; Calibration Wizard Configuration

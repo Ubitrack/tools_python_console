@@ -10,6 +10,36 @@ record_directory: H:\record
 [ubitrack]
 components_path = H:\Libraries\UbiTrack-build\bin\ubitrack
 
+;
+; Phantom Omni Defaults
+;
+[ubitrack.devices.phantom_omni]
+joint_length1: 0.13335
+joint_length2: 0.13335
+origin_offset_x: 0.0
+origin_offset_y: -0.11
+origin_offset_z: -0.035
+
+;
+; Phantom Premium 1.5 Defaults
+; (needs verification)
+[ubitrack.devices.phantom_premium15]
+joint_length1: 0.20955
+joint_length2: 0.20955
+origin_offset_x: 0.0
+origin_offset_y: 0.0
+origin_offset_z: 0.0
+
+;
+; Phantom Premium 3.0 Defaults
+; (needs verification)
+[ubitrack.devices.phantom_premium15]
+joint_length1: 0.457202
+joint_length2: 0.457202
+origin_offset_x: 0.0
+origin_offset_y: 0.0
+origin_offset_z: 0.0
+
 ; not yet working
 ;[extensions]
 ;autostart: calibration_wizard
@@ -210,6 +240,12 @@ calibdir: %(rootdir)s\calib\phantom_colocation\%(domain_name)s\%(setup_name)s\%(
 dfgdir: %(rootdir)s\dfgs\phantom_colocation\%(domain_name)s\%(setup_name)s\%(user_name)s\%(platform_name)s
 resultsdir: %(data_directory)s\phantom_colocation\%(setup_name)s\%(user_name)s
 facade_handler: inprocess
+haptic_device: phantom_omni
+
+; currently not implemented
+; use_2ndorder_model: true
+
+; no livepreview since it's now connected to the H3D Host
 ;livepreview: phantom_colocation
 
 ;[vc.phantom_colocation.preview]
