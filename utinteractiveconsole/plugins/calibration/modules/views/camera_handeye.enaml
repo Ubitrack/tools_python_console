@@ -59,7 +59,7 @@ enamldef CameraHandEyeCalibrationPanel(WizardPanel):
     ]
 
     Html: content:
-        minimum_size = (200, 50)
+        minimum_size = (100, 20)
         source = """
         <h1>%s</h1>
         <p>Please use a fiducial marker and attach a tracking target to the camera.
@@ -73,7 +73,7 @@ enamldef CameraHandEyeCalibrationPanel(WizardPanel):
 
     OpenGLWidget: glview:
         name = "glview"
-        minimum_size = (640, 480)
+        minimum_size = (320, 240)
         # constraints = [width == camera.w_h_ratio * height,]
         renderer = renderer
         key_press_event::

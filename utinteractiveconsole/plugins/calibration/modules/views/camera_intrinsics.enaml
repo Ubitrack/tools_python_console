@@ -43,7 +43,7 @@ enamldef CameraIntrinsicsCalibrationPanel(WizardPanel): panel:
     ]
 
     Html: content:
-        minimum_size = (200, 50)
+        minimum_size = (100, 20)
         source = """
         <h1>%s</h1>
         <p>Please use a calibration checkerboard to capture images from different viewpoints to
@@ -55,7 +55,7 @@ enamldef CameraIntrinsicsCalibrationPanel(WizardPanel): panel:
         text = """No results."""
 
     OpenGLWidget: glview:
-        minimum_size = (640, 480)
+        minimum_size = (320, 240)
         renderer = renderer
         key_press_event::
             v = change['value']

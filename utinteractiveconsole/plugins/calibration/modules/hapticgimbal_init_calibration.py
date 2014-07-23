@@ -1,6 +1,7 @@
 __author__ = 'MVL'
 import os
 import logging
+import numpy as np
 
 log = logging.getLogger(__name__)
 
