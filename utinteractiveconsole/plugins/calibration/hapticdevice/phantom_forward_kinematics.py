@@ -6,18 +6,20 @@ from ubitrack.core import math
 
 class FWKinematicPhantom(object):
 
-    def __init__(self, joint_lengths, angle_correction, origin_calib=None, disable_theta6=False):
+    def __init__(self, joint_lengths, jointangle_correction, gimbalangle_correction, origin_calib=None, disable_theta6=False):
         self.joint_lengths = joint_lengths
-        self.correction_factors = angle_correction
+        self.jointangle_correction_factors = jointangle_correction
+        self.gimbalangle_correction_factors = gimbalangle_correction
         if disable_theta6:
-            self.correction_factors[2, 2] = 0.0
-            self.correction_factors[2, 3] = 0.0
+            self.gimbalangle_correction_factors[2, 0] = 0.0
+            self.gimbalangle_correction_factors[2, 1] = 0.0
+            self.gimbalangle_correction_factors[2, 2] = 0.0
         self.origin_calib = origin_calib if origin_calib is not None \
             else np.array([0., 0., 0.])
 
 
     def calculate_position(self, joint_angles):
-        cf = self.correction_factors
+        jacf = self.jointangle_correction_factors
         l1 = self.joint_lengths[0]
         l2 = self.joint_lengths[1]
 
@@ -29,12 +31,12 @@ class FWKinematicPhantom(object):
         O2 = joint_angles[1]
         O3 = joint_angles[2]
 
-        k1 = cf[0, 0]
-        m1 = cf[0, 1]
-        k2 = cf[0, 2]
-        m2 = cf[0, 3]
-        k3 = cf[1, 0]
-        m3 = cf[1, 1]
+        k1 = jacf[0, 1]
+        m1 = jacf[0, 2]
+        k2 = jacf[1, 1]
+        m2 = jacf[1, 2]
+        k3 = jacf[2, 1]
+        m3 = jacf[2, 2]
 
         # calculate translation
         trans = np.array(
@@ -47,7 +49,9 @@ class FWKinematicPhantom(object):
 
 
     def calculate_pose(self, joint_angles, gimbal_angles):
-        cf = self.correction_factors
+        jacf = self.jointangle_correction_factors
+        gacf = self.gimbalangle_correction_factors
+
         l1 = self.joint_lengths[0]
         l2 = self.joint_lengths[1]
 
@@ -62,18 +66,18 @@ class FWKinematicPhantom(object):
         O5 = gimbal_angles[1]
         O6 = gimbal_angles[2]
 
-        k1 = cf[0, 0]
-        m1 = cf[0, 1]
-        k2 = cf[0, 2]
-        m2 = cf[0, 3]
-        k3 = cf[1, 0]
-        m3 = cf[1, 1]
-        k4 = cf[1, 2]
-        m4 = cf[1, 3]
-        k5 = cf[2, 0]
-        m5 = cf[2, 1]
-        k6 = cf[2, 2]
-        m6 = cf[2, 3]
+        k1 = jacf[0, 1]
+        m1 = jacf[0, 2]
+        k2 = jacf[1, 1]
+        m2 = jacf[1, 2]
+        k3 = jacf[2, 1]
+        m3 = jacf[2, 2]
+        k4 = gacf[0, 1]
+        m4 = gacf[0, 2]
+        k5 = gacf[1, 1]
+        m5 = gacf[1, 2]
+        k6 = gacf[2, 1]
+        m6 = gacf[2, 2]
 
         # calculate translation
         trans = np.array(
@@ -93,6 +97,7 @@ class FWKinematicPhantom(object):
                          (-(sin(O1*k1 + m1)*sin(O4*k4 + m4) + cos(O1*k1 + m1)*cos(O3*k3 + m3)*cos(O4*k4 + m4))*sin(O5*k5 + m5) - sin(O3*k3 + m3)*cos(O1*k1 + m1)*cos(O5*k5 + m5))*cos(O6*k6 + m6) + (sin(O1*k1 + m1)*cos(O4*k4 + m4) - sin(O4*k4 + m4)*cos(O1*k1 + m1)*cos(O3*k3 + m3))*sin(O6*k6 + m6),
                          (sin(O1*k1 + m1)*sin(O4*k4 + m4) + cos(O1*k1 + m1)*cos(O3*k3 + m3)*cos(O4*k4 + m4))*cos(O5*k5 + m5) - sin(O3*k3 + m3)*sin(O5*k5 + m5)*cos(O1*k1 + m1)]])
         return math.Pose(math.Quaternion.fromMatrix(rot).normalize(), trans)
+
 
 
 class FWKinematicPhantom2(object):

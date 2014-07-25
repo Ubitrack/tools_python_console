@@ -20,57 +20,9 @@ from utinteractiveconsole.plugins.calibration.hapticdevice.phantom_forward_kinem
 
 log = logging.getLogger(__name__)
 
-
 def loadCalibrationFiles(root_dir):
     if isinstance(root_dir, unicode):
         root_dir = root_dir.encode(sys.getdefaultencoding())
-
-    # XXX needs refactoring (ubitrack components, all DFGs, this code)
-    fname = os.path.join(root_dir, "phantom_jointangle_correction.calib")
-    if os.path.isfile(fname):
-        phantom_jointangle_calib = util.readCalibMeasurementMatrix3x4(fname)
-        log.info("Phantom JointAngle Calibration\n%s" % (phantom_jointangle_calib.reshape((6, 2)),))
-    else:
-        log.warn("Phantom JointAngle Calibration NOT FOUND")
-        phantom_jointangle_calib = np.array([1.0, 0.0]*6).reshape((3, 4))
-
-    fname = os.path.join(root_dir, "phantom_gimbalangle_correction.calib")
-    if os.path.isfile(fname):
-        phantom_gimbalangle_calib = util.readCalibMeasurementMatrix3x4(fname)
-        log.info("Phantom GimbalAngle Calibration\n%s" % (phantom_gimbalangle_calib.reshape((6, 2)),))
-    else:
-        log.warn("Phantom Angle Calibration 5DOF NOT FOUND")
-        phantom_gimbalangle_calib = np.array([1.0, 0.0]*6).reshape((3, 4))
-
-    fname = os.path.join(root_dir, "absolute_orientation_calibration.calib")
-    if os.path.isfile(fname):
-        externaltracker_to_device = util.readCalibMeasurementPose(fname)
-        log.info("OptiTrack to Device Transform\n%s" % (externaltracker_to_device,))
-    else:
-        log.warn("Absolute Orientation Calibration NOT FOUND")
-        externaltracker_to_device = math.Pose(math.Quaternion(), np.array([0.0, 0.0, 0.0]))
-
-    fname = os.path.join(root_dir, "tooltip_calibration.calib")
-    if os.path.isfile(fname):
-        tooltip_calib = util.readCalibMeasurementPosition(fname)
-        log.info("Tooltip Calibration\n%s" % (tooltip_calib,))
-    else:
-        log.warn("Tooltip Calibration NOT FOUND")
-        tooltip_calib = np.array([0.0, 0.0, 0.0])
-
-    return dict(phantom_jointangle_calib=phantom_jointangle_calib,
-                phantom_gimbalangle_calib=phantom_gimbalangle_calib,
-                externaltracker_to_device=externaltracker_to_device,
-                tooltip_calib=tooltip_calib,
-                )
-
-
-
-
-def loadCalibrationFiles2(root_dir):
-    if isinstance(root_dir, unicode):
-        root_dir = root_dir.encode(sys.getdefaultencoding())
-
 
     fname = os.path.join(root_dir, "phantom_jointangle_correction.calib")
     if os.path.isfile(fname):
@@ -103,11 +55,6 @@ def loadCalibrationFiles2(root_dir):
                 externaltracker_to_device=externaltracker_to_device,
                 tooltip_calib=tooltip_calib,
                 )
-
-
-
-
-
 
 
 # simple line fitting
@@ -196,17 +143,17 @@ class CalculateZRefAxis(object):
     def __init__(self, record_dir, calib_dir, joint_lengths, origin_offset, use_2ndorder=False):
         self.record_dir = record_dir
         self.calib_dir = calib_dir
+        self.calibrations = self.load_calibrations()
         if use_2ndorder:
-            self.calibrations = self.load_calibrations2()
             self.fwk = FWKinematicPhantom2(joint_lengths,
                                            self.calibrations["phantom_jointangle_calib"],
                                            self.calibrations["phantom_gimbalangle_calib"],
                                            origin_offset,
                                            disable_theta6=True)
         else:
-            self.calibrations = self.load_calibrations()
             self.fwk = FWKinematicPhantom(joint_lengths,
                                           self.calibrations["phantom_jointangle_calib"],
+                                          self.calibrations["phantom_gimbalangle_calib"],
                                           origin_offset,
                                           disable_theta6=True)
 
@@ -228,9 +175,6 @@ class CalculateZRefAxis(object):
 
     def load_calibrations(self):
         return loadCalibrationFiles(self.calib_dir)
-
-    def load_calibrations2(self):
-        return loadCalibrationFiles2(self.calib_dir)
 
 
     def process_data(self, data, data_slice=slice(0, -1, 1), use_markers=True):

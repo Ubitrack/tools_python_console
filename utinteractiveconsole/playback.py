@@ -47,6 +47,7 @@ def loadData(root_dir, reference, items=None):
     # load additional datasets
     start_indexes = [0, ]
     for item in items:
+        log.info("Loading data from recording file: %s" % item.filename)
         data_fieldnames.append(item.fieldname)
         records = item.reader(fd(os.path.join(root_dir, item.filename))).values()
         if item.interpolator is not None:
@@ -167,6 +168,8 @@ def interpolatePoseList(dest_ts, data, tsoffset=0.0):
     src_ts = np.asarray([p.time() for p in data]) + tsoffset
     src_poses = np.asarray([p.get() for p in data])
 
+    len_src_ts = len(src_ts)
+
     # Linear Interpolation from UbiTrack component
     for dts in dest_ts:
         idx = (np.abs(src_ts-dts)).argmin()
@@ -183,8 +186,12 @@ def interpolatePoseList(dest_ts, data, tsoffset=0.0):
         else:
             ts1 = src_ts[idx]
             idx1 = idx
-            ts2 = src_ts[idx+1]
-            idx2 = idx+1
+            if not idx+1 < len_src_ts:
+                ts2 = src_ts[idx]
+                idx2 = idx
+            else:
+                ts2 = src_ts[idx+1]
+                idx2 = idx+1
 
         ediff = ts2 - ts1
         tdiff = dts - ts1

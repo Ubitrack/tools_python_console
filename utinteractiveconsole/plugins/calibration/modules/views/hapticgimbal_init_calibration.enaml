@@ -24,13 +24,9 @@ enamldef HapticGimbalInitCalibrationPanel(WizardPanel):
 
     PushButton: calc_zaxis:
         text = "Calculate Z-Axis"
+        enabled << not module_controller.is_working
         clicked ::
-            self.enabled = False
-            try:
-                module_controller.calculate_zaxis()
-            except Exception, e:
-                log.exception(e)
-            self.enabled = True
+            module_controller.calculate_zaxis()
 
 
 
