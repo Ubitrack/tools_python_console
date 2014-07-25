@@ -36,14 +36,14 @@ enamldef CameraIntrinsicsCalibrationPanel(WizardPanel): panel:
 
     constraints = [
         vbox( hbox(content, results_txt),
-              hbox(glview, ),
+              hbox(glview),
               hbox( spacer, select_image, capture_image )
         ),
         content.width == results_txt.width,
     ]
 
     Html: content:
-        minimum_size = (100, 20)
+        limit_height = 'strong'
         source = """
         <h1>%s</h1>
         <p>Please use a calibration checkerboard to capture images from different viewpoints to
@@ -51,11 +51,15 @@ enamldef CameraIntrinsicsCalibrationPanel(WizardPanel): panel:
         """ % module.get_name()
 
     MultilineField: results_txt:
+        limit_height = 'strong'
         name = 'results_txt'
         text = """No results."""
 
     OpenGLWidget: glview:
         minimum_size = (320, 240)
+        limit_width = 'weak'
+        limit_height = 'weak'
+        constraints = [width == (640./480.) * height,]
         renderer = renderer
         key_press_event::
             v = change['value']

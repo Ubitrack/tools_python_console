@@ -68,20 +68,23 @@ enamldef CameraStereoCalibrationPanel(WizardPanel):
     ]
 
     Html: content:
-        minimum_size = (200, 50)
+        limit_height = 'strong'
         source = """
         <h1>%s</h1>
-        <p>Please use a checkerboard.
+        <p>Please use a multimarker target.
            Then capture poses from different viewpoints to
            calibrate the left-to-right camera transform.</p>
         """ % module.get_name()
 
     MultilineField: results_txt:
+        limit_height = 'strong'
         name = 'results_txt'
         text = """No results."""
 
     OpenGLWidget: glview_left:
         name = "glview_left"
+        limit_width = 'weak'
+        limit_height = 'weak'
         minimum_size = (320, 240)
         constraints = [width == camera_left.w_h_ratio * height,]
         renderer = renderer_left
@@ -91,6 +94,8 @@ enamldef CameraStereoCalibrationPanel(WizardPanel):
 
     OpenGLWidget: glview_right:
         name = "glview_right"
+        limit_width = 'weak'
+        limit_height = 'weak'
         minimum_size = (320, 240)
         constraints = [width == camera_right.w_h_ratio * height,]
         renderer = renderer_right
