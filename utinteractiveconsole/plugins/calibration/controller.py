@@ -231,7 +231,7 @@ class CalibrationController(Atom):
 
         rec_files = self.getRecordedFiles()
         if rec_files:
-            rec_path = os.path.join(root_dir, "record")
+            rec_path = os.path.join(root_dir, "record", self.module_name)
             if not os.path.isdir(rec_path):
                 os.makedirs(rec_path)
             for rec_file in rec_files:

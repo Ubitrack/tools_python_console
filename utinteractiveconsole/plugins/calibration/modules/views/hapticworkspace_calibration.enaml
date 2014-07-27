@@ -8,7 +8,9 @@ with enaml.imports():
 
 enamldef HapticWorkspaceCalibrationPanel(WizardPanel):
     constraints = [
-        vbox(content,)
+        vbox(content,
+             hbox( spacer, calc_zaxis),
+             )
     ]
     Html: content:
         source = """
@@ -16,4 +18,9 @@ enamldef HapticWorkspaceCalibrationPanel(WizardPanel):
         <p>Point and hold positions throughout the workspace and press space to capture a measurement.</p>
         """
 
+    PushButton: refine_calib:
+        text = "Refine Calibration"
+        enabled << not module_controller.is_working
+        clicked ::
+            module_controller.refine_workspace_calibration()
 
