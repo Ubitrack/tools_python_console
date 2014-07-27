@@ -16,7 +16,7 @@ from ubitrack.core import util, measurement, math
 from utinteractiveconsole.playback import (loadData, DSC, interpolatePoseList,
                                            interpolateVec3List, selectOnlyMatchingSamples)
 
-from utinteractiveconsole.plugins.calibration.hapticdevice.phantom_forward_kinematics import FWKinematicPhantom
+from .phantom_forward_kinematics import FWKinematicPhantom, FWKinematicPhantom2
 
 log = logging.getLogger(__name__)
 
