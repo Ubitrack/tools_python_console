@@ -166,5 +166,5 @@ class WorkspaceCalibrationRefinement(object):
         return loadCalibrationFiles(self.calib_dir)
 
 
-    def start(self):
+    def run(self):
         print "TBD"

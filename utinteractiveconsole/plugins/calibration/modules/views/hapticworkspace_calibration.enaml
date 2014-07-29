@@ -9,7 +9,7 @@ with enaml.imports():
 enamldef HapticWorkspaceCalibrationPanel(WizardPanel):
     constraints = [
         vbox(content,
-             hbox( spacer, calc_zaxis),
+             hbox( spacer, refine_calib),
              )
     ]
     Html: content:
