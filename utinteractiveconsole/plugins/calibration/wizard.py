@@ -556,12 +556,14 @@ class CalibrationWizard(ExtensionBase):
                     wizard.wizview = None
 
                 if wizard.current_state is not None:
+                    log.info("Stop currently active processes")
                     wizard.current_state.stop()
                     wizard.current_state = None
 
                 if name in wizard_instances:
                     wizard_instances.pop(name)
                 workspace.unobserve("stopped", cleanup)
+                log.info("Finished cleanup for wizard: %s" % name)
 
             if wizard.current_state is not None:
                 wizard.current_state.start()

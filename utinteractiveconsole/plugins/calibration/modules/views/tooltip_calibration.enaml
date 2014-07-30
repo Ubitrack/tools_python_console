@@ -1,6 +1,6 @@
 from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
-    Container, Html, Page, PushButton, MultilineField
+    Container, Html, Page, PushButton, MultilineField, ProgressBar
 )
 import enaml
 with enaml.imports():
@@ -8,7 +8,7 @@ with enaml.imports():
 
 enamldef TooltipCalibrationPanel(WizardPanel): tc_panel:
     constraints = [
-        hbox(content, results_txt),
+        hbox(content, vbox(progress, results_txt)),
         content.width == results_txt.width,
     ]
 
@@ -18,6 +18,9 @@ enamldef TooltipCalibrationPanel(WizardPanel): tc_panel:
         <p>Please use the tooltip calibration stand to fix the position of the haptic stylus and attach the calibration target.</p>
         <p>Then start the the task and move the stylus to cover as many orientations as possible.</p>
         """
+
+    ProgressBar: progress:
+        name = 'progress_bar'
 
     MultilineField: results_txt:
         name = 'results_txt'

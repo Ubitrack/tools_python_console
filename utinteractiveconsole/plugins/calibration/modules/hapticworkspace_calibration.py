@@ -5,7 +5,7 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-from atom.api import Event, Bool, Typed, observe
+from atom.api import Event, Bool, Typed, Value, observe, Int, Float
 from enaml.qt import QtCore
 from enaml.application import deferred_call
 
@@ -14,7 +14,7 @@ with enaml.imports():
     from .views.hapticworkspace_calibration import HapticWorkspaceCalibrationPanel
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
-from utinteractiveconsole.plugins.calibration.controller import CalibrationController
+from utinteractiveconsole.plugins.calibration.controller import LiveCalibrationController
 from utinteractiveconsole.plugins.calibration.hapticdevice.workspace_calibration_refinement import WorkspaceCalibrationRefinement
 
 
@@ -42,11 +42,104 @@ class BackgroundCalculationThread(QtCore.QThread):
 
 
 
-class HapticWorkspaceCalibrationController(CalibrationController):
+class HapticWorkspaceCalibrationController(LiveCalibrationController):
 
     bgThread = Typed(BackgroundCalculationThread)
-
     is_working = Bool(False)
+
+
+    is_ready = Bool(False)
+
+    result_count = Int(128)
+    errors = Typed(np.ndarray)
+    max_error = Float(0.0)
+    initial_error = Float(-1)
+
+    last_result = Value(None)
+
+    results_txt = Value()
+    progress_bar = Value()
+
+    def setupController(self, active_widgets=None):
+        super(HapticWorkspaceCalibrationController, self).setupController(active_widgets=active_widgets)
+        if active_widgets is not None:
+            w = active_widgets[0]
+            self.results_txt = w.find('results_txt')
+            self.progress_bar = w.find('progress_bar')
+
+        if self.autocomplete_maxerror_str != "":
+            self.max_error = float(self.autocomplete_maxerror_str)
+
+        # needs to match the SRG !!
+        self.sync_source = 'calib_phantom_jointangle_correction'
+        self.required_sinks = ['calib_phantom_jointangle_correction',]
+
+        # setup a errors buffer
+        self.errors = np.array([np.nan] * self.result_count, dtype=np.double)
+
+        if self.facade is not None:
+            self.facade.observe("is_loaded", self.connector_setup)
+
+    def connector_setup(self, change):
+        if change['value'] and self.verify_connector():
+            self.connector.setup(self.facade.instance)
+            self.connector.observe(self.sync_source, self.handle_data)
+            self.is_ready = True
+
+    def handle_data(self, c):
+        if self.connector.calib_phantom_jointangle_correction is not None:
+            cf = self.connector.calib_phantom_jointangle_correction.get()
+
+            # do a bounds check:
+            results_within_bounds = True
+            k_cf = cf[:,1]
+            m_cf = cf[:,2]
+            # factors should be between 0.8 and 1.2 (phantom omni/premiums sensible defaults, should be configurable)
+            if not (np.all(k_cf > 0.8) and np.all(k_cf < 1.2)):
+                results_within_bounds = False
+            # offsets should be between -0.2 and 0.2 (phantom omni/premiums sensible defaults, should be configurable)
+            if not (np.all(m_cf > -0.2) and np.all(m_cf < 0.2)):
+                results_within_bounds = False
+
+            if results_within_bounds:
+                self.results_txt.text = "Result:\n%s" % str(cf)
+            else:
+                self.results_txt.text = "WARNING: Results out of bounds!!\nPlease restart the calibration step.\nResult:\n%s" % str(cf)
+
+            if self.last_result is not None:
+                error = np.max(np.abs(cf.flatten() - self.last_result.flatten()))
+                self.errors[0] = error
+                # implements simple ringbuffer
+                self.errors = np.roll(self.errors, 1)
+
+                if self.initial_error == -1:
+                    self.initial_error = error
+
+            self.last_result = cf
+
+            # update progress bar
+            if self.initial_error != -1:
+                p = error/(self.initial_error - self.max_error)
+                pv = int(np.sqrt(1 - max(0, min(p, 1)))*100)
+                if pv > self.progress_bar.value:
+                    self.progress_bar.value = pv
+
+            # check if the minimum of self.result_count results have been received
+            if not np.isnan(np.sum(self.errors)):
+
+                if np.all(self.errors < self.max_error):
+                    log.info("Joint-Angle Correction: Results are satisfactory (<%s) min: %s max: %s" %
+                             (self.max_error, np.min(self.errors), np.max(self.errors)))
+                    self.result_ok = True
+                    self.progress_bar.value = 100
+                    if self.autocomplete_enable:
+                        self.stopCalibration()
+
+
+
+
+
+
 
     def refine_workspace_calibration(self):
         wiz_cfg = self.wizard_state.config

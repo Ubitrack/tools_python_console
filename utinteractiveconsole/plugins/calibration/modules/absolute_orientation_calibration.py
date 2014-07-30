@@ -27,15 +27,20 @@ class AbsoluteOrientationCalibrationController(LiveCalibrationController):
     max_error_translation = Float(0.0)
     max_error_rotation = Float(0.0)
 
+    initial_error_translation = Float(-1)
+    initial_error_rotation = Float(-1)
+
     last_result = Value(None)
 
     results_txt = Value()
+    progress_bar = Value()
 
     def setupController(self, active_widgets=None):
         super(AbsoluteOrientationCalibrationController, self).setupController(active_widgets=active_widgets)
         if active_widgets is not None:
             w = active_widgets[0]
             self.results_txt = w.find('results_txt')
+            self.progress_bar = w.find('progress_bar')
 
         if self.autocomplete_maxerror_str != "":
             translation, rotation = [s.strip() for s in self.autocomplete_maxerror_str.split(",")]
@@ -65,26 +70,41 @@ class AbsoluteOrientationCalibrationController(LiveCalibrationController):
             self.results_txt.text = "Result:\n%s" % str(ao)
 
             if self.last_result is not None:
-                self.errors_translation[0] = norm(ao.translation() - self.last_result.translation())
+                t_error = norm(ao.translation() - self.last_result.translation())
+                self.errors_translation[0] = t_error
                 # implement simple ringbuffer
                 self.errors_translation = np.roll(self.errors_translation, 1)
 
-                self.errors_rotation[0] = math.Quaternion(ao.rotation().inverted() * self.last_result.rotation()).angle()
+                if self.initial_error_translation == -1:
+                    self.initial_error_translation = t_error
+
+                r_error = abs(math.Quaternion(ao.rotation().inverted() * self.last_result.rotation()).angle())
+                self.errors_rotation[0] = r_error
                 # implement simple ringbuffer
                 self.errors_rotation = np.roll(self.errors_rotation, 1)
 
+                if self.initial_error_rotation == -1:
+                    self.initial_error_rotation = r_error
+
             self.last_result = ao
+
+            # update progress bar
+            if self.initial_error_translation != -1 and self.initial_error_translation != -1:
+                t_p = t_error/(self.initial_error_translation - self.max_error_translation)
+                r_p = r_error/(self.initial_error_rotation - self.max_error_rotation)
+                pv = int(np.sqrt(1 - max(0, min(max(t_p, r_p), 1)))*100)
+                if pv > self.progress_bar.value:
+                    self.progress_bar.value = pv
 
             # check if the minimum of self.result_count results have been received
             if not np.isnan(np.sum(self.errors_translation)) and not np.isnan(np.sum(self.errors_rotation)):
-                print self.errors_translation, self.errors_rotation
-
                 if np.all(self.errors_translation < self.max_error_translation) and \
                         np.all(self.errors_rotation < self.max_error_rotation):
                     log.info("Absolute Orientation: Results are satisfactory for translation (<%s) min: %s max: %s and rotation (<%s) min: %s max %s" %
                              (self.max_error_translation, np.min(self.errors_translation), np.max(self.errors_translation),
                               self.max_error_rotation, np.min(self.errors_rotation), np.max(self.errors_rotation)))
                     self.result_ok = True
+                    self.progress_bar.value = 100
                     if self.autocomplete_enable:
                         self.stopCalibration()
 
