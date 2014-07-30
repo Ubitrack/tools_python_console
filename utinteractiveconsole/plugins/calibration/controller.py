@@ -153,6 +153,8 @@ class CalibrationController(Atom):
     save_results = True
     show_facade_controls = True
 
+    result_ok = Bool(False)
+
     module_name = Str()
     config_ns = Str()
 
@@ -170,7 +172,7 @@ class CalibrationController(Atom):
     dfg_filename = Str()
 
     autocomplete_enable = Bool(False)
-    autocomplete_maxerror = Str()
+    autocomplete_maxerror_str = Str()
 
     def _default_config(self):
         cfg = self.context.get("config")
@@ -198,7 +200,7 @@ class CalibrationController(Atom):
     def _default_autocomplete_enable(self):
         return self.config.get("autocomplete_enable", "False").strip().lower() == 'true'
 
-    def _default_autocomplete_maxerror(self):
+    def _default_autocomplete_maxerror_str(self):
         return self.config.get("autocomplete_maxerror", "").strip()
 
 

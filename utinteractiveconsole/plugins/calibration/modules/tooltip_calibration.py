@@ -3,7 +3,7 @@ import numpy as np
 from numpy.linalg import norm
 import logging
 
-from atom.api import Bool, Value, Typed, Int
+from atom.api import Bool, Value, Typed, Int, Float
 import enaml
 with enaml.imports():
     from .views.tooltip_calibration import TooltipCalibrationPanel
@@ -17,9 +17,11 @@ class TooltipCalibrationController(LiveCalibrationController):
 
     is_ready = Bool(False)
 
-    result_ok = Bool(False)
     result_count = Int(128)
-    results_buffer = Typed(np.ndarray)
+    errors = Typed(np.ndarray)
+    max_error = Float(0.0)
+
+    last_result = Value(None)
 
     results_txt = Value()
 
@@ -29,13 +31,15 @@ class TooltipCalibrationController(LiveCalibrationController):
             w = active_widgets[0]
             self.results_txt = w.find('results_txt')
 
+        if self.autocomplete_maxerror_str != "":
+            self.max_error = float(self.autocomplete_maxerror_str)
+
         # needs to match the SRG !!
         self.sync_source = 'calib_tooltip'
         self.required_sinks = ['calib_tooltip',]
 
-        # setup a resuls buffer
-        self.results_buffer = np.array([np.nan] * self.result_count * 3, dtype=np.double)
-        self.results_buffer.resize((self.result_count, 3))
+        # setup a errors buffer
+        self.errors = np.array([np.nan] * self.result_count, dtype=np.double)
 
         if self.facade is not None:
             self.facade.observe("is_loaded", self.connector_setup)
@@ -50,20 +54,24 @@ class TooltipCalibrationController(LiveCalibrationController):
         if self.connector.calib_tooltip is not None:
             tc = self.connector.calib_tooltip.get()
             self.results_txt.text = "Result:\n%s" % str(tc)
-            self.results_buffer[0] = tc
-            # implement simple ringbuffer
-            self.results_buffer = np.roll(self.results_buffer, 3)
+
+            if self.last_result is not None:
+                self.errors[0] = norm(tc - self.last_result)
+                # implements simple ringbuffer
+                self.errors = np.roll(self.errors, 1)
+
+            self.last_result = tc
 
             # check if the minimum of self.result_count results have been received
-            if not np.isnan(np.sum(self.results_buffer)) and self.autocomplete_maxerror != "":
-                max_error = float(self.autocomplete_maxerror)
-                buffer = self.results_buffer
-                errors = np.array([norm(buffer[i]-buffer[i+1]) for i in range(self.result_count-1)])
-                if np.all(errors < max_error):
-                    log.info("Tooltip Calibration: Results are satisfactory (<%s)" % self.autocomplete_maxerror)
+            if not np.isnan(np.sum(self.errors)):
+                if np.all(self.errors < self.max_error):
+                    log.info("Tooltip Calibration: Results are satisfactory (<%s) min: %s max: %s" %
+                             (self.max_error, np.min(self.errors), np.max(self.errors)))
                     self.result_ok = True
                     if self.autocomplete_enable:
                         self.stopCalibration()
+
+
 
 
 

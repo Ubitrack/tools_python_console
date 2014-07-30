@@ -1,6 +1,6 @@
 from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
-    Container, Html, Page, PushButton
+    Container, Html, Page, PushButton, MultilineField
 )
 import enaml
 with enaml.imports():
@@ -8,7 +8,8 @@ with enaml.imports():
 
 enamldef AbsoluteOrientationCalibrationPanel(WizardPanel):
     constraints = [
-        vbox(content,)
+        hbox(content, results_txt),
+        content.width == results_txt.width,
     ]
     Html: content:
         source = """
@@ -17,4 +18,7 @@ enamldef AbsoluteOrientationCalibrationPanel(WizardPanel):
         <p>Then start the the task and move the stylus slowly to cover the center of the haptic workspace.</p>
         """
 
+    MultilineField: results_txt:
+        name = 'results_txt'
+        text = """No results."""
 

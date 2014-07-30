@@ -367,7 +367,6 @@ class UbitrackFacadeBase(Atom):
 
     @observe("dfg_filename")
     def _handle_dfg_change(self, change):
-        print "XXXX handle_dfg_change: ", change
         if self.is_loaded:
             fname = change["value"]
             self.stopDataflow()
