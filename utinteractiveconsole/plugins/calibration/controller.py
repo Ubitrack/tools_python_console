@@ -4,7 +4,7 @@ import os, sys
 import glob
 import abc
 import shutil
-from atom.api import Atom, Value, Str, Typed, Dict, List, Float
+from atom.api import Atom, Value, Str, Typed, Dict, List, Float, Bool
 
 import logging
 
@@ -169,6 +169,9 @@ class CalibrationController(Atom):
     results_dir = Str()
     dfg_filename = Str()
 
+    autocomplete_enable = Bool(False)
+    autocomplete_maxerror = Str()
+
     def _default_config(self):
         cfg = self.context.get("config")
         sname = "%s.modules.%s" % (self.config_ns, self.module_name)
@@ -191,6 +194,13 @@ class CalibrationController(Atom):
         if "dfg_filename" in self.config:
             return self.config["dfg_filename"]
         return ""
+
+    def _default_autocomplete_enable(self):
+        return self.config.get("autocomplete_enable", "False").strip().lower() == 'true'
+
+    def _default_autocomplete_maxerror(self):
+        return self.config.get("autocomplete_maxerror", "").strip()
+
 
     def setupController(self, active_widgets=None):
         log.info("Setup %s controller" % self.module_name)

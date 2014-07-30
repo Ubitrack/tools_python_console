@@ -32,12 +32,14 @@ template ModuleContainer(Content: WizardPanel, FacadeType):
 
         PushButton: start_calibration:
             text = "Start Calibration"
+            name = "btn_start_calibration"
             visible = ctr.module_controller.show_facade_controls
             enabled << bool(not ctr.module_controller.facade.is_running)
             clicked :: ctr.module_controller.startCalibration()
 
         PushButton: stop_calibration:
             text = "Stop Calibration"
+            name = "btn_stop_calibration"
             visible = ctr.module_controller.show_facade_controls
             enabled << bool(ctr.module_controller.facade.is_running)
             clicked :: ctr.module_controller.stopCalibration()

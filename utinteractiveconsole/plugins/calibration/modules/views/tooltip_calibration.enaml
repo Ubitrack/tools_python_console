@@ -6,9 +6,10 @@ import enaml
 with enaml.imports():
     from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
 
-enamldef TooltipCalibrationPanel(WizardPanel):
+enamldef TooltipCalibrationPanel(WizardPanel): tc_panel:
     constraints = [
-        hbox(content, ),
+        hbox(content, results_txt),
+        content.width == results_txt.width,
     ]
 
     Html: content:
@@ -18,8 +19,9 @@ enamldef TooltipCalibrationPanel(WizardPanel):
         <p>Then start the the task and move the stylus to cover as many orientations as possible.</p>
         """
 
-    # MultilineField: results_txt:
-    #     name = 'results_txt'
-    #     text = """No results."""
+    MultilineField: results_txt:
+        name = 'results_txt'
+        text = """No results."""
+
 
 
