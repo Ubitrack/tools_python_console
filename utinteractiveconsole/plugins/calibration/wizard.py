@@ -185,7 +185,7 @@ class WizardState(Atom):
         return facade
 
     def _default_calibration_datetime(self):
-        return datetime.datetime.now().strftime("%Y%d%m-%H%M")
+        return datetime.datetime.now().strftime("%Y%m%d-%H%M")
 
     def start(self):
         log.info("Start Facade")

@@ -1,0 +1,31 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, Page, PushButton
+)
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
+
+import logging
+log = logging.getLogger(__name__)
+
+enamldef OfflineCalibrationPanel(WizardPanel):
+    constraints = [
+        vbox( content,
+              hbox( spacer, calc_zaxis),
+        )
+    ]
+    Html: content:
+        source = """
+        <h1>Offline Calibration</h1>
+        <p>During this step, all pre-recorded data is processed here to generate the final calibration results.</p>
+        """
+
+    PushButton: do_offline_calibration:
+        text = "Start Offline"
+        enabled << not module_controller.is_working
+        clicked ::
+            module_controller.do_offline_calibration()
+
+
+

@@ -15,7 +15,7 @@ with enaml.imports():
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import CalibrationController
-from utinteractiveconsole.plugins.calibration.hapticdevice.gimbal_initialization import CalculateZRefAxis
+from utinteractiveconsole.plugins.calibration.algorithms.gimbal_initialization import CalculateZRefAxis
 
 
 class BackgroundCalculationThread(QtCore.QThread):
