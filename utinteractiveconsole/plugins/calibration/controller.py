@@ -4,7 +4,7 @@ import os, sys
 import glob
 import abc
 import shutil
-from atom.api import Atom, Value, Str, Typed, Dict, List, Float
+from atom.api import Atom, Value, Str, Typed, Dict, List, Float, Bool
 
 import logging
 
@@ -153,6 +153,8 @@ class CalibrationController(Atom):
     save_results = True
     show_facade_controls = True
 
+    result_ok = Bool(False)
+
     module_name = Str()
     config_ns = Str()
 
@@ -168,6 +170,9 @@ class CalibrationController(Atom):
     dfg_dir = Str()
     results_dir = Str()
     dfg_filename = Str()
+
+    autocomplete_enable = Bool(False)
+    autocomplete_maxerror_str = Str()
 
     def _default_config(self):
         cfg = self.context.get("config")
@@ -191,6 +196,13 @@ class CalibrationController(Atom):
         if "dfg_filename" in self.config:
             return self.config["dfg_filename"]
         return ""
+
+    def _default_autocomplete_enable(self):
+        return self.config.get("autocomplete_enable", "False").strip().lower() == 'true'
+
+    def _default_autocomplete_maxerror_str(self):
+        return self.config.get("autocomplete_maxerror", "").strip()
+
 
     def setupController(self, active_widgets=None):
         log.info("Setup %s controller" % self.module_name)
@@ -231,7 +243,7 @@ class CalibrationController(Atom):
 
         rec_files = self.getRecordedFiles()
         if rec_files:
-            rec_path = os.path.join(root_dir, "record")
+            rec_path = os.path.join(root_dir, "record", self.module_name)
             if not os.path.isdir(rec_path):
                 os.makedirs(rec_path)
             for rec_file in rec_files:

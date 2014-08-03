@@ -27,10 +27,29 @@ def loadData(root_dir, reference, items=None):
     data_fieldnames = []
     data_items = []
 
-    # load reference dataset
-    ref_data = reference.reader(fd(os.path.join(root_dir, reference.filename))).values()
+    # XXX strange bug happening on linux :((
+    # all the try again ... sections are attributed to this problem ..
+    # clean up after the problem has been found ...
+    # test available in ubitrack_python: test_utUtil.py
 
-    ref_timestamps = np.asarray([p.time() for p in ref_data])
+    ref_data = None
+    ref_timestamps = None
+
+    try:
+        # load reference dataset
+        ref_data = reference.reader(fd(os.path.join(root_dir, reference.filename)))
+    except Exception, e:
+        log.warn("error loading data, trying again ...")
+        ref_data = reference.reader(fd(os.path.join(root_dir, reference.filename)))
+
+    if ref_data is not None:
+        try:
+            ref_timestamps = np.asarray([p.time() for p in ref_data.values()])
+        except Exception, e:
+            log.warn("error reading timestamps from data, trying again ...")
+            ref_timestamps = np.asarray([p.time() for p in ref_data.values()])
+
+
 
     # check timestamps
     if not np.all(np.diff(ref_timestamps) > 0):
@@ -40,7 +59,7 @@ def loadData(root_dir, reference, items=None):
     data_items.append(ref_timestamps)
 
     data_fieldnames.append(reference.fieldname)
-    data_items.append([p.get() for p in ref_data])
+    data_items.append([p.get() for p in ref_data.values()])
 
 
 
@@ -49,7 +68,19 @@ def loadData(root_dir, reference, items=None):
     for item in items:
         log.info("Loading data from recording file: %s" % item.filename)
         data_fieldnames.append(item.fieldname)
-        records = item.reader(fd(os.path.join(root_dir, item.filename))).values()
+        records = None
+        try:
+            records_stream = item.reader(fd(os.path.join(root_dir, item.filename)))
+        except Exception, e:
+            log.warn("error reading stream for %s, trying again ..." % item.filename)
+            records_stream = item.reader(fd(os.path.join(root_dir, item.filename)))
+
+        try:
+            records = [p for p in records_stream.values()]
+        except Exception, e:
+            log.warn("error reading items from stream, trying again ..." % item.filename)
+            records = [p for p in records_stream.values()]
+
         if item.interpolator is not None:
             r_data, sidx = item.interpolator(ref_timestamps, records, item.tsoffset)
             start_indexes.append(sidx)

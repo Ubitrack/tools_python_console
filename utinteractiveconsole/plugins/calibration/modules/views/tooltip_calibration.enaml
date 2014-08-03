@@ -1,14 +1,15 @@
 from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
-    Container, Html, Page, PushButton, MultilineField
+    Container, Html, Page, PushButton, MultilineField, ProgressBar
 )
 import enaml
 with enaml.imports():
     from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
 
-enamldef TooltipCalibrationPanel(WizardPanel):
+enamldef TooltipCalibrationPanel(WizardPanel): tc_panel:
     constraints = [
-        hbox(content, ),
+        hbox(content, vbox(progress, results_txt)),
+        content.width == results_txt.width,
     ]
 
     Html: content:
@@ -18,8 +19,12 @@ enamldef TooltipCalibrationPanel(WizardPanel):
         <p>Then start the the task and move the stylus to cover as many orientations as possible.</p>
         """
 
-    # MultilineField: results_txt:
-    #     name = 'results_txt'
-    #     text = """No results."""
+    ProgressBar: progress:
+        name = 'progress_bar'
+
+    MultilineField: results_txt:
+        name = 'results_txt'
+        text = """No results."""
+
 
 
