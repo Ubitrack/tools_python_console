@@ -8,7 +8,7 @@ from collections import namedtuple
 
 log = logging.getLogger(__name__)
 
-from atom.api import Event, Bool, Str, Value, Typed, Float, observe
+from atom.api import Event, Bool, Str, Value, Typed, Float, Int, observe
 from enaml.qt import QtCore
 from enaml.application import deferred_call
 
@@ -119,16 +119,31 @@ class OfflineCalibrationController(CalibrationController):
 
     # configuration parameters
     tt_minimal_angle_between_measurements = Float(0.1)
+
     ao_inital_maxdistance_from_origin = Float(0.1)
     ao_minimal_distance_between_measurements = Float(0.01)
 
     ja_minimal_distance_between_measurements = Float(0.01)
     ja_maximum_distance_to_reference = Float(0.02)
-    ja_refinement_min_difference = Float(0.0001)
+    ja_refinement_min_difference = Float(0.00001)
+    ja_refinement_max_iterations = Int(10)
+
+    refinement_shrink_factor = Float(0.8)
 
     joint_lengths = Value(np.array([0.13335, 0.13335]))
     origin_offset = Value(np.array([0.0, -0.11, -0.035]))
 
+    # load all above values from the configuration file
+    # try:
+    #     haptidevice_name = wiz_cfg.get("haptic_device").strip()
+    #     hd_cfg = dict(gbl_cfg.items("ubitrack.devices.%s" % haptidevice_name))
+    #     joint_lengths = np.array([float(hd_cfg["joint_length1"]), float(hd_cfg["joint_length2"]), ])
+    #     origin_offset = np.array([float(hd_cfg["origin_offset_x"]),
+    #                               float(hd_cfg["origin_offset_y"]),
+    #                               float(hd_cfg["origin_offset_z"]),])
+    # except Exception, e:
+    #     log.error("Error reading Haptic device configuration. Make sure, the configuration file is correct.")
+    #     log.exception(e)
 
 
 
@@ -258,9 +273,9 @@ class OfflineCalibrationController(CalibrationController):
         iterations = 0
         while True:
             # modify the frame selector parameters
-            self.ao_inital_maxdistance_from_origin *= 1.2
-            self.ao_minimal_distance_between_measurements *= 0.8
-            self.ja_minimal_distance_between_measurements *= 0.8
+            self.ao_inital_maxdistance_from_origin /= self.refinement_shrink_factor
+            self.ao_minimal_distance_between_measurements *= self.refinement_shrink_factor
+            self.ja_minimal_distance_between_measurements *= self.refinement_shrink_factor
 
             # redo the calibration
             self.do_absolute_orientation(data03)
@@ -269,14 +284,14 @@ class OfflineCalibrationController(CalibrationController):
             # recalculate the error
             error = self.compute_position_errors(data04)
 
-            if last_error - error < 0.0001:
+            if last_error - error < self.ja_refinement_min_difference:
                 break
 
             last_error = error
             iterations += 1
 
-            if iterations > 10:
-                log.info("Terminating iterative optimization after 10 cycles")
+            if iterations > self.ja_refinement_max_iterations:
+                log.warn("Terminating iterative optimization after %d cycles" % self.ja_refinement_max_iterations)
                 break
 
         # continue with orientation calibration here

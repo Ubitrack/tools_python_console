@@ -21,3 +21,6 @@ Requires: stevedore
 Requires: lxml
 Requires: atom
 Requires: enaml
+Requires: twisted
+Requires: numpy
+Requires: scipy
