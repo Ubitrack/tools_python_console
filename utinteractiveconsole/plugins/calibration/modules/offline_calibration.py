@@ -3,6 +3,7 @@ __author__ = 'jack'
 import os
 import logging
 import numpy as np
+from numpy.linalg import norm
 from collections import namedtuple
 
 log = logging.getLogger(__name__)
@@ -56,7 +57,6 @@ class BackgroundCalculationThread(QtCore.QThread):
         self.ctrl.is_working = v
 
 
-
 def refine_datastream(stream, tooltip_offset, absolute_orientation, forward_kinematics):
     """
     expects a stream with the following attributes:
@@ -91,12 +91,20 @@ def refine_datastream(stream, tooltip_offset, absolute_orientation, forward_kine
 
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
         externaltracker_hip_position = record.externaltracker_pose * tooltip_offset
-        hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
+        hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * math.Pose(math.Quaternion(), tooltip_offset))
 
         values = list(record) + [haptic_pose, externaltracker_hip_position, hip_reference_pose]
         result.append(DataSet(*values))
 
     return result
+
+
+def compute_position_errors(stream):
+    len_data = len(stream)
+    position_errors = np.zeros((len_data,), dtype=np.double)
+    for i in range(len_data):
+        position_errors[i] = norm(stream[i].hip_reference_pose.translation() - stream[i].haptic_pose.translation())
+    return position_errors
 
 
 class OfflineCalibrationController(CalibrationController):
@@ -113,6 +121,9 @@ class OfflineCalibrationController(CalibrationController):
     ao_inital_maxdistance_from_origin = Float(0.1)
     ao_minimal_distance_between_measurements = Float(0.01)
 
+    ja_minimal_distance_between_measurements = Float(0.01)
+    ja_refinement_min_difference = Float(0.0001)
+
     joint_lengths = Value(np.array([0.13335, 0.13335]))
     origin_offset = Value(np.array([0.0, -0.11, -0.035]))
 
@@ -120,8 +131,10 @@ class OfflineCalibrationController(CalibrationController):
 
 
     # results generated (iteratively)
-    tooltip_calibration_result = Value()
-    absolute_orientation_result = Value()
+    tooltip_calibration_result = Value(np.array([0,0,0]))
+    absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0,0,0])))
+    jointangles_correction_result = Value(np.array([[0.0, 1.0, 0.0,], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
+    gimbalangles_correction_result = Value(np.array([[0.0, 1.0, 0.0,], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
 
     def _default_record_dir(self):
         root = self.config.get("offline_root_temp")
@@ -138,18 +151,8 @@ class OfflineCalibrationController(CalibrationController):
         self.bgThread = BackgroundCalculationThread(self)
         self.bgThread.start()
 
-    def process(self):
-
-        fname = os.path.join(self.dfg_dir, self.dfg_filename)
-        if not os.path.isfile(fname):
-            log.error("DFG file not found: %s" % fname)
-            return
-
-        self.facade.loadDataflow(fname)
-        self.facade.startDataflow()
-
-        # 1st step: Tooltip Calibration (uses step01 data)
-        tt_data = self.load_data_step01()
+    def do_tooltip_calibration(self, tt_data):
+        log.info("Tooltip Calibration")
         tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
                                                              min_distance=self.tt_minimal_angle_between_measurements)
         selected_tt_data = tt_selector.process(tt_data)
@@ -165,15 +168,10 @@ class OfflineCalibrationController(CalibrationController):
         log.info("Result for Tooltip Calibration: %s" % str(self.tooltip_calibration_result))
 
 
-        # 2nd step: initial absolute orientation (uses step03  data)
-        ao_data = self.load_data_step03()
-
-        calib_null = np.array([[0.0, 1.0, 0.0,], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
-        absolute_orientation_null = math.Pose(math.Quaternion(), np.array([0,0,0]))
-
-        fwk_null = self.get_fwk(calib_null, calib_null)
-
-        ao_data_ext = refine_datastream(ao_data, self.tooltip_calibration_result, absolute_orientation_null, fwk_null)
+    def do_absolute_orientation(self, ao_data):
+        log.info("Absolute Orientation")
+        fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
+        ao_data_ext = refine_datastream(ao_data, self.tooltip_calibration_result, self.absolute_orientation_result, fwk)
 
         ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0,0,0]),
                                                        max_distance=self.ao_inital_maxdistance_from_origin)
@@ -194,7 +192,87 @@ class OfflineCalibrationController(CalibrationController):
         log.info("Result for Absolute Orientation: %s" % str(self.absolute_orientation_result))
 
 
+    def do_jointangle_correction(self, ja_data):
+        log.info("Joint-Angle Correction")
+        fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
 
+        ja_data_ext = refine_datastream(ja_data, self.tooltip_calibration_result, self.absolute_orientation_result, fwk)
+
+        ja_selector = RelativePointDistanceStreamFilter("haptic_pose",
+                                                         min_distance= self.ja_minimal_distance_between_measurements)
+
+        selected_ja_data = ja_selector.process(ja_data_ext)
+        log.info("Joint-Angles Calibration (%d out of %d records selected)" % (len(selected_ja_data), len(ja_data)))
+
+        ja_processor = JointAngleCalibrationProcessor()
+        ja_processor.data_tracker_hip_positions = [r.hip_reference_pose.translation() for r in selected_ja_data]
+        ja_processor.data_joint_angles = [r.jointangles for r in selected_ja_data]
+        ja_processor.facade = self.facade
+
+        self.jointangles_correction_result = ja_processor.run()
+        ja_processor.facade = None
+        log.info("Result for Joint-Angles Correction: %s" % str(self.jointangles_correction_result))
+
+
+    def compute_position_errors(self, ja_data):
+        fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
+        ja_data_ext = refine_datastream(ja_data, self.tooltip_calibration_result, self.absolute_orientation_result, fwk)
+        position_errors = compute_position_errors(ja_data_ext)
+        log.info("Resulting position error: %s" % position_errors.mean())
+        return position_errors.mean()
+
+
+    def process(self):
+
+        fname = os.path.join(self.dfg_dir, self.dfg_filename)
+        if not os.path.isfile(fname):
+            log.error("DFG file not found: %s" % fname)
+            return
+
+        self.facade.loadDataflow(fname)
+        self.facade.startDataflow()
+
+        data01 = self.load_data_step01()
+        data03 = self.load_data_step03()
+        data04 = self.load_data_step04()
+
+        # 1st step: Tooltip Calibration (uses step01 data)
+        self.do_tooltip_calibration(data01)
+
+        # 2nd step: initial absolute orientation (uses step03  data)
+        self.do_absolute_orientation(data03)
+
+        # 3nd step: initial jointangle correction
+        self.do_jointangle_correction(data04)
+
+        # compute initial position errors
+        last_error = self.compute_position_errors(data04)
+
+        iterations = 0
+        while True:
+            # modify the frame selector parameters
+            self.ao_inital_maxdistance_from_origin *= 1.2
+            self.ao_minimal_distance_between_measurements *= 0.8
+            self.ja_minimal_distance_between_measurements *= 0.8
+
+            # redo the calibration
+            self.do_absolute_orientation(data03)
+            self.do_jointangle_correction(data04)
+
+            # recalculate the error
+            error = self.compute_position_errors(data04)
+
+            if last_error - error < 0.0001:
+                break
+
+            last_error = error
+            iterations += 1
+
+            if iterations > 10:
+                log.info("Terminating iterative optimization after 10 cycles")
+                break
+
+        # continue with orientation calibration here
 
         self.facade.stopDataflow()
         self.facade.clearDataflow()
@@ -245,8 +323,8 @@ class OfflineCalibrationController(CalibrationController):
                     util.PoseStreamReader),
                     items=(DSC('jointangles', 'joint_angles.log',
                                util.PositionStreamReader, interpolateVec3List),
-                           DSC('gimbalangles', 'gimbal_angles.log',
-                               util.PositionStreamReader, interpolateVec3List),
+                           # DSC('gimbalangles', 'gimbal_angles.log',
+                           #     util.PositionStreamReader, interpolateVec3List),
                            )
                 )
 

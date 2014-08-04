@@ -155,10 +155,12 @@ class JointAngleCalibrationProcessor(Atom):
             self.source_joint_angles = None
         else:
             self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_jointangle_correction_out")
+
             self.source_tracker_hip_positions = facade.instance.getApplicationPullSourcePositionList("ja_calib_hip_positions")
             self.source_tracker_hip_positions.setCallback(self.handler_input_hip_positions)
+
             self.source_joint_angles = facade.instance.getApplicationPullSourcePositionList("ja_calib_jointangles")
-            self.source_tracker_hip_positions.setCallback(self.handler_input_joint_angles)
+            self.source_joint_angles.setCallback(self.handler_input_joint_angles)
 
 
     def handler_input_hip_positions(self, ts):
@@ -171,5 +173,5 @@ class JointAngleCalibrationProcessor(Atom):
 
     def run(self):
         ts = measurement.now()
-        return self.sink_result_jointangle_correction.get(ts)
+        return self.sink_result_jointangle_correction.get(ts).get()
 
