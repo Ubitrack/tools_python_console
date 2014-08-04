@@ -27,7 +27,8 @@ from utinteractiveconsole.playback import (loadData, DSC, interpolatePoseList,
 from utinteractiveconsole.plugins.calibration.algorithms.phantom_forward_kinematics import FWKinematicPhantom
 
 from utinteractiveconsole.plugins.calibration.algorithms.streamfilters import (
-    RelativeOrienationDistanceStreamFilter, StaticPointDistanceStreamFilter, RelativePointDistanceStreamFilter
+    RelativeOrienationDistanceStreamFilter, StaticPointDistanceStreamFilter,
+    RelativePointDistanceStreamFilter, TwoPointDistanceStreamFilter
 )
 
 from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration import (
@@ -122,6 +123,7 @@ class OfflineCalibrationController(CalibrationController):
     ao_minimal_distance_between_measurements = Float(0.01)
 
     ja_minimal_distance_between_measurements = Float(0.01)
+    ja_maximum_distance_to_reference = Float(0.02)
     ja_refinement_min_difference = Float(0.0001)
 
     joint_lengths = Value(np.array([0.13335, 0.13335]))
@@ -198,10 +200,15 @@ class OfflineCalibrationController(CalibrationController):
 
         ja_data_ext = refine_datastream(ja_data, self.tooltip_calibration_result, self.absolute_orientation_result, fwk)
 
-        ja_selector = RelativePointDistanceStreamFilter("haptic_pose",
+        # simple way to avoid outliers from the external tracker: limit distance to reference ...
+        ja_selector1 = TwoPointDistanceStreamFilter("hip_reference_pose", "haptic_pose",
+                                                    max_distance=self.ja_maximum_distance_to_reference)
+
+        # only use a subset of the dataset
+        ja_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
                                                          min_distance= self.ja_minimal_distance_between_measurements)
 
-        selected_ja_data = ja_selector.process(ja_data_ext)
+        selected_ja_data = ja_selector2.process(ja_selector1.process(ja_data_ext))
         log.info("Joint-Angles Calibration (%d out of %d records selected)" % (len(selected_ja_data), len(ja_data)))
 
         ja_processor = JointAngleCalibrationProcessor()
@@ -273,6 +280,8 @@ class OfflineCalibrationController(CalibrationController):
                 break
 
         # continue with orientation calibration here
+
+        # finally store or send the results somehow
 
         self.facade.stopDataflow()
         self.facade.clearDataflow()
