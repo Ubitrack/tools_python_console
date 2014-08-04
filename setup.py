@@ -98,5 +98,10 @@ This module controls my garden""",
                 'step4 = utinteractiveconsole.plugins.calibration.modules.gui_test:GuiTestModule',
                 'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
             ],
+            'vharcalibration.ismar14.module': [
+                'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
+                'offline_calibration = utinteractiveconsole.plugins.calibration.modules.offline_calibration:OfflineCalibrationModule',
+                'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
+            ]
         },
       )

@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 enamldef OfflineCalibrationPanel(WizardPanel):
     constraints = [
         vbox( content,
-              hbox( spacer, calc_zaxis),
+              hbox( spacer, do_offline_calibration),
         )
     ]
     Html: content:
@@ -22,7 +22,7 @@ enamldef OfflineCalibrationPanel(WizardPanel):
         """
 
     PushButton: do_offline_calibration:
-        text = "Start Offline"
+        text = "Start Offline Calibration"
         enabled << not module_controller.is_working
         clicked ::
             module_controller.do_offline_calibration()
