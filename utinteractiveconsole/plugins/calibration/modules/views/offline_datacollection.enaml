@@ -24,7 +24,7 @@ taskdescriptions["ismar14_step03"] = """
 of the maximum workspace boundaries.</p>
 """
 taskdescriptions["ismar14_step04"] = """
-<h1>Data Collection - Step 03</h1>
+<h1>Data Collection - Step 04</h1>
 <p>Position the stylus in the workspace center and start the calibration.</p>
 <p>Move the stylus slowly in the workspace. First, keep close to the workspace center, then work your way out to cover the complete
 workspace. Trace all extreme positions while drawing vertical eight figures.</p>
@@ -37,7 +37,7 @@ enamldef OfflineDataCollectionPanel(WizardPanel): tc_panel:
     ]
 
     Html: content:
-        source << taskdescriptions[tc_panel.module_controller.module_name]
+        source << taskdescriptions[module_controller.module_name]
 
 
 

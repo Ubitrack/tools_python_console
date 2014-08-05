@@ -58,61 +58,35 @@ class BackgroundCalculationThread(QtCore.QThread):
         self.ctrl.is_working = v
 
 
-def refine_datastream(stream, tooltip_offset, absolute_orientation, forward_kinematics):
-    """
-    expects a stream with the following attributes:
-    - externaltracker_pose
-    - joint_angles
-    - gimbal_angles (optional)
-    """
+def compute_position_errors(stream,
+                            tooltip_offset=None,
+                            absolute_orientation=None,
+                            forward_kinematics=None):
 
-    stream_fields = stream[0]._fields
+    if tooltip_offset is None:
+        raise ValueError("TooltipOffset not supplied")
 
-    has_gimbalangles = False
-    if "gimbalangles" in stream_fields:
-        has_gimbalangles = True
+    if absolute_orientation is None:
+        raise ValueError("AbsoluteOrientation not supplied")
 
-    data_fieldnames = list(stream_fields)
-    data_fieldnames.append("haptic_pose")
-    data_fieldnames.append("externaltracker_hip_position")
-    data_fieldnames.append("hip_reference_pose")
+    if forward_kinematics is None:
+        raise ValueError("ForwardKinematics not supplied")
 
-    DataSet = namedtuple('DataSet', data_fieldnames)
-
+    len_data = len(stream)
     absolute_orientation_inv = absolute_orientation.invert()
-
-    result = []
-
-    # placeholder if not available in dataset
-    gimbalangles = np.array([0, 0, 0])
-
-    for record in stream:
-        if has_gimbalangles:
-            gimbalangles = record.gimbalangles
-
-        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
-        externaltracker_hip_position = record.externaltracker_pose * tooltip_offset
+    position_errors = np.zeros((len_data,), dtype=np.double)
+    for i, record in enumerate(stream):
+        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
         hip_reference_pose = (
         absolute_orientation_inv * record.externaltracker_pose * math.Pose(math.Quaternion(), tooltip_offset))
+        position_errors[i] = norm(hip_reference_pose.translation() - haptic_pose.translation())
 
-        values = list(record) + [haptic_pose, externaltracker_hip_position, hip_reference_pose]
-        result.append(DataSet(*values))
-
-    return result
-
-
-def compute_position_errors(stream):
-    len_data = len(stream)
-    position_errors = np.zeros((len_data,), dtype=np.double)
-    for i in range(len_data):
-        position_errors[i] = norm(stream[i].hip_reference_pose.translation() - stream[i].haptic_pose.translation())
     return position_errors
 
 
 class OfflineCalibrationController(CalibrationController):
     bgThread = Typed(BackgroundCalculationThread)
     is_working = Bool(False)
-
 
     # system configuration options
     # configuration parameters
@@ -143,8 +117,6 @@ class OfflineCalibrationController(CalibrationController):
     #     log.error("Error reading Haptic device configuration. Make sure, the configuration file is correct.")
     #     log.exception(e)
 
-
-
     # results generated (iteratively)
     tooltip_calibration_result = Value(np.array([0, 0, 0]))
     absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
@@ -154,8 +126,6 @@ class OfflineCalibrationController(CalibrationController):
     def setupController(self, active_widgets=None):
         active_widgets[0].find("btn_start_calibration").visible = False
         active_widgets[0].find("btn_stop_calibration").visible = False
-        # super(OfflineCalibrationController, self).setupController(active_widgets=active_widgets)
-
 
     def do_offline_calibration(self):
         self.bgThread = BackgroundCalculationThread(self)
@@ -163,11 +133,12 @@ class OfflineCalibrationController(CalibrationController):
 
     def do_tooltip_calibration(self, tt_data):
         log.info("Tooltip Calibration")
+        tt_processor = TooltipCalibrationProcessor()
+
         tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
                                                              min_distance=self.tt_minimal_angle_between_measurements)
         selected_tt_data = tt_selector.process(tt_data)
         log.info("Offline Tooltip Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
-        tt_processor = TooltipCalibrationProcessor()
 
         tt_processor.data_tracker_poses = [r.externaltracker_pose for r in selected_tt_data]
         tt_processor.facade = self.facade
@@ -177,11 +148,15 @@ class OfflineCalibrationController(CalibrationController):
         tt_processor.facade = None
         log.info("Result for Tooltip Calibration: %s" % str(self.tooltip_calibration_result))
 
-
     def do_absolute_orientation(self, ao_data):
         log.info("Absolute Orientation")
+        ao_processor = AbsoluteOrientationCalibrationProcessor()
         fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
-        ao_data_ext = refine_datastream(ao_data, self.tooltip_calibration_result, self.absolute_orientation_result, fwk)
+
+        ao_data_ext = ao_processor.prepare_stream(ao_data,
+                                                  tooltip_offset=self.tooltip_calibration_result,
+                                                  absolute_orientation=self.absolute_orientation_result,
+                                                  forward_kinematics=fwk)
 
         ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
                                                        max_distance=self.ao_inital_maxdistance_from_origin)
@@ -193,7 +168,6 @@ class OfflineCalibrationController(CalibrationController):
         log.info(
             "Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
 
-        ao_processor = AbsoluteOrientationCalibrationProcessor()
         ao_processor.data_tracker_hip_positions = [r.externaltracker_hip_position for r in selected_ao_data]
         ao_processor.data_fwk_hip_positions = [r.haptic_pose.translation() for r in selected_ao_data]
         ao_processor.facade = self.facade
@@ -202,12 +176,15 @@ class OfflineCalibrationController(CalibrationController):
         ao_processor.facade = None
         log.info("Result for Absolute Orientation: %s" % str(self.absolute_orientation_result))
 
-
     def do_jointangle_correction(self, ja_data):
         log.info("Joint-Angle Correction")
+        ja_processor = JointAngleCalibrationProcessor()
         fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
 
-        ja_data_ext = refine_datastream(ja_data, self.tooltip_calibration_result, self.absolute_orientation_result, fwk)
+        ja_data_ext = ja_processor.prepare_stream(ja_data,
+                                                  tooltip_offset=self.tooltip_calibration_result,
+                                                  absolute_orientation=self.absolute_orientation_result,
+                                                  forward_kinematics=fwk)
 
         # simple way to avoid outliers from the external tracker: limit distance to reference ...
         ja_selector1 = TwoPointDistanceStreamFilter("hip_reference_pose", "haptic_pose",
@@ -220,7 +197,6 @@ class OfflineCalibrationController(CalibrationController):
         selected_ja_data = ja_selector2.process(ja_selector1.process(ja_data_ext))
         log.info("Joint-Angles Calibration (%d out of %d records selected)" % (len(selected_ja_data), len(ja_data)))
 
-        ja_processor = JointAngleCalibrationProcessor()
         ja_processor.data_tracker_hip_positions = [r.hip_reference_pose.translation() for r in selected_ja_data]
         ja_processor.data_joint_angles = [r.jointangles for r in selected_ja_data]
         ja_processor.facade = self.facade
@@ -229,14 +205,14 @@ class OfflineCalibrationController(CalibrationController):
         ja_processor.facade = None
         log.info("Result for Joint-Angles Correction: %s" % str(self.jointangles_correction_result))
 
-
     def compute_position_errors(self, ja_data):
         fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
-        ja_data_ext = refine_datastream(ja_data, self.tooltip_calibration_result, self.absolute_orientation_result, fwk)
-        position_errors = compute_position_errors(ja_data_ext)
+        position_errors = compute_position_errors(ja_data,
+                                                  tooltip_offset=self.tooltip_calibration_result,
+                                                  absolute_orientation=self.absolute_orientation_result,
+                                                  forward_kinematics=fwk)
         log.info("Resulting position error: %s" % position_errors.mean())
-        return position_errors.mean()
-
+        return position_errors
 
     def process(self):
 
@@ -278,7 +254,7 @@ class OfflineCalibrationController(CalibrationController):
             # recalculate the error
             error = self.compute_position_errors(data04)
 
-            if last_error - error < self.ja_refinement_min_difference:
+            if (last_error.mean() - error.mean()) < self.ja_refinement_min_difference:
                 break
 
             last_error = error
@@ -291,6 +267,8 @@ class OfflineCalibrationController(CalibrationController):
         # continue with orientation calibration here
 
         # finally store or send the results somehow
+
+        # display nice result graphs ??
 
         self.facade.stopDataflow()
         self.facade.clearDataflow()
