@@ -1,0 +1,43 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, Page, PushButton, MultilineField, ProgressBar
+)
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
+
+taskdescriptions = {}
+taskdescriptions["ismar14_step01"] = """
+<h1>Data Collection - Step 01</h1>
+<p>Please fix the PHANToM arm on the stand and attach the external tracker target.</p>
+<p>Then start the calibration and rotate the target slowly around the gimbal center to cover all possible angles.</p>
+"""
+taskdescriptions["ismar14_step02"] = """
+<h1>Data Collection - Step 02</h1>
+<p>Position the stylus so that its orientation is roughly on a 90 degrees angle to the second joint, then start the calibration.</p>
+<p>Rotate the stylus around its longitudinal axis while covering the complete range from left to right several times.</p>
+"""
+taskdescriptions["ismar14_step03"] = """
+<h1>Data Collection - Step 03</h1>
+<p>Remove the stand and position the stylus in the workspace center and start the calibration.</p>
+<p>Move the stylus slowly in the workspace. First, keep close to the workspace center, then work your way out up to a maximum of 50%
+of the maximum workspace boundaries.</p>
+"""
+taskdescriptions["ismar14_step04"] = """
+<h1>Data Collection - Step 03</h1>
+<p>Position the stylus in the workspace center and start the calibration.</p>
+<p>Move the stylus slowly in the workspace. First, keep close to the workspace center, then work your way out to cover the complete
+workspace. Trace all extreme positions while drawing vertical eight figures.</p>
+"""
+
+
+enamldef OfflineDataCollectionPanel(WizardPanel): tc_panel:
+    constraints = [
+        hbox(content,),
+    ]
+
+    Html: content:
+        source << taskdescriptions[tc_panel.module_controller.module_name]
+
+
+

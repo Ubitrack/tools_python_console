@@ -13,6 +13,7 @@ from enaml.qt import QtCore
 from enaml.application import deferred_call
 
 import enaml
+
 with enaml.imports():
     from .views.offline_calibration import OfflineCalibrationPanel
 
@@ -37,7 +38,6 @@ from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration imp
 
 
 class BackgroundCalculationThread(QtCore.QThread):
-
     def __init__(self, ctrl):
         log.info("Init Background Calculation")
         super(BackgroundCalculationThread, self).__init__()
@@ -92,7 +92,8 @@ def refine_datastream(stream, tooltip_offset, absolute_orientation, forward_kine
 
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
         externaltracker_hip_position = record.externaltracker_pose * tooltip_offset
-        hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * math.Pose(math.Quaternion(), tooltip_offset))
+        hip_reference_pose = (
+        absolute_orientation_inv * record.externaltracker_pose * math.Pose(math.Quaternion(), tooltip_offset))
 
         values = list(record) + [haptic_pose, externaltracker_hip_position, hip_reference_pose]
         result.append(DataSet(*values))
@@ -109,14 +110,11 @@ def compute_position_errors(stream):
 
 
 class OfflineCalibrationController(CalibrationController):
-
     bgThread = Typed(BackgroundCalculationThread)
     is_working = Bool(False)
 
 
     # system configuration options
-    record_dir = Value()
-
     # configuration parameters
     tt_minimal_angle_between_measurements = Float(0.1)
 
@@ -135,7 +133,7 @@ class OfflineCalibrationController(CalibrationController):
 
     # load all above values from the configuration file
     # try:
-    #     haptidevice_name = wiz_cfg.get("haptic_device").strip()
+    # haptidevice_name = wiz_cfg.get("haptic_device").strip()
     #     hd_cfg = dict(gbl_cfg.items("ubitrack.devices.%s" % haptidevice_name))
     #     joint_lengths = np.array([float(hd_cfg["joint_length1"]), float(hd_cfg["joint_length2"]), ])
     #     origin_offset = np.array([float(hd_cfg["origin_offset_x"]),
@@ -148,15 +146,10 @@ class OfflineCalibrationController(CalibrationController):
 
 
     # results generated (iteratively)
-    tooltip_calibration_result = Value(np.array([0,0,0]))
-    absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0,0,0])))
-    jointangles_correction_result = Value(np.array([[0.0, 1.0, 0.0,], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
-    gimbalangles_correction_result = Value(np.array([[0.0, 1.0, 0.0,], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
-
-    def _default_record_dir(self):
-        root = self.config.get("offline_root_temp")
-        return os.path.join(root, "input_data")
-
+    tooltip_calibration_result = Value(np.array([0, 0, 0]))
+    absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
+    jointangles_correction_result = Value(np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
+    gimbalangles_correction_result = Value(np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
 
     def setupController(self, active_widgets=None):
         active_widgets[0].find("btn_start_calibration").visible = False
@@ -190,14 +183,15 @@ class OfflineCalibrationController(CalibrationController):
         fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
         ao_data_ext = refine_datastream(ao_data, self.tooltip_calibration_result, self.absolute_orientation_result, fwk)
 
-        ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0,0,0]),
+        ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
                                                        max_distance=self.ao_inital_maxdistance_from_origin)
 
         ao_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
-                                                         min_distance= self.ao_minimal_distance_between_measurements)
+                                                         min_distance=self.ao_minimal_distance_between_measurements)
 
         selected_ao_data = ao_selector2.process(ao_selector1.process(ao_data_ext))
-        log.info("Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
+        log.info(
+            "Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
 
         ao_processor = AbsoluteOrientationCalibrationProcessor()
         ao_processor.data_tracker_hip_positions = [r.externaltracker_hip_position for r in selected_ao_data]
@@ -221,7 +215,7 @@ class OfflineCalibrationController(CalibrationController):
 
         # only use a subset of the dataset
         ja_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
-                                                         min_distance= self.ja_minimal_distance_between_measurements)
+                                                         min_distance=self.ja_minimal_distance_between_measurements)
 
         selected_ja_data = ja_selector2.process(ja_selector1.process(ja_data_ext))
         log.info("Joint-Angles Calibration (%d out of %d records selected)" % (len(selected_ja_data), len(ja_data)))
@@ -301,58 +295,55 @@ class OfflineCalibrationController(CalibrationController):
         self.facade.stopDataflow()
         self.facade.clearDataflow()
 
-
-
-
     def load_data_step01(self):
         return loadData(
-                os.path.join(self.record_dir, "step01"),
-                DSC('externaltracker_pose', 'tracker_pose.log',
-                    util.PoseStreamReader),
-                    items=(DSC('jointangles', 'joint_angles.log',
-                               util.PositionStreamReader, interpolateVec3List),
-                           DSC('gimbalangles', 'gimbal_angles.log',
-                               util.PositionStreamReader, interpolateVec3List),
-                           )
-                )
+            os.path.expanduser(self.config.get("data_step01")),
+            DSC('externaltracker_pose', 'externaltracker_hiptarget_pose.log',
+                util.PoseStreamReader),
+            items=(DSC('jointangles', 'phantom_joint_angles.log',
+                       util.PositionStreamReader, interpolateVec3List),
+                   DSC('gimbalangles', 'phantom_gimbal_angles.log',
+                       util.PositionStreamReader, interpolateVec3List),
+                   DSC('externaltracker_markers', 'externaltracker_hiptarget_markers.log',
+                       util.PositionListStreamReader, selectOnlyMatchingSamples),
+            )
+        )
 
     def load_data_step02(self):
         return loadData(
-                os.path.join(self.record_dir, "step02"),
-                DSC('externaltracker_pose', 'tracker_pose.log',
-                    util.PoseStreamReader),
-                    items=(DSC('jointangles', 'joint_angles.log',
-                               util.PositionStreamReader, interpolateVec3List),
-                           DSC('gimbalangles', 'gimbal_angles.log',
-                               util.PositionStreamReader, interpolateVec3List),
-                           )
-                )
+            os.path.expanduser(self.config.get("data_step02")),
+            DSC('externaltracker_pose', 'externaltracker_hiptarget_pose.log',
+                util.PoseStreamReader),
+            items=(DSC('jointangles', 'phantom_joint_angles.log',
+                       util.PositionStreamReader, interpolateVec3List),
+                   DSC('gimbalangles', 'phantom_gimbal_angles.log',
+                       util.PositionStreamReader, interpolateVec3List),
+            )
+        )
 
     def load_data_step03(self):
         return loadData(
-                os.path.join(self.record_dir, "step03"),
-                DSC('externaltracker_pose', 'tracker_pose.log',
-                    util.PoseStreamReader),
-                    items=(DSC('jointangles', 'joint_angles.log',
-                               util.PositionStreamReader, interpolateVec3List),
-                           # DSC('gimbalangles', 'gimbal_angles.log',
-                           #     util.PositionStreamReader, interpolateVec3List),
-                           )
-                )
+            os.path.expanduser(self.config.get("data_step03")),
+            DSC('externaltracker_pose', 'externaltracker_hiptarget_pose.log',
+                util.PoseStreamReader),
+            items=(DSC('jointangles', 'phantom_joint_angles.log',
+                       util.PositionStreamReader, interpolateVec3List),
+                   DSC('gimbalangles', 'phantom_gimbal_angles.log',
+                       util.PositionStreamReader, interpolateVec3List),
+            )
+        )
 
     def load_data_step04(self):
         return loadData(
-                os.path.join(self.record_dir, "step04"),
-                DSC('externaltracker_pose', 'tracker_pose.log',
-                    util.PoseStreamReader),
-                    items=(DSC('jointangles', 'joint_angles.log',
-                               util.PositionStreamReader, interpolateVec3List),
-                           # DSC('gimbalangles', 'gimbal_angles.log',
-                           #     util.PositionStreamReader, interpolateVec3List),
-                           )
-                )
-
-
+            os.path.expanduser(self.config.get("data_step04")),
+            DSC('externaltracker_pose', 'externaltracker_hiptarget_pose.log',
+                util.PoseStreamReader),
+            items=(DSC('jointangles', 'phantom_joint_angles.log',
+                       util.PositionStreamReader, interpolateVec3List),
+                   DSC('gimbalangles', 'phantom_gimbal_angles.log',
+                       util.PositionStreamReader, interpolateVec3List),
+            )
+        )
 
     def get_fwk(self, jointangle_calib, gimbalangle_calib, disable_theta6=False):
         return FWKinematicPhantom(self.joint_lengths,
@@ -362,9 +353,7 @@ class OfflineCalibrationController(CalibrationController):
                                   disable_theta6=disable_theta6)
 
 
-
 class OfflineCalibrationModule(ModuleBase):
-
     def get_category(self):
         return "Calibration"
 
