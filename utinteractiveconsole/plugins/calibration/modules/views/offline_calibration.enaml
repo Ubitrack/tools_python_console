@@ -28,4 +28,3 @@ enamldef OfflineCalibrationPanel(WizardPanel):
             module_controller.do_offline_calibration()
 
 
-

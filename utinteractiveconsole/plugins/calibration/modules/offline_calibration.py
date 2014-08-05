@@ -33,7 +33,9 @@ from utinteractiveconsole.plugins.calibration.algorithms.streamfilters import (
 )
 
 from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration import (
-    TooltipCalibrationProcessor, AbsoluteOrientationCalibrationProcessor, JointAngleCalibrationProcessor
+    TooltipCalibrationProcessor, AbsoluteOrientationCalibrationProcessor,
+    JointAngleCalibrationProcessor, ReferenceOrientationProcessor,
+    GimbalAngleCalibrationProcessor
 )
 
 
@@ -100,6 +102,10 @@ class OfflineCalibrationController(CalibrationController):
     ja_refinement_min_difference = Float(0.00001)
     ja_refinement_max_iterations = Int(10)
 
+    ro_minimal_angle_between_measurements = Float(0.1)
+
+    ga_minimal_angle_between_measurements = Float(0.1)
+
     refinement_shrink_factor = Float(0.8)
 
     joint_lengths = Value(np.array([0.13335, 0.13335]))
@@ -122,6 +128,7 @@ class OfflineCalibrationController(CalibrationController):
     absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
     jointangles_correction_result = Value(np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
     gimbalangles_correction_result = Value(np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
+    zaxis_reference_result = Value(np.array([0, 0, 1]))
 
     def setupController(self, active_widgets=None):
         active_widgets[0].find("btn_start_calibration").visible = False
@@ -140,7 +147,7 @@ class OfflineCalibrationController(CalibrationController):
         selected_tt_data = tt_selector.process(tt_data)
         log.info("Offline Tooltip Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
 
-        tt_processor.data_tracker_poses = [r.externaltracker_pose for r in selected_tt_data]
+        tt_processor.data = selected_tt_data
         tt_processor.facade = self.facade
 
         self.tooltip_calibration_result = tt_processor.run()
@@ -168,8 +175,7 @@ class OfflineCalibrationController(CalibrationController):
         log.info(
             "Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
 
-        ao_processor.data_tracker_hip_positions = [r.externaltracker_hip_position for r in selected_ao_data]
-        ao_processor.data_fwk_hip_positions = [r.haptic_pose.translation() for r in selected_ao_data]
+        ao_processor.data = selected_ao_data
         ao_processor.facade = self.facade
 
         self.absolute_orientation_result = ao_processor.run()
@@ -197,13 +203,61 @@ class OfflineCalibrationController(CalibrationController):
         selected_ja_data = ja_selector2.process(ja_selector1.process(ja_data_ext))
         log.info("Joint-Angles Calibration (%d out of %d records selected)" % (len(selected_ja_data), len(ja_data)))
 
-        ja_processor.data_tracker_hip_positions = [r.hip_reference_pose.translation() for r in selected_ja_data]
-        ja_processor.data_joint_angles = [r.jointangles for r in selected_ja_data]
+        ja_processor.data = selected_ja_data
         ja_processor.facade = self.facade
 
         self.jointangles_correction_result = ja_processor.run()
         ja_processor.facade = None
         log.info("Result for Joint-Angles Correction: %s" % str(self.jointangles_correction_result))
+
+    def do_gimbalangle_correction(self, ga_data):
+        log.info("Gimbal-Angle Correction")
+        ga_processor = GimbalAngleCalibrationProcessor()
+        fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
+
+        ga_data_ext = ga_processor.prepare_stream(ga_data,
+                                                  tooltip_offset=self.tooltip_calibration_result,
+                                                  absolute_orientation=self.absolute_orientation_result,
+                                                  forward_kinematics=fwk,
+                                                  zrefaxis_calib=self.zaxis_reference_result)
+
+        ga_selector = RelativeOrienationDistanceStreamFilter("haptic_pose",
+                                                             min_distance=self.ga_minimal_angle_between_measurements)
+
+        selected_ga_data = ga_selector.process(ga_data_ext)
+        log.info("Gimbal-Angles Calibration (%d out of %d records selected)" % (len(selected_ga_data), len(ga_data)))
+
+        ga_processor.data_joint_angle_correction = self.jointangles_correction_result
+        ga_processor.data = selected_ga_data
+        ga_processor.facade = self.facade
+
+        self.gimbalangles_correction_result = ga_processor.run()
+        ga_processor.facade = None
+        log.info("Result for Gimbal-Angles Correction: %s" % str(self.gimbalangles_correction_result))
+
+    def do_reference_orientation(self, ro_data):
+        log.info("Calculate Reference Orientation")
+        ro_processor = ReferenceOrientationProcessor()
+        fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
+        fwk_5dof = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result, disable_theta6=True)
+
+        ro_data_ext = ro_processor.prepare_stream(ro_data,
+                                                  tooltip_offset=self.tooltip_calibration_result,
+                                                  absolute_orientation=self.absolute_orientation_result,
+                                                  forward_kinematics=fwk,
+                                                  forward_kinematics_5dof=fwk_5dof,
+                                                  use_markers=True)
+        # no filtering for now
+        selected_ro_data = ro_data_ext
+
+        log.info("Reference Orientation (%d out of %d records selected)" % (len(selected_ro_data), len(ro_data)))
+
+        ro_processor.data = selected_ro_data
+        ro_processor.facade = self.facade
+
+        self.zaxis_reference_result = ro_processor.run(use_markers=True)
+        ro_processor.facade = None
+        log.info("Result for ReferenceOrientation: %s" % str(self.zaxis_reference_result))
 
     def compute_position_errors(self, ja_data):
         fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
@@ -215,7 +269,6 @@ class OfflineCalibrationController(CalibrationController):
         return position_errors
 
     def process(self):
-
         fname = os.path.join(self.dfg_dir, self.dfg_filename)
         if not os.path.isfile(fname):
             log.error("DFG file not found: %s" % fname)
@@ -225,6 +278,7 @@ class OfflineCalibrationController(CalibrationController):
         self.facade.startDataflow()
 
         data01 = self.load_data_step01()
+        data02 = self.load_data_step02()
         data03 = self.load_data_step03()
         data04 = self.load_data_step04()
 
@@ -264,7 +318,13 @@ class OfflineCalibrationController(CalibrationController):
                 log.warn("Terminating iterative optimization after %d cycles" % self.ja_refinement_max_iterations)
                 break
 
-        # continue with orientation calibration here
+        # 4th step: reference orientation
+        self.do_reference_orientation(data02)
+
+        # 5th step: gimbalangle correction
+        self.do_gimbalangle_correction(data01)
+
+        # missing: Theta6 compensation ...
 
         # finally store or send the results somehow
 
@@ -282,8 +342,6 @@ class OfflineCalibrationController(CalibrationController):
                        util.PositionStreamReader, interpolateVec3List),
                    DSC('gimbalangles', 'phantom_gimbal_angles.log',
                        util.PositionStreamReader, interpolateVec3List),
-                   DSC('externaltracker_markers', 'externaltracker_hiptarget_markers.log',
-                       util.PositionListStreamReader, selectOnlyMatchingSamples),
             )
         )
 
@@ -296,6 +354,8 @@ class OfflineCalibrationController(CalibrationController):
                        util.PositionStreamReader, interpolateVec3List),
                    DSC('gimbalangles', 'phantom_gimbal_angles.log',
                        util.PositionStreamReader, interpolateVec3List),
+                   DSC('externaltracker_markers', 'externaltracker_hiptarget_markers.log',
+                       util.PositionListStreamReader, selectOnlyMatchingSamples),
             )
         )
 
