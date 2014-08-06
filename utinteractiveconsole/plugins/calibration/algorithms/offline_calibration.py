@@ -649,7 +649,7 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         # compute corrections for theta6 here since data is all available
         theta6_correction = self.compute_theta6_correction(theta6_data, theta6_angles)
 
-        return zref, theta6_correction
+        return zref, corrected_zaxis_points_ot_mean, theta6_correction
 
     def prepare_stream(self, stream,
                        tooltip_offset=None,

@@ -160,6 +160,7 @@ class OfflineCalibrationController(CalibrationController):
     # intermediate results
     theta6_correction_result = Value(np.array([0, 1, 0]))
     zaxis_reference_result = Value(np.array([0, 0, 1]))
+    zaxis_points_result = Value([])
 
     # results generated (iteratively)
     tooltip_calibration_result = Value(np.array([0, 0, 0]))
@@ -171,6 +172,8 @@ class OfflineCalibrationController(CalibrationController):
     source_absolute_orientation_result = Value()
     source_jointangles_correction_result = Value()
     source_gimbalangles_correction_result = Value()
+
+    source_zaxis_points_result = Value()
 
 
     def setupController(self, active_widgets=None):
@@ -305,7 +308,7 @@ class OfflineCalibrationController(CalibrationController):
         ro_processor.data = selected_ro_data
         ro_processor.facade = self.facade
 
-        self.zaxis_reference_result, theta6_correction = ro_processor.run(use_markers=True)
+        self.zaxis_reference_result, self.zaxis_points_result, theta6_correction = ro_processor.run(use_markers=True)
         if theta6_correction is not None:
             self.theta6_correction_result = theta6_correction
 
@@ -348,6 +351,7 @@ class OfflineCalibrationController(CalibrationController):
         self.source_jointangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_jointangle_correction")
         self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_gimbalangle_correction")
 
+        self.source_zaxis_points_result = self.facade.instance.getApplicationPushSourcePositionList("result_calib_zrefaxis_points")
 
 
         log.info("Loading recorded streams for Offline Calibration")
@@ -405,6 +409,10 @@ class OfflineCalibrationController(CalibrationController):
         self.source_absolute_orientation_result.send(measurement.Pose(ts, self.absolute_orientation_result))
         self.source_jointangles_correction_result.send(measurement.Matrix3x3(ts, self.jointangles_correction_result))
         self.source_gimbalangles_correction_result.send(measurement.Matrix3x3(ts, self.gimbalangles_correction_result))
+
+        if len(self.zaxis_points_result) > 0:
+            self.source_zaxis_points_result.send(measurement.PositionList(ts, math.PositionList.fromList(self.zaxis_points_result)))
+
 
         # wait a bit before shutting down to allow ubitrack to process the data
         time.sleep(0.1)
