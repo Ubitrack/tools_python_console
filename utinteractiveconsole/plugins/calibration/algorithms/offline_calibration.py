@@ -2,13 +2,19 @@ __author__ = 'jack'
 import logging
 
 
-from math import sin, cos, fabs, radians
+from math import sin, cos, acos, atan2, sqrt, fabs, radians, degrees
 import numpy as np
+from numpy.linalg import norm
+
 from scipy import odr
 from scipy import stats
 from scipy.stats import scoreatpercentile
 from scipy.stats import nanmedian
-from numpy.linalg import norm
+from scipy.signal import correlate
+from scipy import interpolate
+from scipy import optimize
+from scipy import spatial
+from scipy import stats
 
 from collections import namedtuple
 
@@ -39,7 +45,7 @@ class TooltipCalibrationProcessor(CalibrationProcessor):
 
     max_computation_time = Float(30)
 
-    # input data will be set from the controller
+    # data extracted from stream
     data_tracker_poses = List()
 
     # resulting tooltip offset is received from dataflow
@@ -94,7 +100,7 @@ class AbsoluteOrientationCalibrationProcessor(CalibrationProcessor):
 
     max_computation_time = Float(30)
 
-    # input data will be set from the controller
+    # data extracted from stream
     data_tracker_hip_positions = List()
     data_fwk_hip_positions = List()
 
@@ -185,7 +191,7 @@ class AbsoluteOrientationCalibrationProcessor(CalibrationProcessor):
 
 class JointAngleCalibrationProcessor(CalibrationProcessor):
 
-    # input data will be set from the controller
+    # data extracted from stream
     data_tracker_hip_positions = List()
     data_joint_angles = List()
 
@@ -272,9 +278,9 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
 class GimbalAngleCalibrationProcessor(CalibrationProcessor):
 
     # input data will be set from the controller
-
     data_joint_angle_correction = Value()
 
+    # data extracted from stream
     data_zrefaxis = List()
     data_joint_angles = List()
     data_gimbal_angles = List()
@@ -471,6 +477,109 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
 
         return result
 
+    def compute_theta6_correction(self, circle_data, theta6_angles):
+        log.info("Start Theta6 correction")
+        def rad_norm(angle):
+            if angle > np.pi:
+                angle -= 2*np.pi
+            elif angle <= -np.pi:
+                angle += 2*np.pi
+            return angle
+
+        rad_norm_vec = np.vectorize(rad_norm)
+
+        def toangle(v):
+            x, y = v
+            cv, sv = np.arccos(x), np.arcsin(y)
+            if y <= 0:
+                cv = -cv
+            if cv <= -np.pi:
+                cv = cv + 2*np.pi
+            return cv
+
+        points = circle_data["points"]
+        xc = circle_data["xc"]
+        yc = circle_data["yc"]
+        radius = circle_data["radius"]
+
+        data = (points[:, 0:2] - np.array([xc, yc])) / radius
+        data_normalized = (data.T / np.linalg.norm(data, axis=1)).T
+
+        angles = np.apply_along_axis(toangle, 1, data_normalized)
+
+        # find the gap using a histogram
+        n, _ = np.histogram(angles, bins=np.linspace(np.pi/180.0-np.pi, np.pi, 361)) # range -179 to +180 degrees
+        null_n = (n == 0)
+
+        n_edges = (null_n ^ np.roll(null_n,1))
+        n_edges_idx = np.arange(len(n_edges))[n_edges]
+
+        if len(n_edges_idx) != 2:
+            nei1 = np.abs(n_edges_idx - np.roll(n_edges_idx, 1)) > 2
+            nei2 = np.abs(n_edges_idx - np.roll(n_edges_idx, -1)) > 2
+            n_edges_idx = n_edges_idx[nei1 & nei2]
+            if len(n_edges_idx) != 2:
+                log.warn("Theta6 correction: unexpected gap in dataset, found edges at: %s, will skip" % (n_edges_idx,))
+                # needs to find a way to get the "right" gap, or less resolution for the bins ?
+                return None
+
+        min_angle = None
+        max_angle = None
+        for v, i in zip(null_n[n_edges], n_edges_idx):
+            if v:
+                max_angle = rad_norm(radians(float(i-180)))
+            else:
+                min_angle = rad_norm(radians(float(i-181)))
+
+        gap_angle = max_angle - min_angle
+        if gap_angle < 0:
+            center = (max_angle + min_angle) / 2.0
+        else:
+            center = (max_angle + min_angle) / 2.0 - np.pi
+
+        theta6_center = rad_norm(center + np.pi)
+
+        # compensate time-delays
+        theta6_ref = rad_norm_vec(-angles + theta6_center)
+
+        ta = theta6_angles.copy()
+        tr = theta6_ref.copy()
+
+        ta -= ta.mean()
+        ta /= ta.std()
+        tr -= tr.mean()
+        tr /= tr.std()
+
+        N = len(theta6_ref)
+        dt = np.arange(1-N, N)
+
+        cross_correlation = correlate(ta, tr)
+        orn_delay = dt[cross_correlation.argmax()]
+
+        if orn_delay > 0:
+            theta6_ref = theta6_ref[:-orn_delay]
+            theta6_angles = theta6_angles[orn_delay:]
+        elif orn_delay < 0:
+            theta6_ref = theta6_ref[orn_delay:]
+            theta6_angles = theta6_angles[:-orn_delay]
+
+        # 2nd order variant
+        # p0 = [0.0, 1.0, 0.0]
+        # O6_fitfunc = lambda p, x: rad_norm_vec(p[0]*x**2+p[1]*x+p[2])
+        # O6_errfunc = lambda p, x, y: rad_norm_vec(O6_fitfunc(p, x) - rad_norm_vec(y))
+
+        # minimize the error using least-squares optimization
+        p0 = [1.0, 0.0]
+        O6_fitfunc = lambda p, x: rad_norm_vec(p[0]*x+p[1])
+        O6_errfunc = lambda p, x, y: rad_norm_vec(O6_fitfunc(p, x) - rad_norm_vec(y))
+
+        p1, cov, info, msg, success = optimize.leastsq(O6_errfunc, p0[:], args=(theta6_angles, theta6_ref), full_output=True)
+        theta6_correction = [0.0, p1[0], p1[1]]
+        log.info("Theta6-Correction result: %s" % (theta6_correction,))
+        return theta6_correction
+
+
+
     def run(self, use_markers=True):
         # haptic interface point as origin in the correct coordinate system
         zaxis_points = [np.array([0.0, 0.0, 0.0])]
@@ -478,8 +587,16 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         # the center of the circle described by the center-of-mass of the tracking target
         target_position = np.asarray([d.target_position for d in self.data])
 
+        # center info consists of: ((xz_slope, xz_intercept), (yz_slope, yz_intercept), (xc, yc, radius, residual))
         target_circle_center, target_center_info = self.find_center(target_position)
         zaxis_points.append(target_circle_center)
+
+        # theta6 fitting helpers
+        theta6_angles = np.asarray([d.gimbalangles[2] for d in self.data])
+        best_residual_radius = target_center_info[2][2] / target_center_info[2][3]
+        theta6_data = dict(points=target_position, radius=target_center_info[2][2], residual=target_center_info[2][3],
+                           xc=target_circle_center[0], yc=target_circle_center[1])
+
 
         if use_markers:
             num_markers = len(self.data[0].target_markers)
@@ -488,6 +605,12 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
             for i in range(num_markers):
                 m_circle_center, m_center_info = self.find_center(target_markers[:, i, :])
                 zaxis_points.append(m_circle_center)
+
+                residual_radius = m_center_info[2][2] / m_center_info[2][3]
+                if residual_radius > best_residual_radius:
+                    best_residual_radius = residual_radius
+                    theta6_data = dict(points=target_markers[:, i, :], radius=m_center_info[2][2], residual=m_center_info[2][3],
+                                       xc=m_circle_center[0], yc=m_circle_center[1])
 
         zaxis = self.find_zaxis(zaxis_points)
 
@@ -523,7 +646,10 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         zref = np.asarray(corrected_zaxis_ot_mean)
         zref = zref / np.linalg.norm(zref)
 
-        return zref
+        # compute corrections for theta6 here since data is all available
+        theta6_correction = self.compute_theta6_correction(theta6_data, theta6_angles)
+
+        return zref, theta6_correction
 
     def prepare_stream(self, stream,
                        tooltip_offset=None,

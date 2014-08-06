@@ -1,6 +1,7 @@
 __author__ = 'jack'
 
 import os
+import time
 import logging
 import numpy as np
 from numpy.linalg import norm
@@ -38,6 +39,8 @@ from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration imp
     GimbalAngleCalibrationProcessor
 )
 
+
+angle_null_correction = np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
 
 class BackgroundCalculationThread(QtCore.QThread):
     def __init__(self, ctrl):
@@ -86,6 +89,37 @@ def compute_position_errors(stream,
     return position_errors
 
 
+def compute_orientation_errors(stream,
+                               tooltip_offset=None,
+                               absolute_orientation=None,
+                               forward_kinematics=None):
+
+    # needs reference zaxis or full 6dof transform to calculate
+    # error between tracking reference and haptic pose
+    raise NotImplementedError("not yet done ..")
+
+    if tooltip_offset is None:
+        raise ValueError("TooltipOffset not supplied")
+
+    if absolute_orientation is None:
+        raise ValueError("AbsoluteOrientation not supplied")
+
+    if forward_kinematics is None:
+        raise ValueError("ForwardKinematics not supplied")
+
+    len_data = len(stream)
+    absolute_orientation_inv = absolute_orientation.invert()
+    orientation_errors = np.zeros((len_data,), dtype=np.double)
+    for i, record in enumerate(stream):
+        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+        hip_reference_pose = (
+        absolute_orientation_inv * record.externaltracker_pose * math.Pose(math.Quaternion(), tooltip_offset))
+        orientation_errors[i] = norm(hip_reference_pose.translation() - haptic_pose.translation())
+
+    return orientation_errors
+
+
+
 class OfflineCalibrationController(CalibrationController):
     bgThread = Typed(BackgroundCalculationThread)
     is_working = Bool(False)
@@ -94,13 +128,13 @@ class OfflineCalibrationController(CalibrationController):
     # configuration parameters
     tt_minimal_angle_between_measurements = Float(0.1)
 
-    ao_inital_maxdistance_from_origin = Float(0.1)
+    ao_inital_maxdistance_from_origin = Float(0.03)
     ao_minimal_distance_between_measurements = Float(0.01)
 
-    ja_minimal_distance_between_measurements = Float(0.01)
+    ja_minimal_distance_between_measurements = Float(0.005)
     ja_maximum_distance_to_reference = Float(0.02)
     ja_refinement_min_difference = Float(0.00001)
-    ja_refinement_max_iterations = Int(10)
+    ja_refinement_max_iterations = Int(3)
 
     ro_minimal_angle_between_measurements = Float(0.1)
 
@@ -123,12 +157,21 @@ class OfflineCalibrationController(CalibrationController):
     #     log.error("Error reading Haptic device configuration. Make sure, the configuration file is correct.")
     #     log.exception(e)
 
+    # intermediate results
+    theta6_correction_result = Value(np.array([0, 1, 0]))
+    zaxis_reference_result = Value(np.array([0, 0, 1]))
+
     # results generated (iteratively)
     tooltip_calibration_result = Value(np.array([0, 0, 0]))
     absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
-    jointangles_correction_result = Value(np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
-    gimbalangles_correction_result = Value(np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]]))
-    zaxis_reference_result = Value(np.array([0, 0, 1]))
+    jointangles_correction_result = Value(angle_null_correction.copy())
+    gimbalangles_correction_result = Value(angle_null_correction.copy())
+
+    source_tooltip_calibration_result = Value()
+    source_absolute_orientation_result = Value()
+    source_jointangles_correction_result = Value()
+    source_gimbalangles_correction_result = Value()
+
 
     def setupController(self, active_widgets=None):
         active_widgets[0].find("btn_start_calibration").visible = False
@@ -185,7 +228,7 @@ class OfflineCalibrationController(CalibrationController):
     def do_jointangle_correction(self, ja_data):
         log.info("Joint-Angle Correction")
         ja_processor = JointAngleCalibrationProcessor()
-        fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
+        fwk = self.get_fwk(angle_null_correction, angle_null_correction)
 
         ja_data_ext = ja_processor.prepare_stream(ja_data,
                                                   tooltip_offset=self.tooltip_calibration_result,
@@ -213,7 +256,7 @@ class OfflineCalibrationController(CalibrationController):
     def do_gimbalangle_correction(self, ga_data):
         log.info("Gimbal-Angle Correction")
         ga_processor = GimbalAngleCalibrationProcessor()
-        fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
+        fwk = self.get_fwk(self.jointangles_correction_result, angle_null_correction)
 
         ga_data_ext = ga_processor.prepare_stream(ga_data,
                                                   tooltip_offset=self.tooltip_calibration_result,
@@ -231,7 +274,14 @@ class OfflineCalibrationController(CalibrationController):
         ga_processor.data = selected_ga_data
         ga_processor.facade = self.facade
 
-        self.gimbalangles_correction_result = ga_processor.run()
+        gimbalangle_correction = ga_processor.run()
+
+        # add theta6 correction here
+        gimbalangle_correction[2, 0] = self.theta6_correction_result[0]
+        gimbalangle_correction[2, 1] = self.theta6_correction_result[1]
+        gimbalangle_correction[2, 2] = self.theta6_correction_result[2]
+
+        self.gimbalangles_correction_result = gimbalangle_correction
         ga_processor.facade = None
         log.info("Result for Gimbal-Angles Correction: %s" % str(self.gimbalangles_correction_result))
 
@@ -255,9 +305,13 @@ class OfflineCalibrationController(CalibrationController):
         ro_processor.data = selected_ro_data
         ro_processor.facade = self.facade
 
-        self.zaxis_reference_result = ro_processor.run(use_markers=True)
+        self.zaxis_reference_result, theta6_correction = ro_processor.run(use_markers=True)
+        if theta6_correction is not None:
+            self.theta6_correction_result = theta6_correction
+
         ro_processor.facade = None
         log.info("Result for ReferenceOrientation: %s" % str(self.zaxis_reference_result))
+        log.info("Result for Theta6-Correction: %s" % str(self.theta6_correction_result))
 
     def compute_position_errors(self, ja_data):
         fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
@@ -268,6 +322,17 @@ class OfflineCalibrationController(CalibrationController):
         log.info("Resulting position error: %s" % position_errors.mean())
         return position_errors
 
+    def compute_orientation_errors(self, ga_data):
+        fwk = self.get_fwk(self.jointangles_correction_result, self.gimbalangles_correction_result)
+        orientation_errors = compute_orientation_errors(ga_data,
+                                                  tooltip_offset=self.tooltip_calibration_result,
+                                                  absolute_orientation=self.absolute_orientation_result,
+                                                  forward_kinematics=fwk)
+        log.info("Resulting orientation error: %s" % orientation_errors.mean())
+        return orientation_errors
+
+
+
     def process(self):
         fname = os.path.join(self.dfg_dir, self.dfg_filename)
         if not os.path.isfile(fname):
@@ -277,10 +342,20 @@ class OfflineCalibrationController(CalibrationController):
         self.facade.loadDataflow(fname)
         self.facade.startDataflow()
 
+        # connect result sources
+        self.source_tooltip_calibration_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_tooltip")
+        self.source_absolute_orientation_result = self.facade.instance.getApplicationPushSourcePose("result_calib_absolute_orientation")
+        self.source_jointangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_jointangle_correction")
+        self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_gimbalangle_correction")
+
+
+
+        log.info("Loading recorded streams for Offline Calibration")
         data01 = self.load_data_step01()
         data02 = self.load_data_step02()
         data03 = self.load_data_step03()
         data04 = self.load_data_step04()
+
 
         # 1st step: Tooltip Calibration (uses step01 data)
         self.do_tooltip_calibration(data01)
@@ -324,11 +399,23 @@ class OfflineCalibrationController(CalibrationController):
         # 5th step: gimbalangle correction
         self.do_gimbalangle_correction(data01)
 
-        # missing: Theta6 compensation ...
+        # finally store or send the results
+        ts = measurement.now()
+        self.source_tooltip_calibration_result.send(measurement.Position(ts, self.tooltip_calibration_result))
+        self.source_absolute_orientation_result.send(measurement.Pose(ts, self.absolute_orientation_result))
+        self.source_jointangles_correction_result.send(measurement.Matrix3x3(ts, self.jointangles_correction_result))
+        self.source_gimbalangles_correction_result.send(measurement.Matrix3x3(ts, self.gimbalangles_correction_result))
 
-        # finally store or send the results somehow
+        # wait a bit before shutting down to allow ubitrack to process the data
+        time.sleep(0.1)
+        # display nice result graphs or at least text??
 
-        # display nice result graphs ??
+        # teardown
+
+        self.source_tooltip_calibration_result = None
+        self.source_absolute_orientation_result = None
+        self.source_jointangles_correction_result = None
+        self.source_gimbalangles_correction_result = None
 
         self.facade.stopDataflow()
         self.facade.clearDataflow()

@@ -105,7 +105,7 @@ enamldef WizardView(DockItem): wizard:
                 vbox(scroller, control),
                 content,
             ),
-            scroller.width == 250,
+            scroller.width == 150,
         ]
         ScrollArea: scroller:
             Container:
