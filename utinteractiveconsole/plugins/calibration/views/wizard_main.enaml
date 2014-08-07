@@ -105,18 +105,23 @@ enamldef WizardView(DockItem): wizard:
                 vbox(scroller, control),
                 content,
             ),
-            scroller.width == 150,
         ]
         ScrollArea: scroller:
+            hug_width = "strong"
             Container:
-                hug_width = "medium"
                 Looper: looper:
-                    iterable << wizard.state.task_list
+                    iterable << wizard.state.tasks
                     Container:
                         hug_height = 'strong'
                         padding = 0
                         Label:
-                            text = wizard.state.module_manager.modules[loop_item].get_name()
+                            text = loop_item.name
+                    # iterable << wizard.state.task_list
+                    # Container:
+                    #     hug_height = 'strong'
+                    #     padding = 0
+                    #     Label:
+                    #         text = wizard.state.module_manager.modules[loop_item].get_name()
 
         Container: content:
             constraints = [
@@ -125,9 +130,11 @@ enamldef WizardView(DockItem): wizard:
                     hbox(spacer, back_btn, skip_btn, next_btn),
                 ),
             ]
+            hug_width = "weak"
             alias content_include
 
             Container: module_content:
+                hug_width = "weak"
                 padding = (0, 0, 0, 0)
                 Include: content_include:
                     objects << wizard.state.active_widgets

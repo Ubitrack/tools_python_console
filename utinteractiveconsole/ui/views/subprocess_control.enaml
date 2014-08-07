@@ -1,4 +1,4 @@
-from enaml.layout.api import grid, spacer
+from enaml.layout.api import grid, spacer, hbox
 from enaml.image import Image
 from enaml.icon import Icon, IconImage
 from atom.api import Atom, Bool
@@ -23,26 +23,26 @@ enamldef SubprocessControl(Container): scmain:
     alias timer
 
     constraints = [
-        grid(
+        hbox(spacer, grid(
             [playing, stopped, reloaddfg],
             column_align='width',
             row_align='v_center',
-        ),
+        )),
     ]
 
     PushButton: playing:
         icon = Icon(images=[IconImage(image=Image(data=resource_stream("utinteractiveconsole", "resources/icons/btn_start.png").read())),])
-        icon_size = (32, 32)
+        icon_size = (24, 24)
         enabled << state.dataflow_running
 
     PushButton: stopped:
         icon = Icon(images=[IconImage(image=Image(data=resource_stream("utinteractiveconsole", "resources/icons/btn_stop.png").read())),])
-        icon_size = (32, 32)
+        icon_size = (24, 24)
         enabled << not state.dataflow_running
 
     PushButton: reloaddfg:
         icon = Icon(images=[IconImage(image=Image(data=resource_stream("utinteractiveconsole", "resources/icons/btn_repeat.png").read())),])
-        icon_size = (32, 32)
+        icon_size = (24, 24)
         clicked::
             if scmain.facade is not None:
                 scmain.facade.restart()

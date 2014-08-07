@@ -78,7 +78,7 @@ def loadData(root_dir, reference, items=None):
         try:
             records = [p for p in records_stream.values()]
         except Exception, e:
-            log.warn("error reading items from stream, trying again ..." % item.filename)
+            log.warn("error reading items from stream: %s, trying again ..." % item.filename)
             records = [p for p in records_stream.values()]
 
         if item.interpolator is not None:

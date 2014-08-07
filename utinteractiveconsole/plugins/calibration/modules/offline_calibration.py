@@ -9,7 +9,7 @@ from collections import namedtuple
 
 log = logging.getLogger(__name__)
 
-from atom.api import Event, Bool, Str, Value, Typed, Float, Int, observe
+from atom.api import Event, Bool, Str, Value, Typed, List, Float, Int, observe
 from enaml.qt import QtCore
 from enaml.application import deferred_call
 
@@ -92,11 +92,8 @@ def compute_position_errors(stream,
 def compute_orientation_errors(stream,
                                tooltip_offset=None,
                                absolute_orientation=None,
-                               forward_kinematics=None):
-
-    # needs reference zaxis or full 6dof transform to calculate
-    # error between tracking reference and haptic pose
-    raise NotImplementedError("not yet done ..")
+                               forward_kinematics=None,
+                               zref_axis=None):
 
     if tooltip_offset is None:
         raise ValueError("TooltipOffset not supplied")
@@ -107,14 +104,28 @@ def compute_orientation_errors(stream,
     if forward_kinematics is None:
         raise ValueError("ForwardKinematics not supplied")
 
+    if zref_axis is None:
+        raise ValueError("ZRefAxis not supplied")
+
+    zaxis = np.array([0, 0, 1])
+
     len_data = len(stream)
     absolute_orientation_inv = absolute_orientation.invert()
     orientation_errors = np.zeros((len_data,), dtype=np.double)
+
     for i, record in enumerate(stream):
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
         hip_reference_pose = (
         absolute_orientation_inv * record.externaltracker_pose * math.Pose(math.Quaternion(), tooltip_offset))
-        orientation_errors[i] = norm(hip_reference_pose.translation() - haptic_pose.translation())
+
+        z_fwk = math.Quaternion(haptic_pose.rotation()).transformVector(zaxis)
+        z_ref = math.Quaternion(hip_reference_pose.rotation()).transformVector(zref_axis)
+
+        # unit vector
+        z_fwk /= norm(z_fwk)
+        z_ref /= norm(z_ref)
+
+        orientation_errors[i] = degrees(acos(z_ref.dot(z_fwk)))
 
     return orientation_errors
 
@@ -123,6 +134,8 @@ def compute_orientation_errors(stream,
 class OfflineCalibrationController(CalibrationController):
     bgThread = Typed(BackgroundCalculationThread)
     is_working = Bool(False)
+
+    has_result = Bool(False)
 
     # system configuration options
     # configuration parameters
@@ -145,17 +158,6 @@ class OfflineCalibrationController(CalibrationController):
     joint_lengths = Value(np.array([0.13335, 0.13335]))
     origin_offset = Value(np.array([0.0, -0.11, -0.035]))
 
-    # load all above values from the configuration file
-    # try:
-    # haptidevice_name = wiz_cfg.get("haptic_device").strip()
-    #     hd_cfg = dict(gbl_cfg.items("ubitrack.devices.%s" % haptidevice_name))
-    #     joint_lengths = np.array([float(hd_cfg["joint_length1"]), float(hd_cfg["joint_length2"]), ])
-    #     origin_offset = np.array([float(hd_cfg["origin_offset_x"]),
-    #                               float(hd_cfg["origin_offset_y"]),
-    #                               float(hd_cfg["origin_offset_z"]),])
-    # except Exception, e:
-    #     log.error("Error reading Haptic device configuration. Make sure, the configuration file is correct.")
-    #     log.exception(e)
 
     # intermediate results
     theta6_correction_result = Value(np.array([0, 1, 0]))
@@ -175,10 +177,45 @@ class OfflineCalibrationController(CalibrationController):
 
     source_zaxis_points_result = Value()
 
+    position_errors = List()
+    orientation_errors = List()
 
     def setupController(self, active_widgets=None):
         active_widgets[0].find("btn_start_calibration").visible = False
         active_widgets[0].find("btn_stop_calibration").visible = False
+        wiz_cfg = self.wizard_state.config
+        gbl_cfg = self.context.get("config")
+
+        # load all parameters from the configuration file
+        try:
+            haptidevice_name = wiz_cfg.get("haptic_device").strip()
+            hd_cfg = dict(gbl_cfg.items("ubitrack.devices.%s" % haptidevice_name))
+            self.joint_lengths = np.array([float(hd_cfg["joint_length1"]),
+                                           float(hd_cfg["joint_length2"]), ])
+
+            self.origin_offset = np.array([float(hd_cfg["origin_offset_x"]),
+                                           float(hd_cfg["origin_offset_y"]),
+                                           float(hd_cfg["origin_offset_z"]),])
+        except Exception, e:
+            log.error("Error reading Haptic device configuration. Make sure, the configuration file is correct.")
+            log.exception(e)
+
+        parameters_sname = "%s.modules.%s.parameters" % (self.config_ns, self.module_name)
+        if gbl_cfg.has_section(parameters_sname):
+            self.tt_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "tt_minimal_angle_between_measurements")
+            self.ao_inital_maxdistance_from_origin = gbl_cfg.getfloat(parameters_sname, "ao_inital_maxdistance_from_origin")
+            self.ao_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ao_minimal_distance_between_measurements")
+            self.ja_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ja_minimal_distance_between_measurements")
+            self.ja_maximum_distance_to_reference = gbl_cfg.getfloat(parameters_sname, "ja_maximum_distance_to_reference")
+            self.ja_refinement_min_difference = gbl_cfg.getfloat(parameters_sname, "ja_refinement_min_difference")
+            self.ja_refinement_max_iterations = gbl_cfg.getint(parameters_sname, "ja_refinement_max_iterations")
+            self.ro_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ro_minimal_angle_between_measurements")
+            self.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
+            self.refinement_shrink_factor = gbl_cfg.getfloat(parameters_sname, "refinement_shrink_factor")
+        else:
+            log.warn("No parameters found for offline calibration - using defaults. Define parameters in section: %s" % parameters_sname)
+
+
 
     def do_offline_calibration(self):
         self.bgThread = BackgroundCalculationThread(self)
@@ -330,7 +367,8 @@ class OfflineCalibrationController(CalibrationController):
         orientation_errors = compute_orientation_errors(ga_data,
                                                   tooltip_offset=self.tooltip_calibration_result,
                                                   absolute_orientation=self.absolute_orientation_result,
-                                                  forward_kinematics=fwk)
+                                                  forward_kinematics=fwk,
+                                                  zref_axis=self.zaxis_reference_result)
         log.info("Resulting orientation error: %s" % orientation_errors.mean())
         return orientation_errors
 
@@ -367,11 +405,16 @@ class OfflineCalibrationController(CalibrationController):
         # 2nd step: initial absolute orientation (uses step03  data)
         self.do_absolute_orientation(data03)
 
+        # compute initial errors
+        self.position_errors.append(self.compute_position_errors(data04))
+        self.orientation_errors.append(self.compute_orientation_errors(data01))
+
         # 3nd step: initial jointangle correction
         self.do_jointangle_correction(data04)
 
         # compute initial position errors
         last_error = self.compute_position_errors(data04)
+        self.position_errors.append(last_error)
 
         iterations = 0
         while True:
@@ -386,6 +429,7 @@ class OfflineCalibrationController(CalibrationController):
 
             # recalculate the error
             error = self.compute_position_errors(data04)
+            self.position_errors.append(error)
 
             if (last_error.mean() - error.mean()) < self.ja_refinement_min_difference:
                 break
@@ -402,6 +446,11 @@ class OfflineCalibrationController(CalibrationController):
 
         # 5th step: gimbalangle correction
         self.do_gimbalangle_correction(data01)
+
+        # compute errors after calibration
+        self.orientation_errors.append(self.compute_orientation_errors(data01))
+
+        # do iterative refinement for orientation as well ?
 
         # finally store or send the results
         ts = measurement.now()
@@ -427,6 +476,11 @@ class OfflineCalibrationController(CalibrationController):
 
         self.facade.stopDataflow()
         self.facade.clearDataflow()
+
+
+    def do_visualize_results(self):
+        print "TBD"
+
 
     def load_data_step01(self):
         return loadData(
