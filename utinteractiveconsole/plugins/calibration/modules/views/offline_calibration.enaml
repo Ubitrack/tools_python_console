@@ -59,87 +59,128 @@ enamldef OfflineCalibrationPanel(WizardPanel):
                 field = 'hug_width'
                 value = 'strong'
 
-
     constraints = [
-        vbox( vbox(tt_params, ao_params, ja_params, ro_params, ga_params),
-              hbox( spacer, do_reset_parameters, do_offline_calibration, do_visualize_results),
+        vbox(hbox(forms_ct, results_ct),
+             hbox( spacer, do_reset_parameters, do_offline_calibration, do_visualize_results),
         ),
     ]
 
     padding = (2, 2, 2, 2)
 
-    GroupBox: tt_params:
-        style_class = 'greyborder customborder aligned_form'
-        title = "Tooltip"
-        Form: form1:
-            Label:
-                text = "Sample Distance (rad)"
-            FloatField:
-                value := module_controller.tt_minimal_angle_between_measurements
+    Container: forms_ct:
+        constraints = [
+            vbox(tt_params, ao_params, ja_params, ro_params, ga_params),
+        ]
 
-    GroupBox: ao_params:
-        style_class = 'greyborder customborder aligned_form'
-        title = "Absolute Orientation"
-        Form: form2:
-            Label:
-                text = "Max Distance from Origin (m)"
-            FloatField:
-                value := module_controller.ao_inital_maxdistance_from_origin
-            Label:
-                text = "Refinement Expand Coverage"
-            FloatField:
-                value := module_controller.ao_refinement_expand_coverage
-            Label:
-                text = "Sample Distance (m)"
-            FloatField:
-                value := module_controller.ao_minimal_distance_between_measurements
-            Label:
-                text = "Refinement Shrink Distance"
-            FloatField:
-                value := module_controller.ao_refinement_shrink_distance
+        hug_width = 'strong'
+        padding = (2, 2, 2, 2)
 
-    GroupBox: ja_params:
-        style_class = 'greyborder customborder aligned_form'
-        title = "Joint-Angles Correction"
-        Form: form3:
-            Label:
-                text = "Sample Distance (m)"
-            FloatField:
-                value := module_controller.ja_minimal_distance_between_measurements
-            Label:
-                text = "Max Distance to Ref (m)"
-            FloatField:
-                value := module_controller.ja_maximum_distance_to_reference
-            Label:
-                text = "Refinement Shrink Distance"
-            FloatField:
-                value := module_controller.ja_refinement_shrink_distance
-            Label:
-                text = "Termination Condition (mean error difference)"
-            FloatField:
-                value := module_controller.ja_refinement_min_difference
-            Label:
-                text = "Max Iterations"
-            IntField:
-                value := module_controller.ja_refinement_max_iterations
+        GroupBox: tt_params:
+            style_class = 'greyborder customborder aligned_form'
+            title = "Tooltip"
+            Form: form1:
+                Label:
+                    text = "Sample Distance (rad)"
+                FloatField:
+                    value := module_controller.parameters.tt_minimal_angle_between_measurements
 
-    GroupBox: ro_params:
-        style_class = 'greyborder customborder aligned_form'
-        title = "Reference Orientation"
-        Form: form4:
-            Label:
-                text = "Sample Distance (rad)"
-            FloatField:
-                value := module_controller.ro_minimal_angle_between_measurements
+        GroupBox: ao_params:
+            style_class = 'greyborder customborder aligned_form'
+            title = "Absolute Orientation"
+            Form: form2:
+                Label:
+                    text = "Max Distance from Origin (m)"
+                FloatField:
+                    value := module_controller.parameters.ao_inital_maxdistance_from_origin
+                Label:
+                    text = "Refinement Expand Coverage"
+                FloatField:
+                    value := module_controller.parameters.ao_refinement_expand_coverage
+                Label:
+                    text = "Sample Distance (m)"
+                FloatField:
+                    value := module_controller.parameters.ao_minimal_distance_between_measurements
+                Label:
+                    text = "Refinement Shrink Distance"
+                FloatField:
+                    value := module_controller.parameters.ao_refinement_shrink_distance
 
-    GroupBox: ga_params:
-        style_class = 'greyborder customborder aligned_form'
-        title = "Gimbal-Angles Correction"
-        Form: form5:
+        GroupBox: ja_params:
+            style_class = 'greyborder customborder aligned_form'
+            title = "Joint-Angles Correction"
+            Form: form3:
+                Label:
+                    text = "Sample Distance (m)"
+                FloatField:
+                    value := module_controller.parameters.ja_minimal_distance_between_measurements
+                Label:
+                    text = "Max Distance to Ref (m)"
+                FloatField:
+                    value := module_controller.parameters.ja_maximum_distance_to_reference
+                Label:
+                    text = "Refinement Shrink Distance"
+                FloatField:
+                    value := module_controller.parameters.ja_refinement_shrink_distance
+                Label:
+                    text = "Termination Condition (mean error difference)"
+                FloatField:
+                    value := module_controller.parameters.ja_refinement_min_difference
+                Label:
+                    text = "Max Iterations"
+                IntField:
+                    value := module_controller.parameters.ja_refinement_max_iterations
+
+        GroupBox: ro_params:
+            style_class = 'greyborder customborder aligned_form'
+            title = "Reference Orientation"
+            Form: form4:
+                Label:
+                    text = "Sample Distance (rad)"
+                FloatField:
+                    value := module_controller.parameters.ro_minimal_angle_between_measurements
+
+        GroupBox: ga_params:
+            style_class = 'greyborder customborder aligned_form'
+            title = "Gimbal-Angles Correction"
+            Form: form5:
+                Label:
+                    text = "Sample Distance (rad)"
+                FloatField:
+                    value := module_controller.parameters.ga_minimal_angle_between_measurements
+
+    Container: results_ct:
+        constraints = [
+            vbox(results_grp,),
+        ]
+
+        hug_width = 'weak'
+        padding = (2, 2, 2, 2)
+
+        GroupBox: results_grp:
+            style_class = 'greyborder customborder aligned_form'
+            title = "Results"
+
             Label:
-                text = "Sample Distance (rad)"
-            FloatField:
-                value := module_controller.ga_minimal_angle_between_measurements
+                text = "Tooltip Offset"
+            Field:
+                read_only = True
+                text << unicode(module_controller.tooltip_calibration_result)
+            Label:
+                text = "Absolute Orientation"
+            Field:
+                read_only = True
+                text << unicode(module_controller.absolute_orientation_result)
+            Label:
+                text = "Joint-Angle Correction"
+            MultilineField:
+                read_only = True
+                text << unicode(module_controller.jointangles_correction_result)
+            Label:
+                text = "Gimbal-Angle Correction"
+            MultilineField:
+                read_only = True
+                text << unicode(module_controller.gimbalangles_correction_result)
+
 
     PushButton: do_reset_parameters:
         text = "Reset"
@@ -161,9 +202,11 @@ enamldef OfflineCalibrationPanel(WizardPanel):
         clicked ::
             module_controller.do_visualize_results()
 
+
 enamldef OfflineCalibrationResultPanel(DockItem): wizard:
     title = "Offline Calibration Results"
-    attr results
+    attr boxplot_position_errors
+    attr boxplot_orientation_errors
 
     Container:
         constraints = [
@@ -171,6 +214,6 @@ enamldef OfflineCalibrationResultPanel(DockItem): wizard:
             ]
 
         MPLCanvas: pos_errors:
-            figure = results.boxplot_position_errors
+            figure = boxplot_position_errors
         MPLCanvas: orn_errors:
-            figure = results.boxplot_orientation_errors
+            figure = boxplot_orientation_errors
