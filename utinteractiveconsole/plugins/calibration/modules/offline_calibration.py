@@ -150,17 +150,19 @@ class OfflineCalibrationController(CalibrationController):
 
     ao_inital_maxdistance_from_origin = Float(0.03)
     ao_minimal_distance_between_measurements = Float(0.01)
+    ao_refinement_expand_coverage = Float(1.2)
+    ao_refinement_shrink_distance = Float(0.8)
 
     ja_minimal_distance_between_measurements = Float(0.005)
     ja_maximum_distance_to_reference = Float(0.02)
     ja_refinement_min_difference = Float(0.00001)
     ja_refinement_max_iterations = Int(3)
+    ja_refinement_shrink_distance = Float(0.8)
 
     ro_minimal_angle_between_measurements = Float(0.1)
 
     ga_minimal_angle_between_measurements = Float(0.1)
 
-    refinement_shrink_factor = Float(0.8)
 
     joint_lengths = Value(np.array([0.13335, 0.13335]))
     origin_offset = Value(np.array([0.0, -0.11, -0.035]))
@@ -190,6 +192,25 @@ class OfflineCalibrationController(CalibrationController):
     def setupController(self, active_widgets=None):
         active_widgets[0].find("btn_start_calibration").visible = False
         active_widgets[0].find("btn_stop_calibration").visible = False
+        self.reset_results()
+        self.do_reset_parameters()
+
+    def reset_results(self):
+        # initial values for results
+        self.theta6_correction_result = np.array([0, 1, 0])
+        self.zaxis_reference_result = np.array([0, 0, 1])
+        self.zaxis_points_result = []
+        self.tooltip_calibration_result = np.array([0, 0, 0])
+        self.absolute_orientation_result = math.Pose(math.Quaternion(), np.array([0, 0, 0]))
+        self.jointangles_correction_result = angle_null_correction.copy()
+        self.gimbalangles_correction_result = angle_null_correction.copy()
+        self.position_errors = []
+        self.orientation_errors = []
+        self.has_result = False
+
+
+
+    def do_reset_parameters(self):
         wiz_cfg = self.wizard_state.config
         gbl_cfg = self.context.get("config")
 
@@ -212,16 +233,17 @@ class OfflineCalibrationController(CalibrationController):
             self.tt_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "tt_minimal_angle_between_measurements")
             self.ao_inital_maxdistance_from_origin = gbl_cfg.getfloat(parameters_sname, "ao_inital_maxdistance_from_origin")
             self.ao_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ao_minimal_distance_between_measurements")
+            self.ao_refinement_expand_coverage = gbl_cfg.getfloat(parameters_sname, "ao_refinement_expand_coverage")
+            self.ao_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ao_refinement_shrink_distance")
             self.ja_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ja_minimal_distance_between_measurements")
             self.ja_maximum_distance_to_reference = gbl_cfg.getfloat(parameters_sname, "ja_maximum_distance_to_reference")
             self.ja_refinement_min_difference = gbl_cfg.getfloat(parameters_sname, "ja_refinement_min_difference")
             self.ja_refinement_max_iterations = gbl_cfg.getint(parameters_sname, "ja_refinement_max_iterations")
             self.ro_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ro_minimal_angle_between_measurements")
             self.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
-            self.refinement_shrink_factor = gbl_cfg.getfloat(parameters_sname, "refinement_shrink_factor")
+            self.ja_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ja_refinement_shrink_distance")
         else:
             log.warn("No parameters found for offline calibration - using defaults. Define parameters in section: %s" % parameters_sname)
-
 
 
     def do_offline_calibration(self):
@@ -405,6 +427,7 @@ class OfflineCalibrationController(CalibrationController):
         data03 = self.load_data_step03()
         data04 = self.load_data_step04()
 
+        self.reset_results()
 
         # 1st step: Tooltip Calibration (uses step01 data)
         self.do_tooltip_calibration(data01)
@@ -425,9 +448,9 @@ class OfflineCalibrationController(CalibrationController):
         iterations = 0
         while True:
             # modify the frame selector parameters
-            self.ao_inital_maxdistance_from_origin /= self.refinement_shrink_factor
-            self.ao_minimal_distance_between_measurements *= self.refinement_shrink_factor
-            self.ja_minimal_distance_between_measurements *= self.refinement_shrink_factor
+            self.ao_inital_maxdistance_from_origin *= self.ao_refinement_expand_coverage
+            self.ao_minimal_distance_between_measurements *= self.ao_refinement_shrink_distance
+            self.ja_minimal_distance_between_measurements *= self.ja_refinement_shrink_distance
 
             # redo the calibration
             self.do_absolute_orientation(data03)

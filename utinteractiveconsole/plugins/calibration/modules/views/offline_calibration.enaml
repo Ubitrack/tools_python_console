@@ -62,7 +62,7 @@ enamldef OfflineCalibrationPanel(WizardPanel):
 
     constraints = [
         vbox( vbox(tt_params, ao_params, ja_params, ro_params, ga_params),
-              hbox( spacer, do_offline_calibration, do_visualize_results),
+              hbox( spacer, do_reset_parameters, do_offline_calibration, do_visualize_results),
         ),
     ]
 
@@ -86,9 +86,17 @@ enamldef OfflineCalibrationPanel(WizardPanel):
             FloatField:
                 value := module_controller.ao_inital_maxdistance_from_origin
             Label:
+                text = "Refinement Expand Coverage"
+            FloatField:
+                value := module_controller.ao_refinement_expand_coverage
+            Label:
                 text = "Sample Distance (m)"
             FloatField:
                 value := module_controller.ao_minimal_distance_between_measurements
+            Label:
+                text = "Refinement Shrink Distance"
+            FloatField:
+                value := module_controller.ao_refinement_shrink_distance
 
     GroupBox: ja_params:
         style_class = 'greyborder customborder aligned_form'
@@ -103,6 +111,10 @@ enamldef OfflineCalibrationPanel(WizardPanel):
             FloatField:
                 value := module_controller.ja_maximum_distance_to_reference
             Label:
+                text = "Refinement Shrink Distance"
+            FloatField:
+                value := module_controller.ja_refinement_shrink_distance
+            Label:
                 text = "Termination Condition (mean error difference)"
             FloatField:
                 value := module_controller.ja_refinement_min_difference
@@ -110,10 +122,6 @@ enamldef OfflineCalibrationPanel(WizardPanel):
                 text = "Max Iterations"
             IntField:
                 value := module_controller.ja_refinement_max_iterations
-            Label:
-                text = "Refinement Shrink Factor"
-            FloatField:
-                value := module_controller.refinement_shrink_factor
 
     GroupBox: ro_params:
         style_class = 'greyborder customborder aligned_form'
@@ -132,6 +140,13 @@ enamldef OfflineCalibrationPanel(WizardPanel):
                 text = "Sample Distance (rad)"
             FloatField:
                 value := module_controller.ga_minimal_angle_between_measurements
+
+    PushButton: do_reset_parameters:
+        text = "Reset"
+        enabled << not module_controller.is_working
+        clicked ::
+            module_controller.do_reset_parameters()
+
 
 
     PushButton: do_offline_calibration:
