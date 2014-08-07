@@ -8,8 +8,8 @@ class FWKinematicPhantom(object):
 
     def __init__(self, joint_lengths, jointangle_correction, gimbalangle_correction, origin_calib=None, disable_theta6=False):
         self.joint_lengths = joint_lengths
-        self.jointangle_correction_factors = jointangle_correction
-        self.gimbalangle_correction_factors = gimbalangle_correction
+        self.jointangle_correction_factors = np.array(jointangle_correction)
+        self.gimbalangle_correction_factors = np.array(gimbalangle_correction)
         if disable_theta6:
             self.gimbalangle_correction_factors[2, 0] = 0.0
             self.gimbalangle_correction_factors[2, 1] = 0.0

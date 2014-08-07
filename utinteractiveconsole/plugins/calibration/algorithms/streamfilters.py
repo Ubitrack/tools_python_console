@@ -3,8 +3,11 @@ __author__ = 'jack'
 import numpy as np
 from numpy.linalg import norm
 import sys
+import logging
 
 from ubitrack.core import math
+
+log = logging.getLogger(__name__)
 
 class BaseStreamFilter(object):
 
@@ -16,6 +19,8 @@ class BaseStreamFilter(object):
 class StaticPointDistanceStreamFilter(BaseStreamFilter):
 
     def __init__(self, fieldname, point, min_distance=0, max_distance=sys.maxint):
+        log.info("StaticPointDistanceStreamFilter point=%s, min_distance=%s, max_distance=%s" %
+                (point, min_distance, max_distance))
         self.fieldname = fieldname
         self.point = point
         self.min_distance = min_distance
@@ -48,6 +53,8 @@ class StaticPointDistanceStreamFilter(BaseStreamFilter):
 class RelativePointDistanceStreamFilter(BaseStreamFilter):
 
     def __init__(self, fieldname, min_distance=0, max_distance=sys.maxint):
+        log.info("RelativePointDistanceStreamFilter min_distance=%s, max_distance=%s" %
+                (min_distance, max_distance))
         self.fieldname = fieldname
         self.min_distance = min_distance
         self.max_distance = max_distance
@@ -84,6 +91,8 @@ class RelativePointDistanceStreamFilter(BaseStreamFilter):
 class TwoPointDistanceStreamFilter(BaseStreamFilter):
 
     def __init__(self, fieldname1, fieldname2, min_distance=0, max_distance=sys.maxint):
+        log.info("TwoPointDistanceStreamFilter min_distance=%s, max_distance=%s" %
+                (min_distance, max_distance))
         self.fieldname1 = fieldname1
         self.fieldname2 = fieldname2
         self.min_distance = min_distance
@@ -120,6 +129,8 @@ class TwoPointDistanceStreamFilter(BaseStreamFilter):
 class RelativeOrienationDistanceStreamFilter(BaseStreamFilter):
 
     def __init__(self, fieldname, min_distance=0, max_distance=sys.maxint):
+        log.info("RelativeOrienationDistanceStreamFilter min_distance=%s, max_distance=%s" %
+                (min_distance, max_distance))
         self.fieldname = fieldname
         self.min_distance = min_distance
         self.max_distance = max_distance

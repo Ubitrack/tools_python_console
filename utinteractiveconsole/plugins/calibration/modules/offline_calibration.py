@@ -148,8 +148,8 @@ class OfflineCalibrationResults(Atom):
 
     tooltip_calibration_result = Value(np.array([0, 0, 0]))
     absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
-    jointangles_correction_result = Value(angle_null_correction.copy())
-    gimbalangles_correction_result = Value(angle_null_correction.copy())
+    jointangles_correction_result = Value(np.array(angle_null_correction))
+    gimbalangles_correction_result = Value(np.array(angle_null_correction))
 
     # results evaluation
     position_errors = List()
@@ -164,8 +164,8 @@ class OfflineCalibrationResults(Atom):
 
         self.tooltip_calibration_result = np.array([0, 0, 0])
         self.absolute_orientation_result = math.Pose(math.Quaternion(), np.array([0, 0, 0]))
-        self.jointangles_correction_result = angle_null_correction.copy()
-        self.gimbalangles_correction_result = angle_null_correction.copy()
+        self.jointangles_correction_result = np.array(angle_null_correction)
+        self.gimbalangles_correction_result = np.array(angle_null_correction)
 
         self.position_errors = []
         self.orientation_errors = []
@@ -385,10 +385,17 @@ class OfflineCalibrationProcessor(Atom):
         log.info("Resulting orientation error: %s" % orientation_errors.mean())
         return orientation_errors
 
+    def reset(self, parameters):
+        self.result.reset()
+
+        self.parameters = parameters
+        # mutable parameters are copied
+        self.ao_maxdistance_from_origin = self.parameters.ao_inital_maxdistance_from_origin
+        self.ao_minimal_distance_between_measurements = self.parameters.ao_minimal_distance_between_measurements
+        self.ja_minimal_distance_between_measurements = self.parameters.ja_minimal_distance_between_measurements
 
 
     def process(self):
-        self.result.reset()
 
         fname = os.path.join(self.dfg_dir, self.dfg_filename)
         if not os.path.isfile(fname):
@@ -413,10 +420,6 @@ class OfflineCalibrationProcessor(Atom):
         data03 = self.load_data_step03()
         data04 = self.load_data_step04()
 
-        # mutable parameters are copied
-        self.ao_maxdistance_from_origin = self.parameters.ao_inital_maxdistance_from_origin
-        self.ao_minimal_distance_between_measurements = self.parameters.ao_minimal_distance_between_measurements
-        self.ja_minimal_distance_between_measurements = self.parameters.ja_minimal_distance_between_measurements
 
         # 1st step: Tooltip Calibration (uses step01 data)
         self.do_tooltip_calibration(data01)
@@ -455,8 +458,8 @@ class OfflineCalibrationProcessor(Atom):
             last_error = error
             iterations += 1
 
-            if iterations > self.parameters.ja_refinement_max_iterations:
-                log.warn("Terminating iterative optimization after %d cycles" % self.parameters.ja_refinement_max_iterations)
+            if iterations >= self.parameters.ja_refinement_max_iterations:
+                log.info("Terminating iterative optimization after %d cycles" % self.parameters.ja_refinement_max_iterations)
                 break
 
         # 4th step: reference orientation
@@ -552,6 +555,8 @@ class OfflineCalibrationProcessor(Atom):
         )
 
     def get_fwk(self, jointangle_calib, gimbalangle_calib, disable_theta6=False):
+        log.info("ForwardKinematics:\njoint_lengths=%s\norigin_offset=%s\njointangle_correction=%s\ngimbalangle_correction=%s" %
+                 (self.parameters.joint_lengths, self.parameters.origin_offset, jointangle_calib, gimbalangle_calib))
         return FWKinematicPhantom(self.parameters.joint_lengths,
                                   jointangle_calib,
                                   gimbalangle_calib,
@@ -631,33 +636,29 @@ class OfflineCalibrationController(CalibrationController):
         else:
             log.warn("No parameters found for offline calibration - using defaults. Define parameters in section: %s" % parameters_sname)
 
-
     def do_offline_calibration(self):
-        if self.processor is not None:
-            self.processor.unobserve("is_working", self.defer_update_attr)
-            self.processor.result.unobserve(["has_result", "tooltip_calibration_result", "absolute_orientation_result",
-                                             "jointangles_correction_result", "gimbalangles_correction_result"],
-                                             self.defer_update_attr)
+        if self.processor is None:
+            self.processor = OfflineCalibrationProcessor(
+                config=self.config,
+                facade=self.facade,
+                dfg_dir=self.dfg_dir,
+                dfg_filename=self.dfg_filename,
+            )
 
-        self.processor = OfflineCalibrationProcessor(
-            config=self.config,
-            facade=self.facade,
-            dfg_dir=self.dfg_dir,
-            dfg_filename=self.dfg_filename,
-            parameters=self.parameters,
-        )
+            self.processor.observe("is_working", self.defer_update_attr)
+            self.processor.result.observe(["has_result",
+                                           "tooltip_calibration_result",
+                                           "absolute_orientation_result",
+                                           "jointangles_correction_result",
+                                           "gimbalangles_correction_result"],
+                                           self.defer_update_attr)
 
-        self.processor.observe("is_working", self.defer_update_attr)
-        self.processor.result.observe(["has_result", "tooltip_calibration_result", "absolute_orientation_result",
-                                       "jointangles_correction_result", "gimbalangles_correction_result"],
-                                       self.defer_update_attr)
-
+        self.processor.reset(self.parameters)
         self.bgThread = BackgroundCalculationThread(self.processor)
         self.bgThread.start()
 
     # called from background thread
     def defer_update_attr(self, change):
-        print "defer_update_attr: ", change
         if change is not None:
             deferred_call(setattr, self, change['name'], change['value'])
 
