@@ -15,7 +15,7 @@ template ModuleContainer(Content: WizardPanel, FacadeType):
         attr module_state
         attr module_controller
 
-        padding = (0, 0, 0, 0)
+        padding = (2, 2, 2, 2)
         constraints = [
             vbox(headline,
                  content,

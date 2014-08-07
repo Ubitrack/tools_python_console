@@ -3,20 +3,22 @@ __author__ = 'jack'
 import os
 import time
 import logging
+from math import degrees, acos
 import numpy as np
 from numpy.linalg import norm
 from collections import namedtuple
 
 log = logging.getLogger(__name__)
 
-from atom.api import Event, Bool, Str, Value, Typed, List, Float, Int, observe
+from atom.api import Atom, Event, Bool, Str, Value, Typed, List, Float, Int, observe
 from enaml.qt import QtCore
 from enaml.application import deferred_call
+from enaml.layout.api import InsertItem, FloatItem
 
 import enaml
 
 with enaml.imports():
-    from .views.offline_calibration import OfflineCalibrationPanel
+    from .views.offline_calibration import OfflineCalibrationPanel, OfflineCalibrationResultPanel
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import CalibrationController
@@ -61,6 +63,11 @@ class BackgroundCalculationThread(QtCore.QThread):
 
     def set_is_working(self, v):
         self.ctrl.is_working = v
+
+
+class CalibrationResults(Atom):
+    boxplot_position_errors = Value()
+    boxplot_orientation_errors = Value()
 
 
 def compute_position_errors(stream,
@@ -407,7 +414,6 @@ class OfflineCalibrationController(CalibrationController):
 
         # compute initial errors
         self.position_errors.append(self.compute_position_errors(data04))
-        self.orientation_errors.append(self.compute_orientation_errors(data01))
 
         # 3nd step: initial jointangle correction
         self.do_jointangle_correction(data04)
@@ -444,6 +450,8 @@ class OfflineCalibrationController(CalibrationController):
         # 4th step: reference orientation
         self.do_reference_orientation(data02)
 
+        self.orientation_errors.append(self.compute_orientation_errors(data01))
+
         # 5th step: gimbalangle correction
         self.do_gimbalangle_correction(data01)
 
@@ -466,6 +474,7 @@ class OfflineCalibrationController(CalibrationController):
         # wait a bit before shutting down to allow ubitrack to process the data
         time.sleep(0.1)
         # display nice result graphs or at least text??
+        self.has_result = True
 
         # teardown
 
@@ -478,8 +487,35 @@ class OfflineCalibrationController(CalibrationController):
         self.facade.clearDataflow()
 
 
+
     def do_visualize_results(self):
-        print "TBD"
+        # create figures
+        from matplotlib.figure import Figure
+
+        poserr = Figure()
+        ax1 = poserr.add_subplot(111)
+        ax1.boxplot(self.position_errors)
+        ax1.set_title("Position Errors")
+
+        ornerr = Figure()
+        ax2 = ornerr.add_subplot(111)
+        ax2.boxplot(self.orientation_errors)
+        ax2.set_title("Orientation Errors")
+
+        results = CalibrationResults(boxplot_position_errors=poserr,
+                                     boxplot_orientation_errors=ornerr)
+        # create results panel
+        panel = OfflineCalibrationResultPanel(name="utic.ismar14.offline_calibration_result.%s" % time.time(),
+                                              results=results)
+
+
+        # add to layout
+        wizard_controller = self.wizard_state.controller
+        parent = wizard_controller.wizview.parent
+
+        panel.set_parent(parent)
+        op = FloatItem(item=panel.name,)
+        parent.update_layout(op)
 
 
     def load_data_step01(self):

@@ -74,24 +74,25 @@ enamldef WizardView(DockItem): wizard:
 
     alias looper
     alias content
-    alias control
+    # alias control
 
     TaskItemStyleSheet:
         pass
 
     Container:
-        padding = (0, 0, 0, 0)
+        padding = (2, 2, 2, 2)
         minimum_size = (800, 600)
         constraints = [
             hbox(
-                vbox(scroller, control),
+                # vbox(scroller, control),
+                scroller,
                 content,
             ),
         ]
         ScrollArea: scroller:
             hug_width = "strong"
             Container:
-                padding = 0
+                padding = (2, 2, 2, 2)
                 background = 'white'
                 Looper: looper:
                     iterable << wizard.state.tasks
@@ -99,7 +100,7 @@ enamldef WizardView(DockItem): wizard:
                         padding = 5
                         Label:
                             style_class << loop_item.completed and "taskitem-done" or "taskitem"
-                            text = loop_item.name
+                            text = wizard.state.module_manager.modules[loop_item.name].get_name()
                     # iterable << wizard.state.task_list
                     # Container:
                     #     hug_height = 'strong'
@@ -116,6 +117,7 @@ enamldef WizardView(DockItem): wizard:
             ]
             hug_width = "weak"
             alias content_include
+            padding = (2, 2, 2, 2)
 
             Container: module_content:
                 hug_width = "weak"
@@ -141,10 +143,11 @@ enamldef WizardView(DockItem): wizard:
                 enabled := state.enable_skip_button
                 clicked :: wizard.controller.on_skip(content)
 
-        Container: control:
-            alias subprocess
-            SubprocessControl: subprocess:
-                facade := wizard.state.facade
+        # Container: control:
+        #     visible = False
+        #     alias subprocess
+        #     SubprocessControl: subprocess:
+        #         facade := wizard.state.facade
 
 
 

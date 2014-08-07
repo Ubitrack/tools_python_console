@@ -267,6 +267,7 @@ class WizardState(Atom):
 class WizardController(Atom):
 
     context = Value()
+    workbench = Value()
 
     module_manager = Typed(ModuleManager)
     module_graph = Typed(nx.DiGraph)
@@ -534,7 +535,7 @@ class CalibrationWizard(ExtensionBase):
                 da.update_layout(op)
 
         else:
-            wizard = WizardController(context=self.context)
+            wizard = WizardController(context=self.context, workbench=ev.workbench)
             if not wizard.initialize(wizard_def):
                 log.error("Error launching wizard: %s" % name)
                 return
@@ -599,5 +600,7 @@ class CalibrationWizard(ExtensionBase):
             wizard.show()
 
             # start the watchdog timer for subprocess control
-            wizard.wizview.control.subprocess.timer.start()
+            if hasattr(wizard.wizview, "control"):
+                wizard.wizview.control.subprocess.timer.start()
+
             wizard_instances[name] = wizard

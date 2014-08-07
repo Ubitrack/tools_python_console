@@ -4,7 +4,7 @@ import numpy as np
 import os
 from collections import namedtuple
 
-from ubitrack.core import math, util, measurement
+from ubitrack.core import math, measurement, util
 
 import logging
 log = logging.getLogger(__name__)

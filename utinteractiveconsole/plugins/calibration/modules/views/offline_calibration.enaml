@@ -2,7 +2,7 @@ from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
     Container, Html, Page, PushButton,
     GroupBox, Form, Label, Field, CheckBox, ComboBox,
-    MultilineField, PushButton,
+    MultilineField, PushButton, DockItem, MPLCanvas
 )
 from enaml.styling import StyleSheet, Style, Setter
 from enaml.stdlib.fields import IntField, FloatField
@@ -65,6 +65,8 @@ enamldef OfflineCalibrationPanel(WizardPanel):
               hbox( spacer, do_offline_calibration, do_visualize_results),
         ),
     ]
+
+    padding = (2, 2, 2, 2)
 
     GroupBox: tt_params:
         style_class = 'greyborder customborder aligned_form'
@@ -140,7 +142,20 @@ enamldef OfflineCalibrationPanel(WizardPanel):
 
     PushButton: do_visualize_results:
         text = "Visualize Results"
-        enabled << not module_controller.has_result
+        enabled << module_controller.has_result
         clicked ::
             module_controller.do_visualize_results()
 
+enamldef OfflineCalibrationResultPanel(DockItem): wizard:
+    title = "Offline Calibration Results"
+    attr results
+
+    Container:
+        constraints = [
+                hbox(pos_errors, orn_errors)
+            ]
+
+        MPLCanvas: pos_errors:
+            figure = results.boxplot_position_errors
+        MPLCanvas: orn_errors:
+            figure = results.boxplot_orientation_errors
