@@ -53,35 +53,17 @@ def show_console(event):
 
 enamldef TaskItemStyleSheet(StyleSheet):
     Style:
-        element = 'Field'
+        element = 'Label'
         style_class = 'taskitem'
-        Setter:
-            field = 'background'
-            value = 'white'
-        Setter:
-            field = 'padding'
-            value = '0px'
-        Setter:
-            field = 'margins'
-            value = '0px'
         Setter:
             field = 'color'
             value = 'black'
     Style:
-        element = 'Field'
+        element = 'Label'
         style_class = 'taskitem-done'
         Setter:
-            field = 'background'
-            value = 'green'
-        Setter:
-            field = 'padding'
-            value = '0px'
-        Setter:
-            field = 'margins'
-            value = '0px'
-        Setter:
             field = 'color'
-            value = 'white'
+            value = 'green'
 
 
 enamldef WizardView(DockItem): wizard:
@@ -109,12 +91,14 @@ enamldef WizardView(DockItem): wizard:
         ScrollArea: scroller:
             hug_width = "strong"
             Container:
+                padding = 0
+                background = 'white'
                 Looper: looper:
                     iterable << wizard.state.tasks
                     Container:
-                        hug_height = 'strong'
-                        padding = 0
+                        padding = 5
                         Label:
+                            style_class << loop_item.completed and "taskitem-done" or "taskitem"
                             text = loop_item.name
                     # iterable << wizard.state.task_list
                     # Container:
