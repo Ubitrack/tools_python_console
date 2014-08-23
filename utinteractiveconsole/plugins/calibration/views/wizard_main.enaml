@@ -126,18 +126,21 @@ enamldef WizardView(DockItem): wizard:
                     objects << wizard.state.active_widgets
 
             PushButton: next_btn:
+                name = "btn_next"
                 text := state.text_next_button
                 visible := state.show_next_button
                 enabled := state.enable_next_button
                 clicked :: wizard.controller.on_next(content)
 
             PushButton: back_btn:
+                name = "btn_back"
                 text := state.text_back_button
                 visible := state.show_back_button
                 enabled := state.enable_back_button
                 clicked :: wizard.controller.on_back(content)
 
             PushButton: skip_btn:
+                name = "btn_skip"
                 text := state.text_skip_button
                 visible := state.show_skip_button
                 enabled := state.enable_skip_button

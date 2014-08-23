@@ -45,7 +45,7 @@ class RemoteControl(ExtensionBase):
     def handle_workspace_started(self, change):
         workspace = change['value']
         if workspace._manifest_id == 'uticmain.calibration_wizard':
-            log.info("Initialize Remote Control")
+            log.info("Initialize Calibration Wizard Remote Control")
             if self.initialize_networking():
                 from .rest_server import reactor, Site, RemoteControlAPIServer
                 self.current_site = Site(RemoteControlAPIServer(self.context, workspace))
@@ -55,7 +55,7 @@ class RemoteControl(ExtensionBase):
     def handle_workspace_stopped(self, change):
         workspace = change['value']
         if workspace._manifest_id == 'uticmain.calibration_wizard':
-            log.info("Teardown Remote Control")
+            log.info("Teardown Calibration Wizard Remote Control")
             if self.current_port is not None:
                 self.current_port.stopListening()
             self.current_port = None

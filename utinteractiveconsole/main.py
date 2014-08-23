@@ -110,6 +110,8 @@ def main():
     manifest.initialize()
 
     workbench.register(manifest)
+    appstate.context['workbench'] = workbench
+
     workbench.run()
 
 

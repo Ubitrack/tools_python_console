@@ -1,0 +1,46 @@
+Example for using the Remote Control Plugin for the Calibration wizard
+
+This example is written in python and uses the following python packages:
+- requests
+- json
+
+utic needs to be launched with the "-R" cmdline argument to enable the remote control
+
+Example:
+
+
+>>> import requests
+>>> import json
+
+# get application state - the calibration wizard workspace needs to be started (Ctrl-W)
+>>> response = requests.get("http://localhost:8080/application_state")
+>>> response.content
+Out[1]: '{"result": {}, "success": true}'
+# initially, the result is empty, if no calibration wizards are running
+
+# retrieve a list of available commands (e.g. Menu Items defined by the Calibration Wizard plugin
+>>> response = requests.get("http://localhost:8080/wizard_commands")
+>>> response.content
+Out[2]: '{"result": [{"path": "/view/console", "command": "utic.commands.extensions.calibration_wizard.show_console", "label": "IPython Console"}, {"path": "/calibration/default_camera", "command": "utic.commands.extensions.calibration_wizard.launch_default_camera", "label": "Default Camera"}, {"path": "/calibration/gui_test", "command": "utic.commands.extensions.calibration_wizard.launch_gui_test", "label": "Gui Test"}, {"path": "/calibration/stereo_camera", "command": "utic.commands.extensions.calibration_wizard.launch_stereo_camera", "label": "Stereo HMD"}, {"path": "/calibration/ismar14", "command": "utic.commands.extensions.calibration_wizard.launch_ismar14", "label": "ISMAR 2014 Demo"}], "success": true}'
+# the result contains a list of available commands to launch calibration wizards (and the python console)
+
+# start a wizard
+>>> response = requests.post("http://localhost:8080/wizard_commands", data=json.dumps(dict(command="utic.commands.extensions.calibration_wizard.launch_stereo_camera")))
+>>> response.content
+Out[3]: '{"success": true}'
+
+# retrieve a list of available actions for the currently running wizard(s)
+>>> response = requests.get("http://localhost:8080/wizard_control")
+>>> response.content
+Out[4]: '{"result": {"stereo_camera": ["btn_next"]}, "success": true}'
+# the result contains the available (visible and enabled) buttons for the running wizard(s)
+
+# now, since a wizard is running, the application_state contains the relevant information
+>>> response = requests.get("http://localhost:8080/application_state")
+>>> response.content
+Out[5]: '{"result": {"stereo_camera": {"task_idx": 0, "task_status": [{"started": false, "running": false, "skipped": false, "completed": false, "name": "calibration_start"}, {"started": false, "running": false, "skipped": false, "completed": false, "name": "camera_intrinsics_left"}, {"started": false, "running": false, "skipped": false, "completed": false, "name": "camera_intrinsics_right"}, {"started": false, "running": false, "skipped": false, "completed": false, "name": "camera_stereo"}, {"started": false, "running": false, "skipped": false, "completed": false, "name": "calibration_result"}], "name": "stereo_camera", "task_list": ["calibration_start", "camera_intrinsics_left", "camera_intrinsics_right", "camera_stereo", "calibration_result"], "current_task": "calibration_start"}}, "success": true}'
+
+# Finally, an button can be "clicked" by submitting a post to wizard_control using the button name
+>>> response = requests.post("http://localhost:8080/wizard_control", data=json.dumps(dict(action="btn_next")))
+>>> response.content
+Out[6]: '{"success": true}'
