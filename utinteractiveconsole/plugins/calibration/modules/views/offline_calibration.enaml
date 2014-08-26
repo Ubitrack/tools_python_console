@@ -183,6 +183,7 @@ enamldef OfflineCalibrationPanel(WizardPanel):
 
 
     PushButton: do_reset_parameters:
+        name = "btn_reset_parameters"
         text = "Reset"
         enabled << not module_controller.is_working
         clicked ::
@@ -191,12 +192,14 @@ enamldef OfflineCalibrationPanel(WizardPanel):
 
 
     PushButton: do_offline_calibration:
+        name = "btn_offline_calibration"
         text = "Start Offline Calibration"
         enabled << not module_controller.is_working
         clicked ::
             module_controller.do_offline_calibration()
 
     PushButton: do_visualize_results:
+        name = "btn_visualize_results"
         text = "Visualize Results"
         enabled << module_controller.has_result
         clicked ::
