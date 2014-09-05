@@ -7,7 +7,6 @@ from ubitrack.core import math, measurement
 from ubitrack.vision import vision
 from ubitrack.visualization import visualization
 
-
 class BackgroundTexture(GraphicsNode):
 
     bgtexture = Typed(visualization.BackgroundImage)

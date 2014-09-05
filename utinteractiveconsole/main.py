@@ -1,4 +1,20 @@
 __author__ = 'mvl'
+
+# HACK TO WORKAROUND DLL IMPORT ERROR !!
+# preload all ubitrack modules to prevent the use of enaml import hooks
+from ubitrack.core import math, measurement, util
+from ubitrack.facade import facade
+from ubitrack.vision import vision
+from ubitrack.visualization import visualization
+
+del math
+del measurement
+del util
+del facade
+del vision
+del visualization
+# END HACK
+
 import os, sys
 import ConfigParser
 from optparse import OptionParser
@@ -23,7 +39,6 @@ from utinteractiveconsole.guilogging import Syslog
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
 
 
 

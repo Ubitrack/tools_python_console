@@ -49,3 +49,7 @@ Documentation:
 ==============
 
 more docs to follow
+
+Problem solving:
+================
+if utvision or utvisualization break with dll import error, or incompatible qt versions are reported, then deinstall pyqt from anaconda (conda remove pyqt) and install pyqt from http://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.1/PyQt4-4.11.1-gpl-Py2.7-Qt4.8.6-x32.exe

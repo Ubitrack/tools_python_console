@@ -14,8 +14,15 @@ from atom.api import (List, Dict, Str, Long, Typed, Atom, Value, Event, Bool, ob
 from ubitrack.core import math, calibration, util, measurement
 from ubitrack.facade import facade
 from ubitrack.dataflow import graph
-from ubitrack.vision import vision
-from ubitrack.visualization import visualization
+try:
+    from ubitrack.vision import vision
+except ImportError, e:
+    print "Problem importing utvision"
+
+try:
+    from ubitrack.visualization import visualization
+except ImportError, e:
+    print "Problem importing utvisualization"
 
 from .subprocess import SubProcessManager
 
