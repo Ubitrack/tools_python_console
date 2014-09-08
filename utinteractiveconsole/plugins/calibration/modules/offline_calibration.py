@@ -245,6 +245,8 @@ class OfflineCalibrationProcessor(Atom):
         tt_processor.facade = None
         log.info("Result for Tooltip Calibration: %s" % str(self.result.tooltip_calibration_result))
 
+        return True
+
     def do_absolute_orientation(self, ao_data):
         log.info("Absolute Orientation")
         ao_processor = AbsoluteOrientationCalibrationProcessor()
@@ -265,6 +267,10 @@ class OfflineCalibrationProcessor(Atom):
         log.info(
             "Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
 
+        if len(selected_ao_data) == 0:
+            log.error("No Records selected for Absolute Orientation Calibration - please redo Step03 and provide valid data.")
+            return False
+
         ao_processor.data = selected_ao_data
         ao_processor.facade = self.facade
 
@@ -272,6 +278,8 @@ class OfflineCalibrationProcessor(Atom):
 
         ao_processor.facade = None
         log.info("Result for Absolute Orientation: %s" % str(self.result.absolute_orientation_result))
+
+        return True
 
     def do_jointangle_correction(self, ja_data):
         log.info("Joint-Angle Correction")
@@ -301,6 +309,8 @@ class OfflineCalibrationProcessor(Atom):
 
         ja_processor.facade = None
         log.info("Result for Joint-Angles Correction: %s" % str(self.result.jointangles_correction_result))
+
+        return True
 
     def do_gimbalangle_correction(self, ga_data):
         log.info("Gimbal-Angle Correction")
@@ -335,6 +345,8 @@ class OfflineCalibrationProcessor(Atom):
         ga_processor.facade = None
         log.info("Result for Gimbal-Angles Correction: %s" % str(self.result.gimbalangles_correction_result))
 
+        return True
+
     def do_reference_orientation(self, ro_data):
         log.info("Calculate Reference Orientation")
         ro_processor = ReferenceOrientationProcessor()
@@ -365,6 +377,8 @@ class OfflineCalibrationProcessor(Atom):
         ro_processor.facade = None
         log.info("Result for ReferenceOrientation: %s" % str(self.result.zaxis_reference_result))
         log.info("Result for Theta6-Correction: %s" % str(self.result.theta6_correction_result))
+
+        return True
 
     def compute_position_errors(self, ja_data):
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
@@ -425,7 +439,8 @@ class OfflineCalibrationProcessor(Atom):
         self.do_tooltip_calibration(data01)
 
         # 2nd step: initial absolute orientation (uses step03  data)
-        self.do_absolute_orientation(data03)
+        if not self.do_absolute_orientation(data03):
+            return
 
         # compute initial errors
         self.result.position_errors.append(self.compute_position_errors(data04))
@@ -445,7 +460,9 @@ class OfflineCalibrationProcessor(Atom):
             self.ja_minimal_distance_between_measurements *= self.parameters.ja_refinement_shrink_distance
 
             # redo the calibration
-            self.do_absolute_orientation(data03)
+            if not self.do_absolute_orientation(data03):
+                break
+                
             self.do_jointangle_correction(data04)
 
             # recalculate the error
