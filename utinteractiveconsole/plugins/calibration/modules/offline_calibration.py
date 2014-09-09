@@ -223,6 +223,7 @@ class OfflineCalibrationProcessor(Atom):
     source_gimbalangles_correction_result = Value()
 
     source_zaxis_points_result = Value()
+    source_zaxis_reference_result = Value()
 
     def _default_result(self):
         return OfflineCalibrationResults()
@@ -427,6 +428,7 @@ class OfflineCalibrationProcessor(Atom):
         self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_gimbalangle_correction")
 
         self.source_zaxis_points_result = self.facade.instance.getApplicationPushSourcePositionList("result_calib_zrefaxis_points")
+        self.source_zaxis_reference_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_zrefaxis_reference")
 
         log.info("Loading recorded streams for Offline Calibration")
         data01 = self.load_data_step01()
@@ -502,6 +504,7 @@ class OfflineCalibrationProcessor(Atom):
         if len(self.result.zaxis_points_result) > 0:
             self.source_zaxis_points_result.send(measurement.PositionList(ts, math.PositionList.fromList(self.result.zaxis_points_result)))
 
+        self.source_zaxis_reference_result.send(measurement.Position(ts, self.result.zaxis_reference_result))
 
         # wait a bit before shutting down to allow ubitrack to process the data
         time.sleep(0.1)
