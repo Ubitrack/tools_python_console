@@ -472,7 +472,7 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         # Now vv[0] contains the first principal component, i.e. the direction
         # vector of the 'best fit' line in the least squares sense.
         result = np.asarray(vv[0])
-        if result[2] < 0:
+        if result[2] > 0:
             result *= -1.0
 
         return result
