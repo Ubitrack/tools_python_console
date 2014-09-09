@@ -615,13 +615,13 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         zaxis = self.find_zaxis(zaxis_points)
 
         # project zaxis back into OTtarget coordinates
-        corrected_zaxis_ot = []
+        #corrected_zaxis_ot = []
         corrected_zaxis_points_ot = []
 
         for record in self.data:
             hiptarget_pose_inv = record.hiptarget_pose.invert()
             # un-project markers using the corrected stylus pose (5dof)
-            corrected_zaxis_ot.append(hiptarget_pose_inv * (record.device_to_stylus_5dof * zaxis))
+            #corrected_zaxis_ot.append(hiptarget_pose_inv * (record.device_to_stylus_5dof * zaxis))
 
             # un-project the found centers for debugging
             otp = []
@@ -629,22 +629,31 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
                 otp.append(hiptarget_pose_inv * (record.device_to_stylus_5dof * p))
             corrected_zaxis_points_ot.append(otp)
 
-        corrected_zaxis_ot = np.asarray(corrected_zaxis_ot)
-        # maybe a more clever approach to mean could be used here .. svd ??
-        corrected_zaxis_ot_mean = corrected_zaxis_ot.mean(axis=0)
-        # normalize
-        corrected_zaxis_ot_mean /= np.linalg.norm(corrected_zaxis_ot_mean)
-        log.info("Corrected Z-Axis in OT space: %s" % (corrected_zaxis_ot_mean,))
+
+        if False:
+            corrected_zaxis_ot = np.asarray(corrected_zaxis_ot)
+            # maybe a more clever approach to mean could be used here .. svd ??
+            corrected_zaxis_ot_mean = corrected_zaxis_ot.mean(axis=0)
+
+
+            # normalize
+            corrected_zaxis_ot_mean /= np.linalg.norm(corrected_zaxis_ot_mean)
+            log.info("Corrected Z-Axis in OT space: %s" % (corrected_zaxis_ot_mean,))
+
+
+            # unused data:
+            zref = np.asarray(corrected_zaxis_ot_mean)
+            zref = zref / np.linalg.norm(zref)
+
 
         corrected_zaxis_points_ot = np.asarray(corrected_zaxis_points_ot)
         corrected_zaxis_points_ot_mean = []
         for i in range(corrected_zaxis_points_ot.shape[1]):
             corrected_zaxis_points_ot_mean.append(corrected_zaxis_points_ot[:, i, :].mean(axis=0))
 
-        # unused data:
-        # corrected_zaxis_points_ot_mean
-        zref = np.asarray(corrected_zaxis_ot_mean)
+        zref = np.asarray(self.find_zaxis(corrected_zaxis_points_ot_mean))
         zref = zref / np.linalg.norm(zref)
+
 
         # compute corrections for theta6 here since data is all available
         theta6_correction = self.compute_theta6_correction(theta6_data, theta6_angles)
