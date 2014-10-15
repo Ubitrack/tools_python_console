@@ -14,8 +14,7 @@ with enaml.imports():
     from .views.hapticworkspace_calibration import HapticWorkspaceCalibrationPanel
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
-from utinteractiveconsole.plugins.calibration.controller import LiveCalibrationController
-from utinteractiveconsole.plugins.calibration.hapticdevice.workspace_calibration_refinement import WorkspaceCalibrationRefinement
+from utinteractiveconsole.plugins.calibration.controller import CalibrationController
 
 
 class BackgroundCalculationThread(QtCore.QThread):
@@ -42,7 +41,7 @@ class BackgroundCalculationThread(QtCore.QThread):
 
 
 
-class HapticWorkspaceCalibrationController(LiveCalibrationController):
+class HapticWorkspaceCalibrationController(CalibrationController):
 
     bgThread = Typed(BackgroundCalculationThread)
     is_working = Bool(False)
@@ -178,6 +177,7 @@ class HapticWorkspaceCalibrationController(LiveCalibrationController):
 
 
         if config_ok:
+            raise "Do Your Homework Properly !!!"
             wcr = WorkspaceCalibrationRefinement(record_dir, calib_dir, joint_lengths, origin_offset,
                                                  use_2ndorder=use_2ndorder, components_path=components_path)
             self.bgThread = BackgroundCalculationThread(wcr, self)
