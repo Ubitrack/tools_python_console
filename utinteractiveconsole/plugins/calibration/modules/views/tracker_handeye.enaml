@@ -1,0 +1,37 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, PushButton, MultilineField, ComboBox
+)
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
+
+
+enamldef TrackerHandEyeCalibrationPanel(WizardPanel):
+
+    constraints = [
+        vbox( hbox(content, results_txt),
+              hbox(spacer, capture_pose_he,
+              )
+        ),
+        content.width == results_txt.width,
+    ]
+
+    Html: content:
+        limit_height = 'strong'
+        source = """
+        <h1>%s</h1>
+        <p>Please attach the two tracking targets rigidly.
+           Then capture poses from different poses to
+           calibrate the tracker to tracker transform.</p>
+        """ % module.get_name()
+
+    MultilineField: results_txt:
+        limit_height = 'strong'
+        name = 'results_txt'
+        text = """No results."""
+
+    PushButton: capture_pose_he:
+        text = "Capture (Hand-Eye)"
+        clicked :: module_controller.capturePoseHE()
+        enabled := module_controller.is_ready

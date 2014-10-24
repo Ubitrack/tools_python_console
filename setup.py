@@ -114,6 +114,21 @@ This module controls my garden""",
                 'ismar14_step04 = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
                 'ismar14_calibration = utinteractiveconsole.plugins.calibration.modules.offline_calibration:OfflineCalibrationModule',
                 'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
+            ],
+            'vharcalibration.time_delay_estimation_3way.module': [
+                'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
+                'absolute_orientation_calibration = utinteractiveconsole.plugins.calibration.modules.absolute_orientation_calibration_3way:AbsoluteOrientationCalibrationModule',
+                'timedelay_estimation_calibration = utinteractiveconsole.plugins.calibration.modules.timedelay_estimation_3way:TimeDelayEstimationModule',
+                'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
+            ],
+            'vharcalibration.workspace_calibration_3way.module': [
+                'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
+                'ismar14_step01 = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
+                'ismar14_step02 = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
+                'ismar14_step03 = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
+                'ismar14_step04 = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
+                'ismar14_calibration = utinteractiveconsole.plugins.calibration.modules.offline_calibration:OfflineCalibrationModule',
+                'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
             ]
         },
       )
