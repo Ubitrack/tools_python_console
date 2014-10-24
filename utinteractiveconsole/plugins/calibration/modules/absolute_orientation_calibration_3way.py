@@ -26,7 +26,7 @@ class AbsoluteOrientationCalibrationController(LiveCalibrationController):
         if active_widgets is not None:
             w = active_widgets[0]
             self.results_txt = w.find('results_txt')
-            self.progress_bar = w.find('progress_bar')
+            #self.progress_bar = w.find('progress_bar')
 
         # XXX TODO Make interactive ..
         # needs to match the SRG !!
@@ -39,8 +39,8 @@ class AbsoluteOrientationCalibrationController(LiveCalibrationController):
     def connector_setup(self, change):
         if change['value'] and self.verify_connector():
             self.connector.setup(self.facade.instance)
-            self.connector.observe(self.sync_source, self.handle_data)
-            self.is_ready = True
+            #self.connector.observe(self.sync_source, self.handle_data)
+            #self.is_ready = True
 
     def handle_data(self, c):
         results = []
