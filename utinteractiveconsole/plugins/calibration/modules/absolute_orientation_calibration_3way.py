@@ -28,12 +28,13 @@ class AbsoluteOrientationCalibrationController(LiveCalibrationController):
             self.results_txt = w.find('results_txt')
             self.progress_bar = w.find('progress_bar')
 
+        # XXX TODO Make interactive ..
         # needs to match the SRG !!
-        self.sync_source = 'calib_absolute_orientation1'
-        self.required_sinks = ['calib_absolute_orientation1','calib_absolute_orientation2','calib_absolute_orientation3']
+        #self.sync_source = 'calib_absolute_orientation1'
+        #self.required_sinks = ['calib_absolute_orientation1','calib_absolute_orientation2','calib_absolute_orientation3']
 
-        if self.facade is not None:
-            self.facade.observe("is_loaded", self.connector_setup)
+        #if self.facade is not None:
+        #    self.facade.observe("is_loaded", self.connector_setup)
 
     def connector_setup(self, change):
         if change['value'] and self.verify_connector():

@@ -1,0 +1,19 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, Page, PushButton
+)
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
+
+enamldef TimeDelayEstimationPanel(WizardPanel):
+    constraints = [
+        vbox(content,)
+    ]
+    Html: content:
+        source = """
+        <h1>Time-Delay Estimation</h1>
+        <p>Please move the haptic stylus on a diagonal line through the origin to calibrate the time-delay between
+           the haptic device and the tracking system</p>
+        """
+
