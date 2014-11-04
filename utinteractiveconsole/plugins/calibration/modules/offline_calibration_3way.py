@@ -173,15 +173,18 @@ class OfflineCalibrationResults(Atom):
 
 class OfflineCalibrationParameters(Atom):
     # tooltip
+    enable_tooltip = Bool(True)
     tt_minimal_angle_between_measurements = Float(0.1)
 
     # absolute orientation
+    enable_absolute_orientation = Bool(True)
     ao_inital_maxdistance_from_origin = Float(0.03)
     ao_minimal_distance_between_measurements = Float(0.01)
     ao_refinement_expand_coverage = Float(1.2)
     ao_refinement_shrink_distance = Float(0.8)
 
     # joint-angle correction
+    enable_joint_angle_calibration = Bool(True)
     ja_minimal_distance_between_measurements = Float(0.005)
     ja_maximum_distance_to_reference = Float(0.02)
     ja_refinement_min_difference = Float(0.00001)
@@ -189,9 +192,11 @@ class OfflineCalibrationParameters(Atom):
     ja_refinement_shrink_distance = Float(0.8)
 
     # reference orientation
+    enable_reference_orientation = Bool(True)
     ro_minimal_angle_between_measurements = Float(0.1)
 
     # gimbal-angle correction
+    enable_gimbal_angle_calibration = Bool(True)
     ga_minimal_angle_between_measurements = Float(0.1)
 
     # haptic device
@@ -606,20 +611,13 @@ class OfflineCalibrationController(CalibrationController):
     jointangles_correction_result = Value(angle_null_correction.copy())
     gimbalangles_correction_result = Value(angle_null_correction.copy())
 
-
-
     def _default_parameters(self):
         return OfflineCalibrationParameters()
-
-
 
     def setupController(self, active_widgets=None):
         active_widgets[0].find("btn_start_calibration").visible = False
         active_widgets[0].find("btn_stop_calibration").visible = False
         self.do_reset_parameters()
-
-
-
 
     def do_reset_parameters(self):
         wiz_cfg = self.wizard_state.config
@@ -639,7 +637,10 @@ class OfflineCalibrationController(CalibrationController):
             log.error("Error reading Haptic device configuration. Make sure, the configuration file is correct.")
             log.exception(e)
 
-        parameters_sname = "%s.modules.%s.parameters" % (self.config_ns, self.module_name)
+        if self.module.parent.config_version < 2:
+            log.warn("This controller (%s) requires config_version >= 2" % self.module_name)
+
+        parameters_sname = "%s.parameters.%s" % (self.config_ns, self.module_name)
         if gbl_cfg.has_section(parameters_sname):
             self.parameters.tt_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "tt_minimal_angle_between_measurements")
             self.parameters.ao_inital_maxdistance_from_origin = gbl_cfg.getfloat(parameters_sname, "ao_inital_maxdistance_from_origin")
@@ -653,6 +654,14 @@ class OfflineCalibrationController(CalibrationController):
             self.parameters.ro_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ro_minimal_angle_between_measurements")
             self.parameters.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
             self.parameters.ja_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ja_refinement_shrink_distance")
+
+            # added in config version 2
+            self.parameters.enable_tooltip = gbl_cfg.getboolean(parameters_sname, "enable_tooltip")
+            self.parameters.enable_absolute_orientation = gbl_cfg.getboolean(parameters_sname, "enable_absolute_orientation")
+            self.parameters.enable_joint_angle_calibration = gbl_cfg.getboolean(parameters_sname, "enable_joint_angle_calibration")
+            self.parameters.enable_reference_orientation = gbl_cfg.getboolean(parameters_sname, "enable_reference_orientation")
+            self.parameters.enable_gimbal_angle_calibration = gbl_cfg.getboolean(parameters_sname, "enable_gimbal_angle_calibration")
+
         else:
             log.warn("No parameters found for offline calibration - using defaults. Define parameters in section: %s" % parameters_sname)
 

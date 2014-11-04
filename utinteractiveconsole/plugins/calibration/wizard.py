@@ -221,6 +221,7 @@ class WizardState(Atom):
                                                           wizard_state=self,
                                                           state=self.tasks[self.task_idx],
                                                           module_name=self.current_module.module_name,
+                                                          module=self.current_module,
                                                           config_ns=self.module_manager.config_ns)
 
         widget_cls = ModuleContainer(widget_content_cls, type(self.facade))
@@ -248,6 +249,7 @@ class WizardState(Atom):
             # create controller and widgets for current task
             widget_content_cls = self.current_module.get_widget_class()
             ctrl = self.current_module.get_controller_class()(module_name=self.current_module.get_module_name(),
+                                                              module=self.current_module,
                                                               context=self.context,
                                                               facade=self.facade,
                                                               state=self.tasks[self.task_idx],

@@ -159,6 +159,7 @@ class CalibrationController(Atom):
     config_ns = Str()
 
     context = Value()
+    module = Value()
     widget = Value()
     facade = Typed(UbitrackFacadeBase)
     state = Value()

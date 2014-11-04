@@ -37,7 +37,7 @@ enamldef OfflineDataCollectionPanel(WizardPanel): tc_panel:
     ]
 
     Html: content:
-        source << taskdescriptions[module_controller.module_name]
+        source << taskdescriptions.get(module_controller.module_name, """ Missing Description """)
 
 
 

@@ -18,10 +18,10 @@ class ModuleBase(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, parent, context):
+    def __init__(self, parent, context, module_name=None):
         self.parent = parent
         self.context = context
-        self.module_name = None
+        self.module_name = module_name
 
     def set_module_name(self, mname):
         self.module_name = mname
@@ -29,12 +29,35 @@ class ModuleBase(object):
     def get_module_name(self):
         return self.module_name
 
+    def make_instances(self):
+        # starting at version 2 multiple instances of a module can be created
+        # this is backwards incompatible, so you need to update all wizard entries
+        if self.parent.config_version >= 2:
+            cfg = self.context.get("config")
+            sections = cfg.sections()
+
+            sname = self.config_ns
+            instances = []
+            for section in sections:
+                if section.startswith(sname):
+                    module_name = section.replace(self.config_module_prefix, "")
+                    log.info("Create instance for module %s with id %s" % (self.module_name, module_name))
+                    instances.append(self.__class__(self.parent, self.context, module_name=module_name))
+            return instances
+        else:
+            return [self, ]
+
+
+    @property
+    def config_module_prefix(self):
+        return "%s.modules." % (self.parent.config_ns,)
+
     @property
     def config_ns(self):
-        cfg = self.context.get("config")
         if self.module_name is None:
             log.error("Module name must be set before usage")
-        sname = "%s.modules.%s" % (self.parent.config_ns, self.module_name)
+            raise ValueError("Module name must be set before usage")
+        sname = "%s%s" % (self.config_module_prefix, self.module_name)
         return sname
 
     def is_enabled(self):
@@ -123,6 +146,13 @@ class ModuleManager(Atom):
     extension_manager = Typed(extension.ExtensionManager)
     graph = Typed(nx.DiGraph)
 
+    @property
+    def config_version(self):
+        cfg = self.context.get('config')
+        if cfg.has_option("calibration_wizard", "config_version"):
+            return cfg.getint("calibration_wizard", "config_version")
+        return 1
+
     def _default_extension_manager(self):
         log.info("Initializing calibration wizard with configuration: %s and modules: %s" % (self.config_ns, self.modules_ns))
         return extension.ExtensionManager(
@@ -145,7 +175,11 @@ class ModuleManager(Atom):
             mod.set_module_name(ext.name)
             # if not mod.is_enabled():
             #     continue
-            modules[ext.name] = mod
+
+            # XXX hack to enable multiple instances of a module via configuration
+            for m in mod.make_instances():
+                modules[m.get_module_name()] = m
+
         return modules
 
     def _default_graph(self):

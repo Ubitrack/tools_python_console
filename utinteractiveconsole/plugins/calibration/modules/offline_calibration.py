@@ -639,7 +639,11 @@ class OfflineCalibrationController(CalibrationController):
             log.error("Error reading Haptic device configuration. Make sure, the configuration file is correct.")
             log.exception(e)
 
+
         parameters_sname = "%s.modules.%s.parameters" % (self.config_ns, self.module_name)
+        if self.module.parent.config_version >= 2:
+            parameters_sname = "%s.parameters.%s" % (self.config_ns, self.module_name)
+
         if gbl_cfg.has_section(parameters_sname):
             self.parameters.tt_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "tt_minimal_angle_between_measurements")
             self.parameters.ao_inital_maxdistance_from_origin = gbl_cfg.getfloat(parameters_sname, "ao_inital_maxdistance_from_origin")
