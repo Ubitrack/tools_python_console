@@ -162,23 +162,34 @@ enamldef OfflineCalibrationPanel(WizardPanel):
 
             Label:
                 text = "Tooltip Offset"
+                visible := module_controller.parameters.tooltip_enabled
             Field:
                 read_only = True
+                visible := module_controller.parameters.tooltip_enabled
                 text << unicode(module_controller.tooltip_calibration_result)
             Label:
                 text = "Absolute Orientation"
+                visible := module_controller.parameters.absolute_orientation_enabled
             Field:
                 read_only = True
+                visible := module_controller.parameters.absolute_orientation_enabled
                 text << unicode(module_controller.absolute_orientation_result)
             Label:
                 text = "Joint-Angle Correction"
+                visible := module_controller.parameters.joint_angle_calibration_enabled
             MultilineField:
                 read_only = True
+                visible := module_controller.parameters.joint_angle_calibration_enabled
                 text << unicode(module_controller.jointangles_correction_result)
+
+            # XXX Reference Orientation Missing ...
+
             Label:
                 text = "Gimbal-Angle Correction"
+                visible := module_controller.parameters.gimbal_angle_calibration_enabled
             MultilineField:
                 read_only = True
+                visible := module_controller.parameters.gimbal_angle_calibration_enabled
                 text << unicode(module_controller.gimbalangles_correction_result)
 
 

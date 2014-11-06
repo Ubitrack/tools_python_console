@@ -42,6 +42,16 @@ from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration imp
 )
 
 
+available_interpolators = dict(interpolatePoseList=interpolatePoseList,
+                               interpolateVec3List=interpolateVec3List,
+                               selectOnlyMatchingSamples=selectOnlyMatchingSamples,
+                               selectNearestNeighbour=selectNearestNeighbour,)
+
+
+# Initialization of disabled steps
+tooltip_null_calibration = np.array([0., 0., 0.])
+absolute_orientation_null_calibration = math.Pose(math.Quaternion(), np.array([0., 0., 0.]))
+reference_orientation_null_calibration = np.array([0., 0., 1.])
 angle_null_correction = np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
 
 
@@ -173,18 +183,21 @@ class OfflineCalibrationResults(Atom):
 
 class OfflineCalibrationParameters(Atom):
     # tooltip
-    enable_tooltip = Bool(True)
+    tooltip_enabled = Bool(False)
+    tooltip_datasource = Str()
     tt_minimal_angle_between_measurements = Float(0.1)
 
     # absolute orientation
-    enable_absolute_orientation = Bool(True)
+    absolute_orientation_enabled = Bool(False)
+    absolute_orientation_datasource = Str()
     ao_inital_maxdistance_from_origin = Float(0.03)
     ao_minimal_distance_between_measurements = Float(0.01)
     ao_refinement_expand_coverage = Float(1.2)
     ao_refinement_shrink_distance = Float(0.8)
 
     # joint-angle correction
-    enable_joint_angle_calibration = Bool(True)
+    joint_angle_calibration_enabled = Bool(False)
+    joint_angle_calibration_datasource = Str()
     ja_minimal_distance_between_measurements = Float(0.005)
     ja_maximum_distance_to_reference = Float(0.02)
     ja_refinement_min_difference = Float(0.00001)
@@ -192,11 +205,13 @@ class OfflineCalibrationParameters(Atom):
     ja_refinement_shrink_distance = Float(0.8)
 
     # reference orientation
-    enable_reference_orientation = Bool(True)
+    reference_orientation_enabled = Bool(False)
+    reference_orientation_datasource = Str()
     ro_minimal_angle_between_measurements = Float(0.1)
 
     # gimbal-angle correction
-    enable_gimbal_angle_calibration = Bool(True)
+    gimbal_angle_calibration_enabled = Bool(False)
+    gimbal_angle_calibration_datasource = Str()
     ga_minimal_angle_between_measurements = Float(0.1)
 
     # haptic device
@@ -206,6 +221,7 @@ class OfflineCalibrationParameters(Atom):
 
 class OfflineCalibrationProcessor(Atom):
 
+    context = Value()
     config = Value()
     facade = Value()
     dfg_dir = Value()
@@ -427,81 +443,110 @@ class OfflineCalibrationProcessor(Atom):
         self.facade.startDataflow()
 
         # connect result sources
-        self.source_tooltip_calibration_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_tooltip")
-        self.source_absolute_orientation_result = self.facade.instance.getApplicationPushSourcePose("result_calib_absolute_orientation")
-        self.source_jointangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_jointangle_correction")
-        self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_gimbalangle_correction")
+        if self.parameters.tooltip_enabled:
+            self.source_tooltip_calibration_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_tooltip")
 
-        self.source_zaxis_points_result = self.facade.instance.getApplicationPushSourcePositionList("result_calib_zrefaxis_points")
-        self.source_zaxis_reference_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_zrefaxis_reference")
+        if self.parameters.absolute_orientation_enabled:
+            self.source_absolute_orientation_result = self.facade.instance.getApplicationPushSourcePose("result_calib_absolute_orientation")
+
+        if self.parameters.joint_angle_calibration_enabled:
+            self.source_jointangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_jointangle_correction")
+
+        if self.parameters.gimbal_angle_calibration_enabled:
+            self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_gimbalangle_correction")
+
+        if self.parameters.reference_orientation_enabled:
+            self.source_zaxis_points_result = self.facade.instance.getApplicationPushSourcePositionList("result_calib_zrefaxis_points")
+            self.source_zaxis_reference_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_zrefaxis_reference")
+
+
 
         log.info("Loading recorded streams for Offline Calibration")
-        data01 = self.load_data_step01()
-        data02 = self.load_data_step02()
-        data03 = self.load_data_step03()
-        data04 = self.load_data_step04()
+        datasources = self.load_datasources()
 
 
         if self.parameters.enable_tooltip:
             # 1st step: Tooltip Calibration (uses step01 data)
-            self.do_tooltip_calibration(data01)
+            self.do_tooltip_calibration(datasources.get(self.parameters.tooltip_datasource, None))
         else:
             # skipped tooltip calibration, defaults to no offset
-            self.result.tooltip_calibration_result = np.array([0, 0, 0])
+            self.result.tooltip_calibration_result = tooltip_null_calibration
 
 
 
         # 2nd step: initial absolute orientation (uses step03  data)
-        if not self.do_absolute_orientation(data03):
-            return
+        if self.parameters.absolute_orientation_enabled:
+            if not self.do_absolute_orientation(datasources.get(self.parameters.absolute_orientation_datasource, None)):
+                return
+        else:
+            log.warn("Absolute Orientation Calibration is disabled - Are you sure this is correct ????")
+            self.result.absolute_orientation_result = absolute_orientation_null_calibration
 
         # compute initial errors
-        self.result.position_errors.append(self.compute_position_errors(data04))
+        self.result.position_errors.append(self.compute_position_errors(datasources.get(self.parameters.joint_angle_calibration_datasource, None)))
+
+        last_error = np.array([0.,])
 
         # 3nd step: initial jointangle correction
-        self.do_jointangle_correction(data04)
+        if self.parameters.joint_angle_calibration_enabled:
+            self.do_jointangle_correction(datasources.get(self.parameters.joint_angle_calibration_datasource, None))
 
-        # compute initial position errors
-        last_error = self.compute_position_errors(data04)
-        self.result.position_errors.append(last_error)
+            # compute initial position errors
+            last_error = self.compute_position_errors(datasources.get(self.parameters.joint_angle_calibration_datasource, None))
+            self.result.position_errors.append(last_error)
+        else:
+            self.result.jointangles_correction_result = angle_null_correction
 
+        # Iterative refinement makes only sense if absolute orientation and joint angle calibration are enabled
+        iterative_refinement_enabled = self.parameters.absolute_orientation_enabled and self.parameters.joint_angle_calibration_enabled
         iterations = 0
-        while True:
+        while iterative_refinement_enabled:
             # modify the frame selector parameters
             self.ao_maxdistance_from_origin *= self.parameters.ao_refinement_expand_coverage
             self.ao_minimal_distance_between_measurements *= self.parameters.ao_refinement_shrink_distance
             self.ja_minimal_distance_between_measurements *= self.parameters.ja_refinement_shrink_distance
 
             # redo the calibration
-            if not self.do_absolute_orientation(data03):
-                break
-                
-            self.do_jointangle_correction(data04)
+            if self.parameters.absolute_orientation_enabled:
+                if not self.do_absolute_orientation(datasources.get(self.parameters.absolute_orientation_datasource, None)):
+                    break
 
-            # recalculate the error
-            error = self.compute_position_errors(data04)
-            self.result.position_errors.append(error)
+            if self.parameters.joint_angle_calibration_enabled:
+                self.do_jointangle_correction(datasources.get(self.parameters.joint_angle_calibration_datasource, None))
 
-            if (last_error.mean() - error.mean()) < self.parameters.ja_refinement_min_difference:
-                break
+                # recalculate the error
+                error = self.compute_position_errors(datasources.get(self.parameters.joint_angle_calibration_datasource, None))
+                self.result.position_errors.append(error)
 
-            last_error = error
+                if (last_error.mean() - error.mean()) < self.parameters.ja_refinement_min_difference:
+                    break
+
+                last_error = error
+
             iterations += 1
-
             if iterations >= self.parameters.ja_refinement_max_iterations:
                 log.info("Terminating iterative optimization after %d cycles" % self.parameters.ja_refinement_max_iterations)
                 break
 
         # 4th step: reference orientation
-        self.do_reference_orientation(data02)
+        if self.parameters.reference_orientation_enabled:
+            self.do_reference_orientation(datasources.get(self.parameters.reference_orientation_datasource, None))
+        else:
+            self.result.zaxis_reference_result = reference_orientation_null_calibration
+            self.result.zaxis_points_result = []
 
-        self.result.orientation_errors.append(self.compute_orientation_errors(data01))
+
+        self.result.orientation_errors.append(self.compute_orientation_errors(datasources.get(self.parameters.gimbal_angle_calibration_datasource, None)))
 
         # 5th step: gimbalangle correction
-        self.do_gimbalangle_correction(data01)
+        if self.parameters.gimbal_angle_calibration_enabled:
+            self.do_gimbalangle_correction(datasources.get(self.parameters.gimbal_angle_calibration_datasource, None))
 
-        # compute errors after calibration
-        self.result.orientation_errors.append(self.compute_orientation_errors(data01))
+            # compute errors after calibration
+            self.result.orientation_errors.append(self.compute_orientation_errors(datasources.get(self.parameters.gimbal_angle_calibration_datasource, None)))
+
+        else:
+            self.result.gimbalangles_correction_result = angle_null_correction
 
         # do iterative refinement for orientation as well ?
 
@@ -532,58 +577,51 @@ class OfflineCalibrationProcessor(Atom):
         self.facade.stopDataflow()
         self.facade.clearDataflow()
 
+    def load_datasource(self, config, datasource_sname):
+        log.info("Load Datasource: %s" % datasource_sname)
+        ds_cfg = dict(config.items(datasource_sname))
+        data_directory = ds_cfg["data_directory"]
+        reference_data = [(k.replace("reference.", ""), v) for k, v in ds_cfg.items() if k.startswith("reference.")][0]
+        items = [(k.replace("item.", ""), v) for k, v in ds_cfg.items() if k.startswith("item.")]
 
+        def mkDSC(name, spec):
+            spec_items = [si.strip() for si in spec.split(",")]
+            if len(spec_items) < 2:
+                raise ValueError("Invalid Configuration for datasource element: %s" % name)
+            filename = spec_items[0]
+            reader = getattr(util, spec_items[1], None)
+            if reader is None:
+                raise ValueError("Invalid Configuration for datasource element: %s -> reader not found: %s" % (name, spec_items[1]))
+            interpolator = None
+            if len(spec_items) > 2:
+                interpolator = available_interpolators.get(spec_items[2], None)
+                if interpolator is None:
+                    raise ValueError("Invalid Configuration for datasource element: %s -> interpolator not found: %s" % (name, spec_items[2]))
+            return DSC(name, filename, reader, interpolator=interpolator)
 
+        return self.loadData(data_directory,
+                             mkDSC(*reference_data),
+                             items=(mkDSC(*i) for i in items))
 
-    def load_data_step01(self):
-        return loadData(
-            os.path.expanduser(self.config.get("data_step01")),
-            DSC('externaltracker_pose', 'externaltracker_hiptarget_pose.log',
-                util.PoseStreamReader),
-            items=(DSC('jointangles', 'phantom_joint_angles.log',
-                       util.PositionStreamReader, interpolateVec3List),
-                   DSC('gimbalangles', 'phantom_gimbal_angles.log',
-                       util.PositionStreamReader, interpolateVec3List),
-            )
-        )
+    def load_datasources(self):
+        all_datasources = set()
+        if self.parameters.tooltip_enabled:
+            all_datasources.add(self.parameters.tooltip_datasource)
+        if self.parameters.absolute_orientation_enabled:
+            all_datasources.add(self.parameters.absolute_orientation_datasource)
+        if self.parameters.joint_angle_calibration_enabled:
+            all_datasources.add(self.parameters.joint_angle_calibration_datasource)
+        if self.parameters.reference_orientation_enabled:
+            all_datasources.add(self.parameters.reference_orientation_datasource)
+        if self.parameters.gimbal_angle_calibration_enabled:
+            all_datasources.add(self.parameters.gimbal_angle_calibration_datasource)
 
-    def load_data_step02(self):
-        return loadData(
-            os.path.expanduser(self.config.get("data_step02")),
-            DSC('externaltracker_pose', 'externaltracker_hiptarget_pose.log',
-                util.PoseStreamReader),
-            items=(DSC('jointangles', 'phantom_joint_angles.log',
-                       util.PositionStreamReader, interpolateVec3List),
-                   DSC('gimbalangles', 'phantom_gimbal_angles.log',
-                       util.PositionStreamReader, interpolateVec3List),
-                   DSC('externaltracker_markers', 'externaltracker_hiptarget_markers.log',
-                       util.PositionListStreamReader, selectOnlyMatchingSamples),
-            )
-        )
+        config = self.context.get("config")
+        result = {}
+        for datasource_sname in all_datasources:
+            result[datasource_sname] = self.load_datasource(config, datasource_sname)
 
-    def load_data_step03(self):
-        return loadData(
-            os.path.expanduser(self.config.get("data_step03")),
-            DSC('externaltracker_pose', 'externaltracker_hiptarget_pose.log',
-                util.PoseStreamReader),
-            items=(DSC('jointangles', 'phantom_joint_angles.log',
-                       util.PositionStreamReader, interpolateVec3List),
-                   DSC('gimbalangles', 'phantom_gimbal_angles.log',
-                       util.PositionStreamReader, interpolateVec3List),
-            )
-        )
-
-    def load_data_step04(self):
-        return loadData(
-            os.path.expanduser(self.config.get("data_step04")),
-            DSC('externaltracker_pose', 'externaltracker_hiptarget_pose.log',
-                util.PoseStreamReader),
-            items=(DSC('jointangles', 'phantom_joint_angles.log',
-                       util.PositionStreamReader, interpolateVec3List),
-                   DSC('gimbalangles', 'phantom_gimbal_angles.log',
-                       util.PositionStreamReader, interpolateVec3List),
-            )
-        )
+        return result
 
     def get_fwk(self, jointangle_calib, gimbalangle_calib, disable_theta6=False):
         log.info("ForwardKinematics:\njoint_lengths=%s\norigin_offset=%s\njointangle_correction=%s\ngimbalangle_correction=%s" %
@@ -647,29 +685,45 @@ class OfflineCalibrationController(CalibrationController):
             log.warn("This controller (%s) requires config_version >= 2" % self.module_name)
 
         parameters_sname = "%s.parameters.%s" % (self.config_ns, self.module_name)
+        datasource_sname_prefix = "%s.datasources." % self.config_ns
+
         if gbl_cfg.has_section(parameters_sname):
-            self.parameters.tt_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "tt_minimal_angle_between_measurements")
-            self.parameters.ao_inital_maxdistance_from_origin = gbl_cfg.getfloat(parameters_sname, "ao_inital_maxdistance_from_origin")
-            self.parameters.ao_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ao_minimal_distance_between_measurements")
-            self.parameters.ao_refinement_expand_coverage = gbl_cfg.getfloat(parameters_sname, "ao_refinement_expand_coverage")
-            self.parameters.ao_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ao_refinement_shrink_distance")
-            self.parameters.ja_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ja_minimal_distance_between_measurements")
-            self.parameters.ja_maximum_distance_to_reference = gbl_cfg.getfloat(parameters_sname, "ja_maximum_distance_to_reference")
-            self.parameters.ja_refinement_min_difference = gbl_cfg.getfloat(parameters_sname, "ja_refinement_min_difference")
-            self.parameters.ja_refinement_max_iterations = gbl_cfg.getint(parameters_sname, "ja_refinement_max_iterations")
-            self.parameters.ro_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ro_minimal_angle_between_measurements")
-            self.parameters.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
-            self.parameters.ja_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ja_refinement_shrink_distance")
+            self.parameters.tooltip_enabled = gbl_cfg.getboolean(parameters_sname, "tooltip_enabled")
+            if self.parameters.tooltip_enabled:
+                log.info("Tooltip Calibration Enabled")
+                self.parameters.tooltip_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "tooltip_datasource")
+                self.parameters.tt_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "tt_minimal_angle_between_measurements")
 
-            # added in config version 2
-            self.parameters.enable_tooltip = gbl_cfg.getboolean(parameters_sname, "enable_tooltip")
-            self.parameters.enable_absolute_orientation = gbl_cfg.getboolean(parameters_sname, "enable_absolute_orientation")
-            self.parameters.enable_joint_angle_calibration = gbl_cfg.getboolean(parameters_sname, "enable_joint_angle_calibration")
-            self.parameters.enable_reference_orientation = gbl_cfg.getboolean(parameters_sname, "enable_reference_orientation")
-            self.parameters.enable_gimbal_angle_calibration = gbl_cfg.getboolean(parameters_sname, "enable_gimbal_angle_calibration")
+            self.parameters.absolute_orientation_enabled = gbl_cfg.getboolean(parameters_sname, "absolute_orientation_enabled")
+            if self.parameters.absolute_orientation_enabled:
+                log.info("Absolute Orientation Calibration Enabled")
+                self.parameters.absolute_orientation_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "absolute_orientation_datasource")
+                self.parameters.ao_inital_maxdistance_from_origin = gbl_cfg.getfloat(parameters_sname, "ao_inital_maxdistance_from_origin")
+                self.parameters.ao_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ao_minimal_distance_between_measurements")
+                self.parameters.ao_refinement_expand_coverage = gbl_cfg.getfloat(parameters_sname, "ao_refinement_expand_coverage")
+                self.parameters.ao_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ao_refinement_shrink_distance")
 
-            # details for dependent files
+            self.parameters.joint_angle_calibration_enabled = gbl_cfg.getboolean(parameters_sname, "joint_angle_calibration_enabled")
+            if self.parameters.joint_angle_calibration_enabled:
+                log.info("Joint-Angle Calibration Enabled")
+                self.parameters.joint_angle_calibration_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "joint_angle_calibration_datasource")
+                self.parameters.ja_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ja_minimal_distance_between_measurements")
+                self.parameters.ja_maximum_distance_to_reference = gbl_cfg.getfloat(parameters_sname, "ja_maximum_distance_to_reference")
+                self.parameters.ja_refinement_min_difference = gbl_cfg.getfloat(parameters_sname, "ja_refinement_min_difference")
+                self.parameters.ja_refinement_max_iterations = gbl_cfg.getint(parameters_sname, "ja_refinement_max_iterations")
+                self.parameters.ja_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ja_refinement_shrink_distance")
 
+            self.parameters.reference_orientation_enabled = gbl_cfg.getboolean(parameters_sname, "reference_orientation_enabled")
+            if self.parameters.reference_orientation_enabled:
+                log.info("Reference Orientation Calibration Enabled")
+                self.parameters.reference_orientation_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "reference_orientation_datasource")
+                self.parameters.ro_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ro_minimal_angle_between_measurements")
+
+            self.parameters.gimbal_angle_calibration_enabled = gbl_cfg.getboolean(parameters_sname, "gimbal_angle_calibration_enabled")
+            if self.parameters.gimbal_angle_calibration_enabled:
+                log.info("Gimbal-Angle Calibration Enabled")
+                self.parameters.gimbal_angle_calibration_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "gimbal_angle_calibration_datasource")
+                self.parameters.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
 
         else:
             log.warn("No parameters found for offline calibration - using defaults. Define parameters in section: %s" % parameters_sname)
@@ -677,6 +731,7 @@ class OfflineCalibrationController(CalibrationController):
     def do_offline_calibration(self):
         if self.processor is None:
             self.processor = OfflineCalibrationProcessor(
+                context=self.context,
                 config=self.config,
                 facade=self.facade,
                 dfg_dir=self.dfg_dir,

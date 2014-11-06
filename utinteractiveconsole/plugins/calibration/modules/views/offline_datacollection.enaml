@@ -31,13 +31,21 @@ workspace. Trace all extreme positions while drawing vertical eight figures.</p>
 """
 
 
+def get_taskdescription(module_controller):
+    desc = taskdescriptions.get(module_controller.module_name, None)
+    if desc is not None:
+        return desc
+    if "taskdescription" in module_controller.config:
+        return module_controller.config["taskdescription"]
+    return """ Missing Description """
+
 enamldef OfflineDataCollectionPanel(WizardPanel): tc_panel:
     constraints = [
         hbox(content,),
     ]
 
     Html: content:
-        source << taskdescriptions.get(module_controller.module_name, """ Missing Description """)
+        source << get_taskdescription(module_controller)
 
 
 

@@ -117,7 +117,7 @@ This module controls my garden""",
             'vharcalibration.workspace_calibration_3way.module': [
                 'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
                 'offline_datacollection = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
-                'offline_calibration = utinteractiveconsole.plugins.calibration.modules.offline_calibration:OfflineCalibrationModule',
+                'offline_calibration = utinteractiveconsole.plugins.calibration.modules.offline_calibration2:OfflineCalibrationModule',
                 'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
             ]
         },
