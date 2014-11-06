@@ -599,9 +599,9 @@ class OfflineCalibrationProcessor(Atom):
                     raise ValueError("Invalid Configuration for datasource element: %s -> interpolator not found: %s" % (name, spec_items[2]))
             return DSC(name, filename, reader, interpolator=interpolator)
 
-        return self.loadData(data_directory,
-                             mkDSC(*reference_data),
-                             items=(mkDSC(*i) for i in items))
+        return loadData(data_directory,
+                        mkDSC(*reference_data),
+                        items=(mkDSC(*i) for i in items))
 
     def load_datasources(self):
         all_datasources = set()
