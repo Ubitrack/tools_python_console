@@ -18,7 +18,7 @@ from enaml.layout.api import InsertItem, FloatItem
 import enaml
 
 with enaml.imports():
-    from .views.offline_calibration import OfflineCalibrationPanel, OfflineCalibrationResultPanel
+    from .views.offline_calibration2 import OfflineCalibrationPanel, OfflineCalibrationResultPanel
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import CalibrationController
@@ -442,8 +442,14 @@ class OfflineCalibrationProcessor(Atom):
         data04 = self.load_data_step04()
 
 
-        # 1st step: Tooltip Calibration (uses step01 data)
-        self.do_tooltip_calibration(data01)
+        if self.parameters.enable_tooltip:
+            # 1st step: Tooltip Calibration (uses step01 data)
+            self.do_tooltip_calibration(data01)
+        else:
+            # skipped tooltip calibration, defaults to no offset
+            self.result.tooltip_calibration_result = np.array([0, 0, 0])
+
+
 
         # 2nd step: initial absolute orientation (uses step03  data)
         if not self.do_absolute_orientation(data03):
@@ -661,6 +667,9 @@ class OfflineCalibrationController(CalibrationController):
             self.parameters.enable_joint_angle_calibration = gbl_cfg.getboolean(parameters_sname, "enable_joint_angle_calibration")
             self.parameters.enable_reference_orientation = gbl_cfg.getboolean(parameters_sname, "enable_reference_orientation")
             self.parameters.enable_gimbal_angle_calibration = gbl_cfg.getboolean(parameters_sname, "enable_gimbal_angle_calibration")
+
+            # details for dependent files
+
 
         else:
             log.warn("No parameters found for offline calibration - using defaults. Define parameters in section: %s" % parameters_sname)
