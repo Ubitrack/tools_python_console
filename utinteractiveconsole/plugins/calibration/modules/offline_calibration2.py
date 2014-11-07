@@ -465,7 +465,7 @@ class OfflineCalibrationProcessor(Atom):
         datasources = self.load_datasources()
 
 
-        if self.parameters.enable_tooltip:
+        if self.parameters.tooltip_enabled:
             # 1st step: Tooltip Calibration (uses step01 data)
             self.do_tooltip_calibration(datasources.get(self.parameters.tooltip_datasource, None))
         else:
@@ -552,15 +552,20 @@ class OfflineCalibrationProcessor(Atom):
 
         # finally store or send the results
         ts = measurement.now()
-        self.source_tooltip_calibration_result.send(measurement.Position(ts, self.result.tooltip_calibration_result))
-        self.source_absolute_orientation_result.send(measurement.Pose(ts, self.result.absolute_orientation_result))
-        self.source_jointangles_correction_result.send(measurement.Matrix3x3(ts, self.result.jointangles_correction_result))
-        self.source_gimbalangles_correction_result.send(measurement.Matrix3x3(ts, self.result.gimbalangles_correction_result))
+        if self.source_tooltip_calibration_result is not None:
+            self.source_tooltip_calibration_result.send(measurement.Position(ts, self.result.tooltip_calibration_result))
+        if self.source_absolute_orientation_result is not None:
+            self.source_absolute_orientation_result.send(measurement.Pose(ts, self.result.absolute_orientation_result))
+        if self.source_jointangles_correction_result is not None:
+            self.source_jointangles_correction_result.send(measurement.Matrix3x3(ts, self.result.jointangles_correction_result))
+        if self.source_gimbalangles_correction_result is not None:
+            self.source_gimbalangles_correction_result.send(measurement.Matrix3x3(ts, self.result.gimbalangles_correction_result))
 
-        if len(self.result.zaxis_points_result) > 0:
+        if len(self.result.zaxis_points_result) > 0 and self.source_zaxis_points_result is not None:
             self.source_zaxis_points_result.send(measurement.PositionList(ts, math.PositionList.fromList(self.result.zaxis_points_result)))
 
-        self.source_zaxis_reference_result.send(measurement.Position(ts, self.result.zaxis_reference_result))
+        if self.source_zaxis_reference_result is not None:
+            self.source_zaxis_reference_result.send(measurement.Position(ts, self.result.zaxis_reference_result))
 
         # wait a bit before shutting down to allow ubitrack to process the data
         time.sleep(0.1)
@@ -618,8 +623,14 @@ class OfflineCalibrationProcessor(Atom):
 
         config = self.context.get("config")
         result = {}
-        for datasource_sname in all_datasources:
-            result[datasource_sname] = self.load_datasource(config, datasource_sname)
+        for datasource_sname in sorted(all_datasources):
+            data = self.load_datasource(config, datasource_sname)
+            record_count = len(data)
+            if record_count > 0:
+                log.info('Loaded %d records with fieldnames: %s' % (record_count, ','.join(data[0]._fields)))
+                result[datasource_sname] = data
+            else:
+                log.warn('No records loaded!')
 
         return result
 

@@ -37,6 +37,7 @@ def loadData(root_dir, reference, items=None):
 
     try:
         # load reference dataset
+        log.info("Loading reference data from recording file: %s" % reference.filename)
         ref_data = reference.reader(fd(os.path.join(root_dir, reference.filename)))
     except Exception, e:
         log.warn("error loading data, trying again ...")
