@@ -35,7 +35,7 @@ from utinteractiveconsole.plugins.calibration.algorithms.streamfilters import (
     RelativePointDistanceStreamFilter, TwoPointDistanceStreamFilter
 )
 
-from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration import (
+from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration2 import (
     TooltipCalibrationProcessor, AbsoluteOrientationCalibrationProcessor,
     JointAngleCalibrationProcessor, ReferenceOrientationProcessor,
     GimbalAngleCalibrationProcessor
@@ -49,7 +49,7 @@ available_interpolators = dict(interpolatePoseList=interpolatePoseList,
 
 
 # Initialization of disabled steps
-tooltip_null_calibration = np.array([0., 0., 0.])
+tooltip_null_calibration =  math.Pose(math.Quaternion(), np.array([0., 0., 0.]))
 absolute_orientation_null_calibration = math.Pose(math.Quaternion(), np.array([0., 0., 0.]))
 reference_orientation_null_calibration = np.array([0., 0., 1.])
 angle_null_correction = np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
@@ -76,7 +76,7 @@ def compute_position_errors(stream,
     for i, record in enumerate(stream):
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
         hip_reference_pose = (
-        absolute_orientation_inv * record.externaltracker_pose * math.Pose(math.Quaternion(), tooltip_offset))
+        absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
         position_errors[i] = norm(hip_reference_pose.translation() - haptic_pose.translation())
 
     return position_errors
@@ -109,7 +109,7 @@ def compute_orientation_errors(stream,
     for i, record in enumerate(stream):
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
         hip_reference_pose = (
-        absolute_orientation_inv * record.externaltracker_pose * math.Pose(math.Quaternion(), tooltip_offset))
+        absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
 
         z_fwk = math.Quaternion(haptic_pose.rotation()).transformVector(zaxis)
         z_ref = math.Quaternion(hip_reference_pose.rotation()).transformVector(zref_axis)
@@ -156,7 +156,7 @@ class OfflineCalibrationResults(Atom):
     zaxis_reference_result = Value(np.array([0, 0, 1]))
     zaxis_points_result = Value([])
 
-    tooltip_calibration_result = Value(np.array([0, 0, 0]))
+    tooltip_calibration_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
     absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
     jointangles_correction_result = Value(np.array(angle_null_correction))
     gimbalangles_correction_result = Value(np.array(angle_null_correction))
@@ -172,7 +172,7 @@ class OfflineCalibrationResults(Atom):
         self.zaxis_reference_result = np.array([0, 0, 1])
         self.zaxis_points_result = []
 
-        self.tooltip_calibration_result = np.array([0, 0, 0])
+        self.tooltip_calibration_result = math.Pose(math.Quaternion(), np.array([0, 0, 0]))
         self.absolute_orientation_result = math.Pose(math.Quaternion(), np.array([0, 0, 0]))
         self.jointangles_correction_result = np.array(angle_null_correction)
         self.gimbalangles_correction_result = np.array(angle_null_correction)
@@ -444,7 +444,7 @@ class OfflineCalibrationProcessor(Atom):
 
         # connect result sources
         if self.parameters.tooltip_enabled:
-            self.source_tooltip_calibration_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_tooltip")
+            self.source_tooltip_calibration_result = self.facade.instance.getApplicationPushSourcePose("result_calib_tooltip")
 
         if self.parameters.absolute_orientation_enabled:
             self.source_absolute_orientation_result = self.facade.instance.getApplicationPushSourcePose("result_calib_absolute_orientation")
@@ -553,7 +553,7 @@ class OfflineCalibrationProcessor(Atom):
         # finally store or send the results
         ts = measurement.now()
         if self.source_tooltip_calibration_result is not None:
-            self.source_tooltip_calibration_result.send(measurement.Position(ts, self.result.tooltip_calibration_result))
+            self.source_tooltip_calibration_result.send(measurement.Pose(ts, self.result.tooltip_calibration_result))
         if self.source_absolute_orientation_result is not None:
             self.source_absolute_orientation_result.send(measurement.Pose(ts, self.result.absolute_orientation_result))
         if self.source_jointangles_correction_result is not None:
@@ -661,7 +661,7 @@ class OfflineCalibrationController(CalibrationController):
     has_result = Bool(False)
 
     # results received from background thread
-    tooltip_calibration_result = Value(np.array([0, 0, 0]))
+    tooltip_calibration_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
     absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
     jointangles_correction_result = Value(angle_null_correction.copy())
     gimbalangles_correction_result = Value(angle_null_correction.copy())
