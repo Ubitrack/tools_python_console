@@ -41,6 +41,11 @@ from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration2 im
     GimbalAngleCalibrationProcessor
 )
 
+from utinteractiveconsole.plugins.calibration.algorithms.streamprocessors import (
+    TooltipStreamProcessor, AbsoluteOrientationStreamProcessor, JointAngleCalibrationStreamProcessor,
+    GimbalAngleCalibrationStreamProcessor, ReferenceOrientationStreamProcessor
+)
+
 
 available_interpolators = dict(interpolatePoseList=interpolatePoseList,
                                interpolateVec3List=interpolateVec3List,
@@ -252,11 +257,13 @@ class OfflineCalibrationProcessor(Atom):
 
     def do_tooltip_calibration(self, tt_data):
         log.info("Tooltip Calibration")
+
+        tt_streamproc = TooltipStreamProcessor(raw_data=tt_data)
         tt_processor = TooltipCalibrationProcessor()
 
         tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
                                                              min_distance=self.parameters.tt_minimal_angle_between_measurements)
-        selected_tt_data = tt_selector.process(tt_data)
+        selected_tt_data = tt_selector.process(tt_streamproc.emit())
         log.info("Offline Tooltip Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
 
         tt_processor.data = selected_tt_data
@@ -271,13 +278,14 @@ class OfflineCalibrationProcessor(Atom):
 
     def do_absolute_orientation(self, ao_data):
         log.info("Absolute Orientation")
-        ao_processor = AbsoluteOrientationCalibrationProcessor()
-        fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
 
-        ao_data_ext = ao_processor.prepare_stream(ao_data,
-                                                  tooltip_offset=self.result.tooltip_calibration_result,
-                                                  absolute_orientation=self.result.absolute_orientation_result,
-                                                  forward_kinematics=fwk)
+        ao_processor = AbsoluteOrientationCalibrationProcessor()
+
+        fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
+        ao_streamproc = AbsoluteOrientationStreamProcessor(raw_data=ao_data,
+                                                           tooltip_offset=self.result.tooltip_calibration_result,
+                                                           absolute_orientation=self.result.absolute_orientation_result,
+                                                           forward_kinematics=fwk)
 
         ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
                                                        max_distance=self.ao_maxdistance_from_origin)
@@ -285,7 +293,7 @@ class OfflineCalibrationProcessor(Atom):
         ao_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
                                                          min_distance=self.ao_minimal_distance_between_measurements)
 
-        selected_ao_data = ao_selector2.process(ao_selector1.process(ao_data_ext))
+        selected_ao_data = ao_selector2.process(ao_selector1.process(ao_streamproc.emit()))
         log.info(
             "Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
 
@@ -305,13 +313,14 @@ class OfflineCalibrationProcessor(Atom):
 
     def do_jointangle_correction(self, ja_data):
         log.info("Joint-Angle Correction")
-        ja_processor = JointAngleCalibrationProcessor()
-        fwk = self.get_fwk(angle_null_correction, angle_null_correction)
 
-        ja_data_ext = ja_processor.prepare_stream(ja_data,
-                                                  tooltip_offset=self.result.tooltip_calibration_result,
-                                                  absolute_orientation=self.result.absolute_orientation_result,
-                                                  forward_kinematics=fwk)
+        ja_processor = JointAngleCalibrationProcessor()
+
+        fwk = self.get_fwk(angle_null_correction, angle_null_correction)
+        ja_streamproc = JointAngleCalibrationStreamProcessor(raw_data=ja_data,
+                                                             tooltip_offset=self.result.tooltip_calibration_result,
+                                                             absolute_orientation=self.result.absolute_orientation_result,
+                                                             forward_kinematics=fwk)
 
         # simple way to avoid outliers from the external tracker: limit distance to reference ...
         ja_selector1 = TwoPointDistanceStreamFilter("hip_reference_pose", "haptic_pose",
@@ -321,7 +330,7 @@ class OfflineCalibrationProcessor(Atom):
         ja_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
                                                          min_distance=self.ja_minimal_distance_between_measurements)
 
-        selected_ja_data = ja_selector2.process(ja_selector1.process(ja_data_ext))
+        selected_ja_data = ja_selector2.process(ja_selector1.process(ja_streamproc.emit()))
         log.info("Joint-Angles Calibration (%d out of %d records selected)" % (len(selected_ja_data), len(ja_data)))
 
         ja_processor.data = selected_ja_data
@@ -336,19 +345,19 @@ class OfflineCalibrationProcessor(Atom):
 
     def do_gimbalangle_correction(self, ga_data):
         log.info("Gimbal-Angle Correction")
+
         ga_processor = GimbalAngleCalibrationProcessor()
         fwk = self.get_fwk(self.result.jointangles_correction_result, angle_null_correction)
 
-        ga_data_ext = ga_processor.prepare_stream(ga_data,
-                                                  tooltip_offset=self.result.tooltip_calibration_result,
-                                                  absolute_orientation=self.result.absolute_orientation_result,
-                                                  forward_kinematics=fwk,
-                                                  zrefaxis_calib=self.result.zaxis_reference_result)
+        ga_streamproc = GimbalAngleCalibrationStreamProcessor(raw_data=ga_data,
+                                                              absolute_orientation=self.result.absolute_orientation_result,
+                                                              forward_kinematics=fwk,
+                                                              zrefaxis_calib=self.result.zaxis_reference_result)
 
         ga_selector = RelativeOrienationDistanceStreamFilter("haptic_pose",
                                                              min_distance=self.parameters.ga_minimal_angle_between_measurements)
 
-        selected_ga_data = ga_selector.process(ga_data_ext)
+        selected_ga_data = ga_selector.process(ga_streamproc.emit())
         log.info("Gimbal-Angles Calibration (%d out of %d records selected)" % (len(selected_ga_data), len(ga_data)))
 
         ga_processor.data_joint_angle_correction = self.result.jointangles_correction_result
@@ -371,18 +380,19 @@ class OfflineCalibrationProcessor(Atom):
 
     def do_reference_orientation(self, ro_data):
         log.info("Calculate Reference Orientation")
+
         ro_processor = ReferenceOrientationProcessor()
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
         fwk_5dof = self.get_fwk(self.result.jointangles_correction_result, angle_null_correction, disable_theta6=True)
 
-        ro_data_ext = ro_processor.prepare_stream(ro_data,
-                                                  tooltip_offset=self.result.tooltip_calibration_result,
-                                                  absolute_orientation=self.result.absolute_orientation_result,
-                                                  forward_kinematics=fwk,
-                                                  forward_kinematics_5dof=fwk_5dof,
-                                                  use_markers=True)
+        ro_streamproc = ReferenceOrientationStreamProcessor(raw_data=ro_data,
+                                                            tooltip_offset=self.result.tooltip_calibration_result,
+                                                            absolute_orientation=self.result.absolute_orientation_result,
+                                                            forward_kinematics=fwk,
+                                                            forward_kinematics_5dof=fwk_5dof)
+
         # no filtering for now
-        selected_ro_data = ro_data_ext
+        selected_ro_data = ro_streamproc.emit()
 
         log.info("Reference Orientation (%d out of %d records selected)" % (len(selected_ro_data), len(ro_data)))
 

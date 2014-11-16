@@ -1,5 +1,5 @@
 __author__ = 'jack'
-from atom.api import Subclass, Unicode, Typed, Event
+from atom.api import Subclass, Unicode, Typed, Event, Dict
 from enaml.widgets.api import Container
 from enaml.workbench.api import PluginManifest
 from enaml.workbench.ui.api import Workspace
@@ -31,6 +31,16 @@ class ExtensionWorkspace(Workspace):
     # global state for the utic plugins
     appstate = Typed(AppState)
     utic_plugin = Typed(ExtensionBase)
+
+
+    # globals, e.g. for ipython interactive access
+    global_definitions = Dict()
+    global_definition_updated = Event()
+
+    def update_global_definition(self, key, value):
+        self.global_definitions[key] = value
+        # emit signal
+        self.global_definition_updated(dict(key=value))
 
     started = Event()
     stopped = Event()
