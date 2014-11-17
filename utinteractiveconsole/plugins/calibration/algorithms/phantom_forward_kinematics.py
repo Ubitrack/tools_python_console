@@ -1,6 +1,8 @@
 __author__ = 'jack'
 
 import logging
+import os
+import sys
 import numpy as np
 from math import sin, cos
 from ubitrack.core import math
@@ -226,16 +228,17 @@ class FWKinematicPhantom2(object):
 
 
 
-def from_config(context,
+def from_config(root_directory, context,
                 gimbalangle_correction=None, origin_offset=None,
                 jointangle_correction=None, joint_length=None, disable_theta6=None,
                 *args, **kwargs):
     from ubitrack.core import util
 
     log.info("Create FWK Instance with: %s, %s" % (jointangle_correction, gimbalangle_correction, ))
+    calib_directory = os.path.join(root_directory, context.get("calib_directory"))
 
-    ja_correction = util.readCalibMeasurementMatrix3x3(jointangle_correction) if jointangle_correction else None
-    ga_correction = util.readCalibMeasurementMatrix3x3(gimbalangle_correction) if gimbalangle_correction else None
+    ja_correction = util.readCalibMeasurementMatrix3x3(os.path.join(calib_directory, jointangle_correction).encode(sys.getfilesystemencoding())) if jointangle_correction else None
+    ga_correction = util.readCalibMeasurementMatrix3x3(os.path.join(calib_directory, gimbalangle_correction).encode(sys.getfilesystemencoding())) if gimbalangle_correction else None
     j_length = np.array([float(v.strip()) for v in joint_length.split(',')]) if joint_length else None
     o_offset = np.array([float(v.strip()) for v in origin_offset.split(',')]) if origin_offset else np.array([0., 0., 0.])
     d_theta6 = disable_theta6.strip().lower() == 'true' if disable_theta6 else False
