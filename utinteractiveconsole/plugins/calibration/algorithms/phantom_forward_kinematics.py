@@ -1,8 +1,11 @@
 __author__ = 'jack'
 
+import logging
 import numpy as np
 from math import sin, cos
 from ubitrack.core import math
+
+log = logging.getLogger(__name__)
 
 class FWKinematicPhantom(object):
 
@@ -219,3 +222,24 @@ class FWKinematicPhantom2(object):
                          cO6*(-cO1*cO5*sO3 + sO5*(-cO1*cO3*cO4 - sO1*sO4)) + sO6*(-cO1*cO3*sO4 + cO4*sO1),
                          -cO1*sO3*sO5 + cO5*(cO1*cO3*cO4 + sO1*sO4)]])
         return math.Pose(math.Quaternion.fromMatrix(rot).normalize(), trans)
+
+
+
+
+def from_config(context,
+                gimbalangle_correction=None, origin_offset=None,
+                jointangle_correction=None, joint_length=None, disable_theta6=None,
+                *args, **kwargs):
+    from ubitrack.core import util
+
+    log.info("Create FWK Instance with: %s, %s" % (jointangle_correction, gimbalangle_correction, ))
+
+    ja_correction = util.readCalibMeasurementMatrix3x3(jointangle_correction) if jointangle_correction else None
+    ga_correction = util.readCalibMeasurementMatrix3x3(gimbalangle_correction) if gimbalangle_correction else None
+    j_length = np.array([float(v.strip()) for v in joint_length.split(',')]) if joint_length else None
+    o_offset = np.array([float(v.strip()) for v in origin_offset.split(',')]) if origin_offset else np.array([0., 0., 0.])
+    d_theta6 = disable_theta6.strip().lower() == 'true' if disable_theta6 else False
+
+    if j_length is not None and ja_correction is not None and ga_correction is not None:
+        return FWKinematicPhantom(j_length, ja_correction, ga_correction, origin_calib=o_offset, disable_theta6=d_theta6)
+    raise ValueError("Invalid configuration for FWKinematicPhantom")

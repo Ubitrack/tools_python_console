@@ -33,6 +33,7 @@ setup(name = "utinteractiveconsole",
         'twisted',
         'numpy',
         'scipy',
+        'pyyaml',
       ),
       zip_safe=False,
       long_description = """\

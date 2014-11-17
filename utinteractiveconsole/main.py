@@ -34,7 +34,8 @@ import enaml
 from enaml.workbench.ui.api import UIWorkbench
 
 from ubitrack.core import util
-from utinteractiveconsole.app import AppState, ExtensionManager
+from utinteractiveconsole.app import AppState
+from utinteractiveconsole.extension import WorkspaceExtensionManager
 from utinteractiveconsole.guilogging import Syslog
 
 log = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ def main():
 
     appstate = AppState(context=dict(),
                         syslog=syslog)
-    extensions = ExtensionManager(appstate=appstate)
+    extensions = WorkspaceExtensionManager(appstate=appstate)
 
     extensions.updateCmdlineParser(parser)
     appstate.extensions = extensions

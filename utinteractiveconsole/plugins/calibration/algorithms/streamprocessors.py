@@ -16,8 +16,10 @@ class BaseStreamProcessor(Atom):
     name = None
     # data and setup
     raw_data = Value()
-    required_fields = List()
-    required_attributes = List()
+
+    # static attributes, set by subclasses
+    required_fields = None
+    required_attributes = None
 
     # process attributes
     input_field_names = List()
@@ -26,23 +28,25 @@ class BaseStreamProcessor(Atom):
 
     def _default_input_field_names(self):
         if self.raw_data:
-            return self.raw_data[0]._fields
-        return tuple()
+            return list(self.raw_data[0]._fields)
+        return []
 
     def check_input(self):
         input_ok = True
-        fieldnames = self.input_field_names
-        # check for required fields
-        for name in self.required_fields:
-            if name not in fieldnames:
-                log.warn("Required field: %s not in input_stream" % name)
-                input_ok = False
+        if self.required_fields is not None:
+            fieldnames = self.input_field_names
+            # check for required fields
+            for name in self.required_fields:
+                if name not in fieldnames:
+                    log.warn("Required field: %s not in input_stream" % name)
+                    input_ok = False
 
-        attributes = [a for a in self.members().keys() if not a.startswith("_")]
-        for name in self.required_attributes:
-            if name not in attributes:
-                log.warn("Required attribute: %s not set" % name)
-                input_ok = False
+        if self.required_attributes is not None:
+            attributes = [a for a in self.members().keys() if not a.startswith("_")]
+            for name in self.required_attributes:
+                if name not in attributes:
+                    log.warn("Required attribute: %s not set" % name)
+                    input_ok = False
 
         return input_ok
 
@@ -53,9 +57,11 @@ class BaseStreamProcessor(Atom):
 class NullStreamProcessor(BaseStreamProcessor):
 
     name = "Null"
+    required_fields = []
+    required_attributes = []
 
     def _default_output_field_names(self):
-        return self.input_field_names
+        return list(self.input_field_names)
 
     def emit(self):
         if self.check_input():
@@ -66,20 +72,16 @@ class NullStreamProcessor(BaseStreamProcessor):
 class TooltipStreamProcessor(NullStreamProcessor):
 
     name = "Tooltip"
-
-    def _default_required_fields(self):
-        return ['externaltracker_pose', ]
+    required_fields = ['externaltracker_pose',]
+    required_attributes = []
 
 
 class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
 
     name = "AbsoluteOrientation"
+    required_fields = ['externaltracker_pose', 'jointangles', 'gimbalangles']
+    required_attributes = ['tooltip_offset', 'forward_kinematics']
 
-    def _default_required_fields(self):
-        return ['externaltracker_pose', 'jointangles', 'gimbalangles']
-
-    def _default_required_attributes(self):
-        return ['tooltip_offset', 'forward_kinematics']
 
     def _default_output_field_names(self):
         data_fieldnames = list(self.input_field_names)
@@ -101,7 +103,7 @@ class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
 
         result = []
 
-        for record in stream:
+        for record in self.raw_data:
             haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
             externaltracker_hip_position = (record.externaltracker_pose * self.tooltip_offset).translation()
 
@@ -114,12 +116,8 @@ class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
 class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
     name = "JointAngleCalibration"
-
-    def _default_required_fields(self):
-        return ['externaltracker_pose', 'jointangles', 'gimbalangles']
-
-    def _default_required_attributes(self):
-        return ['tooltip_offset', 'absolute_orientation', 'forward_kinematics']
+    required_fields = ['externaltracker_pose', 'jointangles', 'gimbalangles']
+    required_attributes = ['tooltip_offset', 'absolute_orientation', 'forward_kinematics']
 
     def _default_output_field_names(self):
         data_fieldnames = list(self.input_field_names)
@@ -142,7 +140,7 @@ class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
         absolute_orientation_inv = self.absolute_orientation.invert()
         result = []
 
-        for record in stream:
+        for record in self.raw_data:
             haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
             hip_reference_pose = (
             absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset)
@@ -156,12 +154,8 @@ class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
 class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
     name = "GimbalAngleCalibration"
-
-    def _default_required_fields(self):
-        return ['externaltracker_pose', 'jointangles', 'gimbalangles']
-
-    def _default_required_attributes(self):
-        return ['zrefaxis_calib', 'absolute_orientation', 'forward_kinematics']
+    required_fields = ['externaltracker_pose', 'jointangles', 'gimbalangles']
+    required_attributes = ['zrefaxis_calib', 'absolute_orientation', 'forward_kinematics']
 
     def _default_output_field_names(self):
         data_fieldnames = list(self.input_field_names)
@@ -185,7 +179,7 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
         result = []
 
-        for record in stream:
+        for record in self.raw_data:
             haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
 
             # HIP target pose in HDorigin
@@ -205,12 +199,8 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
 
     name = "ReferenceOrientation"
-
-    def _default_required_fields(self):
-        return ['externaltracker_pose', 'externaltracker_markers', 'jointangles', 'gimbalangles']
-
-    def _default_required_attributes(self):
-        return ['tooltip_offset', 'absolute_orientation', 'forward_kinematics', 'forward_kinematics_5dof']
+    required_fields = ['externaltracker_pose', 'externaltracker_markers', 'jointangles', 'gimbalangles']
+    required_attributes = ['tooltip_offset', 'absolute_orientation', 'forward_kinematics', 'forward_kinematics_5dof']
 
     def _default_output_field_names(self):
         data_fieldnames = list(self.input_field_names)
@@ -240,8 +230,8 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
         # find marker count and verify that it is constant for the complete dataset
         nmarkers = 0
         if use_markers:
-            nmarkers = len(stream[0].externaltracker_markers)
-            assert (np.asarray([len(d.externaltracker_markers) for d in stream
+            nmarkers = len(self.raw_data[0].externaltracker_markers)
+            assert (np.asarray([len(d.externaltracker_markers) for d in self.raw_data
                                 if d.externaltracker_markers is not None]) == nmarkers).all()
 
         rel_marker_positions = []
@@ -249,7 +239,7 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
 
         result = []
 
-        for record in stream:
+        for record in self.raw_data:
             # fwk pose in HDorigin
             haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
 
