@@ -155,7 +155,7 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
     name = "GimbalAngleCalibration"
     required_fields = ['externaltracker_pose', 'jointangles', 'gimbalangles']
-    required_attributes = ['zrefaxis_calib', 'absolute_orientation', 'forward_kinematics']
+    required_attributes = ['tooltip_offset', 'zrefaxis_calib', 'absolute_orientation', 'forward_kinematics']
 
     def _default_output_field_names(self):
         data_fieldnames = list(self.input_field_names)
@@ -164,6 +164,7 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
         return data_fieldnames
 
 
+    tooltip_offset       = Value()
     absolute_orientation = Value()
     zrefaxis_calib       = Value()
     forward_kinematics   = Value()
@@ -183,7 +184,7 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
             haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
 
             # HIP target pose in HDorigin
-            hiptarget_rotation = math.Quaternion((absolute_orientation_inv * record.externaltracker_pose).rotation())
+            hiptarget_rotation = math.Quaternion((absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset).rotation())
             ht_pose_no_trans = math.Pose(hiptarget_rotation, np.array([0, 0, 0]))
 
             # re-orient zrefaxis_calib using hiptarget pose

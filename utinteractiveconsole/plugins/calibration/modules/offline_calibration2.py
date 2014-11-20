@@ -350,6 +350,7 @@ class OfflineCalibrationProcessor(Atom):
 
         ga_streamproc = GimbalAngleCalibrationStreamProcessor(raw_data=ga_data,
                                                               absolute_orientation=self.result.absolute_orientation_result,
+                                                              tooltip_offset=self.result.tooltip_calibration_result,
                                                               forward_kinematics=fwk,
                                                               zrefaxis_calib=self.result.zaxis_reference_result)
 

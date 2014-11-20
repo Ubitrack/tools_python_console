@@ -33,6 +33,7 @@ class ModuleBase(object):
         # starting at version 2 multiple instances of a module can be created
         # this is backwards incompatible, so you need to update all wizard entries
         if self.parent.config_version >= 2:
+            log.info('Loading Module with config V2')
             cfg = self.context.get("config")
             sections = cfg.sections()
 
@@ -45,6 +46,7 @@ class ModuleBase(object):
                     instances.append(self.__class__(self.parent, self.context, module_name=module_name))
             return instances
         else:
+            log.info('Loading Module with config V1')
             return [self, ]
 
 
