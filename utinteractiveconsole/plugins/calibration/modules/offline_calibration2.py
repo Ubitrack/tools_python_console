@@ -284,7 +284,6 @@ class OfflineCalibrationProcessor(Atom):
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
         ao_streamproc = AbsoluteOrientationStreamProcessor(raw_data=ao_data,
                                                            tooltip_offset=self.result.tooltip_calibration_result,
-                                                           absolute_orientation=self.result.absolute_orientation_result,
                                                            forward_kinematics=fwk)
 
         ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
