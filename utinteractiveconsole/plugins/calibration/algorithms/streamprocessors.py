@@ -1,6 +1,6 @@
 __author__ = 'jack'
 
-from atom.api import Atom, Value, List
+from atom.api import Atom, Value, List, Bool
 from collections import namedtuple
 import logging
 
@@ -218,6 +218,8 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
     forward_kinematics   = Value()
     forward_kinematics_5dof = Value()
 
+    use_markers = Bool(True)
+
     def emit(self):
 
         if not self.check_input():
@@ -229,7 +231,7 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
 
         # find marker count and verify that it is constant for the complete dataset
         nmarkers = 0
-        if use_markers:
+        if self.use_markers:
             nmarkers = len(self.raw_data[0].externaltracker_markers)
             assert (np.asarray([len(d.externaltracker_markers) for d in self.raw_data
                                 if d.externaltracker_markers is not None]) == nmarkers).all()
@@ -250,7 +252,7 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
             mean_marker_error = None
             markers = []
 
-            if use_markers:
+            if self.use_markers:
                 if record.externaltracker_markers is not None:
                     # HIP target markers in HDorigin
                     hiptarget_markers = [absolute_orientation_inv * m for m in record.externaltracker_markers]
