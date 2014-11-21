@@ -18,7 +18,7 @@ from scipy import stats
 
 from collections import namedtuple
 
-from atom.api import Atom, Value, Float, Int, List, observe
+from atom.api import Atom, Value, Float, Int, List, observe, Bool
 import time
 
 from ubitrack.core import measurement, math, util
@@ -191,6 +191,8 @@ class AbsoluteOrientationCalibrationProcessor(CalibrationProcessor):
 
 class JointAngleCalibrationProcessor(CalibrationProcessor):
 
+    only_offset_calibration = Bool()
+
     # data extracted from stream
     data_tracker_hip_positions = List()
     data_joint_angles = List()
@@ -212,7 +214,10 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
                 self.source_joint_angles.setCallback(None)
             self.source_joint_angles = None
         else:
-            self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_jointangle_correction_out")
+            if self.only_offset_calibration:
+                self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_jointangle_correction_offsetonly_out")
+            else:
+                self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_jointangle_correction_out")
 
             self.source_tracker_hip_positions = facade.instance.getApplicationPullSourcePositionList("ja_calib_hip_positions")
             self.source_tracker_hip_positions.setCallback(self.handler_input_hip_positions)

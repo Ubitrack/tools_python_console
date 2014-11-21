@@ -282,9 +282,9 @@ class OfflineCalibrationProcessor(Atom):
 
         return True
 
-    def do_jointangle_correction(self, ja_data):
+    def do_jointangle_correction(self, ja_data, only_offset_calibration=False):
         log.info("Joint-Angle Correction")
-        ja_processor = JointAngleCalibrationProcessor()
+        ja_processor = JointAngleCalibrationProcessor(only_offset_calibration=only_offset_calibration)
         fwk = self.get_fwk(angle_null_correction, angle_null_correction)
 
         ja_data_ext = ja_processor.prepare_stream(ja_data,

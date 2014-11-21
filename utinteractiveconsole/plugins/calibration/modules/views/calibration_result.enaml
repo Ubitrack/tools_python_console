@@ -1,15 +1,15 @@
 from enaml.layout.api import hbox, vbox, spacer
 from enaml.widgets.api import (
-    Container, Html, CheckBox
+    Container, Html, CheckBox, Form, Label, MultilineField
 )
 import enaml
 with enaml.imports():
     from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
 
 
-enamldef CalibrationResultPanel(WizardPanel):
+enamldef CalibrationResultPanel(WizardPanel): panel:
     constraints = [
-        vbox( content,
+        vbox( content, frm,
               hbox( spacer, cb_dataok ),
         )
     ]
@@ -19,6 +19,12 @@ enamldef CalibrationResultPanel(WizardPanel):
         source << """
         <h1>Calibration Result:</h1>""" + "\n".join(t.to_html() for t in module_controller.wizard_state.tasks
                                                     if t.name not in ['calibration_start', 'calibration_result'])
+    Form: frm:
+        Label:
+            text = "Comments"
+        MultilineField:
+            text := panel.main.module_controller.wizard_state.calibration_comments
+
 
     CheckBox: cb_dataok:
         text = "Use Calibration Results"
