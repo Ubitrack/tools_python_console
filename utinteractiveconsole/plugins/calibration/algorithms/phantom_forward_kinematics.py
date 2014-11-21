@@ -243,6 +243,8 @@ def from_config(root_directory, context,
     o_offset = np.array([float(v.strip()) for v in origin_offset.split(',')]) if origin_offset else np.array([0., 0., 0.])
     d_theta6 = disable_theta6.strip().lower() == 'true' if disable_theta6 else False
 
+    print j_length, ja_correction, ga_correction, o_offset, d_theta6
+
     if j_length is not None and ja_correction is not None and ga_correction is not None:
         return FWKinematicPhantom(j_length, ja_correction, ga_correction, origin_calib=o_offset, disable_theta6=d_theta6)
     raise ValueError("Invalid configuration for FWKinematicPhantom")
