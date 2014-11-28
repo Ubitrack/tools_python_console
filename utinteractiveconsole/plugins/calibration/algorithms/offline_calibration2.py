@@ -18,10 +18,10 @@ from scipy import stats
 
 from collections import namedtuple
 
-from atom.api import Atom, Value, Float, Int, List, observe
+from atom.api import Atom, Value, Float, Int, List, observe, Bool
 import time
 
-from ubitrack.core import measurement, math, util
+from ubitrack.core import measurement, math, util, calibration
 
 log = logging.getLogger(__name__)
 
@@ -34,71 +34,41 @@ class CalibrationProcessor(Atom):
     # the data stream to be consumed by this processor
     data = List()
 
-    # def prepare_stream(self, stream,
-    #                    tooltip_offset=None,
-    #                    absolute_orientation=None,
-    #                    forward_kinematics=None):
-    #     return stream
-
 
 class TooltipCalibrationProcessor(CalibrationProcessor):
-
-    max_computation_time = Float(30)
 
     # data extracted from stream
     data_tracker_poses = List()
 
     # resulting tooltip offset is received from dataflow
     result_tooltip_offset = Value(None)
-    result_last_timestamp = Value(None)
-
-    # dataflow components
-    sink_result_tooltip_offset = Value()
-    source_tracker_poses = Value()
-
-    @observe("facade")
-    def handle_facade_change(self, change):
-        facade = change['value']
-        if facade is None:
-            if self.sink_result_tooltip_offset is not None:
-                self.sink_result_tooltip_offset.setCallback(None)
-            self.source_tracker_poses = None
-            self.sink_result_tooltip_offset = None
-        else:
-            self.sink_result_tooltip_offset = facade.instance.getApplicationPushSinkPose("calib_tooltip_out")
-            self.sink_result_tooltip_offset.setCallback(self.handler_result_tooltip_offset)
-            self.source_tracker_poses = facade.instance.getApplicationPushSourcePose("tt_calib_et_pose")
-
-    def handler_result_tooltip_offset(self, m):
-        self.result_tooltip_offset = m.get()
-        self.result_last_timestamp = m.time()
 
     def run(self):
-        ts = measurement.now()
-
         self.data_tracker_poses = [r.externaltracker_pose for r in self.data]
-
-        for p in self.data_tracker_poses:
-            ts += 1
-            self.source_tracker_poses.send(measurement.Pose(ts, p))
-
-        wait_time = 0
-        while True:
-            time.sleep(0.5)
-            wait_time += 0.5
-            if wait_time > self.max_computation_time:
-                log.warn("No result produced for Tooltip Calibration due to timeout")
-                break
-            if self.result_last_timestamp is not None:
-                if self.result_last_timestamp >= ts:
-                    break
-
+        self.result_tooltip_offset = calibration.tipCalibrationPose(math.PoseList.fromList(self.data_tracker_poses))
+        # XXX calculate RMS Error here and report it.
         return self.result_tooltip_offset
 
 
-class AbsoluteOrientationCalibrationProcessor(CalibrationProcessor):
+class TooltipAbsolutePositionCalibrationProcessor(TooltipCalibrationProcessor):
 
-    max_computation_time = Float(30)
+    result_absolute_position = Value()
+
+    def run(self):
+        tt_position = super(TooltipAbsolutePositionCalibrationProcessor, self).run().translation()
+
+        # now transform tt_position with all poses to compute the ErrorPosition
+        results = []
+        for pose in self.data_tracker_poses:
+            results.append(pose * tt_position)
+
+        self.result_absolute_position = math.averagePositionListError(results)
+        log.info("Result for TooltipAbsolutePosition Calibration: %s with RMS: %s" %
+                 (self.result_absolute_position.value(), self.result_absolute_position.getRMS()))
+        return self.result_absolute_position.value()
+
+
+class AbsoluteOrientationCalibrationProcessor(CalibrationProcessor):
 
     # data extracted from stream
     data_tracker_hip_positions = List()
@@ -106,87 +76,77 @@ class AbsoluteOrientationCalibrationProcessor(CalibrationProcessor):
 
     # resulting absolute orientation transform is received from dataflow
     result_absolute_orientation = Value()
-    result_last_timestamp = Value()
-
-    # dataflow components
-    sink_result_absolute_orientation = Value()
-    source_tracker_hip_positions = Value()
-    source_fwk_hip_positions = Value()
-
-    @observe("facade")
-    def handle_facade_change(self, change):
-        facade = change['value']
-        if facade is None:
-            if self.sink_result_absolute_orientation is not None:
-                self.sink_result_absolute_orientation.setCallback(None)
-            self.sink_result_absolute_orientation = None
-            self.source_tracker_hip_positions = None
-            self.source_fwk_hip_positions = None
-        else:
-            self.sink_result_absolute_orientation = facade.instance.getApplicationPushSinkPose("calib_absolute_orientation_out")
-            self.sink_result_absolute_orientation.setCallback(self.handler_result_absolute_orientation)
-            self.source_tracker_hip_positions = facade.instance.getApplicationPushSourcePositionList("ao_calib_et_positions")
-            self.source_fwk_hip_positions = facade.instance.getApplicationPushSourcePositionList("ao_calib_fwk_positions")
-
-    def handler_result_absolute_orientation(self, m):
-        self.result_absolute_orientation = m.get()
-        self.result_last_timestamp = m.time()
 
     def run(self):
-        ts = measurement.now()
-
         self.data_tracker_hip_positions = [r.externaltracker_hip_position for r in self.data]
         self.data_fwk_hip_positions = [r.haptic_pose.translation() for r in self.data]
 
-        acfp = measurement.PositionList(ts, math.PositionList.fromList([p for p in self.data_fwk_hip_positions]))
-        acep = measurement.PositionList(ts, math.PositionList.fromList([p for p in self.data_tracker_hip_positions]))
+        acfp = math.PositionList.fromList([p for p in self.data_fwk_hip_positions])
+        acep = math.PositionList.fromList([p for p in self.data_tracker_hip_positions])
 
-        self.source_tracker_hip_positions.send(acep)
-        self.source_fwk_hip_positions.send(acfp)
-
-        wait_time = 0
-        while True:
-            time.sleep(0.5)
-            wait_time += 0.5
-            if wait_time > self.max_computation_time:
-                log.warn("No result produced for Absolute Orientation due to timeout")
-                break
-            if self.result_last_timestamp is not None:
-                if self.result_last_timestamp >= ts:
-                    break
+        # XXX should be absoluteOrientationError
+        self.result_absolute_orientation = calibration.absoluteOrientation(acfp, acep)
 
         return self.result_absolute_orientation
 
-    # def prepare_stream(self, stream,
-    #                    tooltip_offset=None,
-    #                    absolute_orientation=None,
-    #                    forward_kinematics=None):
-    #
-    #     if tooltip_offset is None:
-    #         raise ValueError("TooltipOffset not supplied")
-    #
-    #     if forward_kinematics is None:
-    #         raise ValueError("ForwardKinematics not supplied")
-    #
-    #
-    #     stream_fields = stream[0]._fields
-    #
-    #     data_fieldnames = list(stream_fields)
-    #     data_fieldnames.append("haptic_pose")
-    #     data_fieldnames.append("externaltracker_hip_position")
-    #
-    #     DataSet = namedtuple('DataSet', data_fieldnames)
-    #
-    #     result = []
-    #
-    #     for record in stream:
-    #         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
-    #         externaltracker_hip_position = (record.externaltracker_pose * tooltip_offset).translation()
-    #
-    #         values = list(record) + [haptic_pose, externaltracker_hip_position]
-    #         result.append(DataSet(*values))
-    #
-    #     return result
+
+
+class AbsoluteOrientationFWKBaseCalibrationProcessor(CalibrationProcessor):
+
+
+    # data extracted from stream
+    data_tracker_hip_positions = List()
+    data_theta1_angles = List()
+
+    # configuration parameters
+    negate_upvector = Bool(False)
+    joint1_length = Float(0.20955)
+    joint2_length = Float(0.20955)
+
+    # parameters from previous steps
+    fwkbase_position = Value()
+    fwkbase_position2 = Value()
+
+    # resulting absolute orientation transform is received from dataflow
+    result_absolute_orientation = Value()
+
+    def run(self):
+
+        self.data_tracker_hip_positions = [r.externaltracker_hip_position for r in self.data]
+        self.data_theta1_angles = [r.jointangles[0] for r in self.data]
+
+        # find a record that is closest to theta1 == 0
+        # XXX this could be changed to use the center of the measured range for theta1
+        # but this would require the user to cover extremes in both directions (not really an issue)
+        idx = np.argmin(np.abs(np.array(self.data_theta1_angles)))
+        point_on_zaxis = self.data_tracker_hip_positions[idx]
+
+        # compute up-vector
+        if self.negate_upvector:
+            up_vector = self.fwkbase_position - self.fwkbase_position2
+        else:
+            up_vector = self.fwkbase_position2 - self.fwkbase_position
+
+        up_vector /= norm(up_vector)
+
+        # project point onto plane defined by fwkbase_position and fwkbase_position2 to find normalized z_vector
+        point_on_zaxis_plane = point_on_zaxis - np.dot(point_on_zaxis - self.fwkbase_position, up_vector) * up_vector
+        z_vector = point_on_zaxis_plane - self.fwkbase_position
+        z_vector /= norm(z_vector)
+
+        # calculate x_vector
+        x_vector = np.cross(up_vector, z_vector)
+
+        # combine into rotation matrix
+        rotation_matrix = np.array([x_vector, up_vector, z_vector]).T
+        log.info("Calculated rotation ET2HD: %s" % (rotation_matrix,))
+
+        # compute translation using fwkbasepos and joint-lengths
+        hd_origin = self.fwkbase_position + self.joint1_length * z_vector + self.joint2_length * (-1 * up_vector)
+        log.info("Calculated translation ET2HD: %s" % (hd_origin,))
+
+        self.result_absolute_orientation = math.Pose(math.Quaternion.fromMatrix(rotation_matrix), hd_origin)
+        return self.result_absolute_orientation
 
 
 class JointAngleCalibrationProcessor(CalibrationProcessor):

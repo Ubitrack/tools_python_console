@@ -10,7 +10,7 @@ from collections import namedtuple
 
 log = logging.getLogger(__name__)
 
-from atom.api import Atom, Event, Bool, Str, Value, Typed, List, Float, Int, observe
+from atom.api import Atom, Event, Bool, Str, Value, Typed, List, Float, Int, observe, Enum
 from enaml.qt import QtCore
 from enaml.application import deferred_call
 from enaml.layout.api import InsertItem, FloatItem
@@ -37,6 +37,7 @@ from utinteractiveconsole.plugins.calibration.algorithms.streamfilters import (
 
 from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration2 import (
     TooltipCalibrationProcessor, AbsoluteOrientationCalibrationProcessor,
+    TooltipAbsolutePositionCalibrationProcessor, AbsoluteOrientationFWKBaseCalibrationProcessor,
     JointAngleCalibrationProcessor, ReferenceOrientationProcessor,
     GimbalAngleCalibrationProcessor
 )
@@ -58,7 +59,7 @@ tooltip_null_calibration =  math.Pose(math.Quaternion(), np.array([0., 0., 0.]))
 absolute_orientation_null_calibration = math.Pose(math.Quaternion(), np.array([0., 0., 0.]))
 reference_orientation_null_calibration = np.array([0., 0., 1.])
 angle_null_correction = np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
-
+fwkbase_position_null_calibration = np.array([0., 0., 0.])
 
 
 def compute_position_errors(stream,
@@ -162,6 +163,8 @@ class OfflineCalibrationResults(Atom):
     zaxis_points_result = Value([])
 
     tooltip_calibration_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
+    fwkbase_position_calibration_result = Value(np.array([0, 0, 0]))
+    fwkbase_position2_calibration_result = Value(np.array([0, 1, 0]))
     absolute_orientation_result = Value(math.Pose(math.Quaternion(), np.array([0, 0, 0])))
     jointangles_correction_result = Value(np.array(angle_null_correction))
     gimbalangles_correction_result = Value(np.array(angle_null_correction))
@@ -178,6 +181,8 @@ class OfflineCalibrationResults(Atom):
         self.zaxis_points_result = []
 
         self.tooltip_calibration_result = math.Pose(math.Quaternion(), np.array([0, 0, 0]))
+        self.fwkbase_position_calibration_result = np.array([0, 0, 0])
+        self.fwkbase_position2_calibration_result = np.array([0, 0, 0])
         self.absolute_orientation_result = math.Pose(math.Quaternion(), np.array([0, 0, 0]))
         self.jointangles_correction_result = np.array(angle_null_correction)
         self.gimbalangles_correction_result = np.array(angle_null_correction)
@@ -192,9 +197,24 @@ class OfflineCalibrationParameters(Atom):
     tooltip_datasource = Str()
     tt_minimal_angle_between_measurements = Float(0.1)
 
+    # fwkbase_position
+    fwkbase_position_enabled = Bool(False)
+    fwkbase_position_datasource = Str()
+
+    # fwkbase_position2
+    fwkbase_position2_enabled = Bool(False)
+    fwkbase_position2_datasource = Str()
+
     # absolute orientation
     absolute_orientation_enabled = Bool(False)
     absolute_orientation_datasource = Str()
+
+    # known methods: fwkpose, externaltracker
+    ao_method = Enum('fwkpose', 'fwkbase')
+    # parameters for using externaltracker
+    ao_negate_upvector = Bool(False)
+
+    # parameters for using fwkpose
     ao_inital_maxdistance_from_origin = Float(0.03)
     ao_minimal_distance_between_measurements = Float(0.01)
     ao_refinement_expand_coverage = Float(1.2)
@@ -267,41 +287,96 @@ class OfflineCalibrationProcessor(Atom):
         log.info("Offline Tooltip Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
 
         tt_processor.data = selected_tt_data
-        tt_processor.facade = self.facade
 
         self.result.tooltip_calibration_result = tt_processor.run()
 
-        tt_processor.facade = None
         log.info("Result for Tooltip Calibration: %s" % str(self.result.tooltip_calibration_result))
 
         return True
 
-    def do_absolute_orientation(self, ao_data):
-        log.info("Absolute Orientation")
+    def do_fwkbase_position_calibration(self, tt_data):
+        log.info("FWKBase Position Calibration")
 
-        ao_processor = AbsoluteOrientationCalibrationProcessor()
+        tt_streamproc = TooltipStreamProcessor(raw_data=tt_data)
+        tt_processor = TooltipAbsolutePositionCalibrationProcessor()
+
+        # use all data for now
+        # tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
+        #                                                      min_distance=self.parameters.tt_minimal_angle_between_measurements)
+        # selected_tt_data = tt_selector.process(tt_streamproc.emit())
+        selected_tt_data = tt_streamproc.emit()
+
+        log.info("Offline FWKBase Position Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
+
+        tt_processor.data = selected_tt_data
+
+        self.result.fwkbase_position_calibration_result = tt_processor.run()
+
+        log.info("Result for FWKBase Position Calibration: %s" % str(self.result.fwkbase_position_calibration_result))
+
+        return True
+
+    def do_fwkbase_position2_calibration(self, tt_data):
+        log.info("FWKBase Position2 Calibration")
+
+        tt_streamproc = TooltipStreamProcessor(raw_data=tt_data)
+        tt_processor = TooltipAbsolutePositionCalibrationProcessor()
+
+        # use all data for now
+        # tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
+        #                                                      min_distance=self.parameters.tt_minimal_angle_between_measurements)
+        # selected_tt_data = tt_selector.process(tt_streamproc.emit())
+        selected_tt_data = tt_streamproc.emit()
+
+        log.info("Offline FWKBase Position2 Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
+
+        tt_processor.data = selected_tt_data
+
+        self.result.fwkbase_position2_calibration_result = tt_processor.run()
+
+        log.info("Result for FWKBase Position2 Calibration: %s" % str(self.result.fwkbase_position2_calibration_result))
+
+        return True
+
+    def do_absolute_orientation(self, ao_data):
+        ao_method = self.parameters.ao_method
+        log.info("Absolute Orientation: %s" % ao_method)
 
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
         ao_streamproc = AbsoluteOrientationStreamProcessor(raw_data=ao_data,
                                                            tooltip_offset=self.result.tooltip_calibration_result,
                                                            forward_kinematics=fwk)
 
-        ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
-                                                       max_distance=self.ao_maxdistance_from_origin)
+        if ao_method == "fwkpose":
+            ao_processor = AbsoluteOrientationCalibrationProcessor()
 
-        ao_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
-                                                         min_distance=self.ao_minimal_distance_between_measurements)
+            ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
+                                                           max_distance=self.ao_maxdistance_from_origin)
 
-        selected_ao_data = ao_selector2.process(ao_selector1.process(ao_streamproc.emit()))
-        log.info(
-            "Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
+            ao_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
+                                                             min_distance=self.ao_minimal_distance_between_measurements)
+
+            selected_ao_data = ao_selector2.process(ao_selector1.process(ao_streamproc.emit()))
+            log.info(
+                "Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
+
+        elif ao_method == "fwkbase":
+            ao_processor = AbsoluteOrientationFWKBaseCalibrationProcessor(fwkbase_position=self.result.fwkbase_position_calibration_result,
+                                                                       fwkbase_position2=self.result.fwkbase_position2_calibration_result,
+                                                                       negate_upvector=self.parameters.ao_negate_upvector,
+                                                                       joint1_length=self.parameters.joint_lengths[0],
+                                                                       joint2_length=self.parameters.joint_lengths[1])
+            selected_ao_data = ao_streamproc.emit()
+            # log.info(
+            #     "Absolute Orientation FWKBase Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
+        else:
+            raise ValueError("Invalid method for Absolute Orientation: %s" % ao_method)
 
         if len(selected_ao_data) == 0:
-            log.error("No Records selected for Absolute Orientation Calibration - please redo Step03 and provide valid data.")
+            log.error("No Records selected for Absolute Orientation Calibration - please redo data-collection and provide valid data.")
             return False
 
         ao_processor.data = selected_ao_data
-        ao_processor.facade = self.facade
 
         self.result.absolute_orientation_result = ao_processor.run()
 
@@ -482,7 +557,19 @@ class OfflineCalibrationProcessor(Atom):
             # skipped tooltip calibration, defaults to no offset
             self.result.tooltip_calibration_result = tooltip_null_calibration
 
+        if self.parameters.fwkbase_position_enabled:
+            # 1st step: FwKBase Position Calibration (uses fwkbase_position data)
+            self.do_fwkbase_position_calibration(datasources.get(self.parameters.fwkbase_position_datasource, None))
+        else:
+            # skipped fwkbase_position calibration, defaults to no offset
+            self.result.fwkbase_position_calibration_result = fwkbase_position_null_calibration
 
+        if self.parameters.fwkbase_position2_enabled:
+            # 1st step: FwKBase Position2 Calibration (uses fwkbase_position data)
+            self.do_fwkbase_position2_calibration(datasources.get(self.parameters.fwkbase_position2_datasource, None))
+        else:
+            # skipped fkwbase_position2 calibration, defaults to no offset
+            self.result.fwkbase_position2_calibration_result = fwkbase_position_null_calibration
 
         # 2nd step: initial absolute orientation (uses step03  data)
         if self.parameters.absolute_orientation_enabled:
@@ -622,6 +709,10 @@ class OfflineCalibrationProcessor(Atom):
         all_datasources = set()
         if self.parameters.tooltip_enabled:
             all_datasources.add(self.parameters.tooltip_datasource)
+        if self.parameters.fwkbase_position_enabled:
+            all_datasources.add(self.parameters.fwkbase_position_datasource)
+        if self.parameters.fwkbase_position2_enabled:
+            all_datasources.add(self.parameters.fwkbase_position2_datasource)
         if self.parameters.absolute_orientation_enabled:
             all_datasources.add(self.parameters.absolute_orientation_datasource)
         if self.parameters.joint_angle_calibration_enabled:
@@ -715,14 +806,37 @@ class OfflineCalibrationController(CalibrationController):
                 self.parameters.tooltip_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "tooltip_datasource")
                 self.parameters.tt_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "tt_minimal_angle_between_measurements")
 
+            if gbl_cfg.has_option(parameters_sname, "fwkbase_position_enabled"):
+                self.parameters.fwkbase_position_enabled = gbl_cfg.getboolean(parameters_sname, "fwkbase_position_enabled")
+                if self.parameters.fwkbase_position_enabled:
+                    log.info("FWKBase Position Calibration Enabled")
+                    self.parameters.fwkbase_position_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "fwkbase_position_datasource")
+
+            if gbl_cfg.has_option(parameters_sname, "fwkbase_position2_enabled"):
+                self.parameters.fwkbase_position2_enabled = gbl_cfg.getboolean(parameters_sname, "fwkbase_position2_enabled")
+                if self.parameters.fwkbase_position2_enabled:
+                    log.info("FWKBase Position2 Calibration Enabled")
+                    self.parameters.fwkbase_position2_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "fwkbase_position2_datasource")
+
             self.parameters.absolute_orientation_enabled = gbl_cfg.getboolean(parameters_sname, "absolute_orientation_enabled")
             if self.parameters.absolute_orientation_enabled:
                 log.info("Absolute Orientation Calibration Enabled")
                 self.parameters.absolute_orientation_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "absolute_orientation_datasource")
-                self.parameters.ao_inital_maxdistance_from_origin = gbl_cfg.getfloat(parameters_sname, "ao_inital_maxdistance_from_origin")
-                self.parameters.ao_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ao_minimal_distance_between_measurements")
-                self.parameters.ao_refinement_expand_coverage = gbl_cfg.getfloat(parameters_sname, "ao_refinement_expand_coverage")
-                self.parameters.ao_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ao_refinement_shrink_distance")
+
+                # experimental absolute orientation with multiple methods
+                ao_method = 'fwkpose'
+                if gbl_cfg.has_option(parameters_sname, "ao_method"):
+                    ao_method = gbl_cfg.get(parameters_sname, "ao_method")
+                self.parameters.ao_method = ao_method
+
+                if ao_method == "fwkpose":
+                    self.parameters.ao_inital_maxdistance_from_origin = gbl_cfg.getfloat(parameters_sname, "ao_inital_maxdistance_from_origin")
+                    self.parameters.ao_minimal_distance_between_measurements = gbl_cfg.getfloat(parameters_sname, "ao_minimal_distance_between_measurements")
+                    self.parameters.ao_refinement_expand_coverage = gbl_cfg.getfloat(parameters_sname, "ao_refinement_expand_coverage")
+                    self.parameters.ao_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ao_refinement_shrink_distance")
+                elif ao_method == "fwkbase":
+                    self.parameters.ao_negate_upvector = gbl_cfg.getboolean(parameters_sname, "ao_negate_upvector")
+
 
             self.parameters.joint_angle_calibration_enabled = gbl_cfg.getboolean(parameters_sname, "joint_angle_calibration_enabled")
             if self.parameters.joint_angle_calibration_enabled:
