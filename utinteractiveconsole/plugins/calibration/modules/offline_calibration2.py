@@ -364,8 +364,8 @@ class OfflineCalibrationProcessor(Atom):
             ao_processor = AbsoluteOrientationFWKBaseCalibrationProcessor(fwkbase_position=self.result.fwkbase_position_calibration_result,
                                                                        fwkbase_position2=self.result.fwkbase_position2_calibration_result,
                                                                        negate_upvector=self.parameters.ao_negate_upvector,
-                                                                       joint1_length=self.parameters.joint_lengths[0],
-                                                                       joint2_length=self.parameters.joint_lengths[1])
+                                                                       joint_lengths=self.parameters.joint_lengths,
+                                                                       origin_offset=self.parameters.origin_offset,)
             selected_ao_data = ao_streamproc.emit()
             # log.info(
             #     "Absolute Orientation FWKBase Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
@@ -388,7 +388,8 @@ class OfflineCalibrationProcessor(Atom):
     def do_jointangle_correction(self, ja_data):
         log.info("Joint-Angle Correction")
 
-        ja_processor = JointAngleCalibrationProcessor()
+        ja_processor = JointAngleCalibrationProcessor(joint_lengths=self.parameters.joint_lengths,
+                                                      origin_offset=self.parameters.origin_offset,)
 
         fwk = self.get_fwk(angle_null_correction, angle_null_correction)
         ja_streamproc = JointAngleCalibrationStreamProcessor(raw_data=ja_data,
@@ -420,7 +421,8 @@ class OfflineCalibrationProcessor(Atom):
     def do_gimbalangle_correction(self, ga_data):
         log.info("Gimbal-Angle Correction")
 
-        ga_processor = GimbalAngleCalibrationProcessor()
+        ga_processor = GimbalAngleCalibrationProcessor(joint_lengths=self.parameters.joint_lengths,
+                                                       origin_offset=self.parameters.origin_offset,)
         fwk = self.get_fwk(self.result.jointangles_correction_result, angle_null_correction)
 
         ga_streamproc = GimbalAngleCalibrationStreamProcessor(raw_data=ga_data,

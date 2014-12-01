@@ -22,6 +22,7 @@ from atom.api import Atom, Value, Float, Int, List, observe, Bool
 import time
 
 from ubitrack.core import measurement, math, util, calibration
+from ubitrack.haptics import haptics
 
 log = logging.getLogger(__name__)
 
@@ -100,8 +101,8 @@ class AbsoluteOrientationFWKBaseCalibrationProcessor(CalibrationProcessor):
 
     # configuration parameters
     negate_upvector = Bool(False)
-    joint1_length = Float(0.20955)
-    joint2_length = Float(0.20955)
+    joint_lengths = Value(np.array([0.20955, 0.20955]))
+    origin_offset = Value(np.array([0., 0., 0.]))
 
     # parameters from previous steps
     fwkbase_position = Value()
@@ -142,7 +143,7 @@ class AbsoluteOrientationFWKBaseCalibrationProcessor(CalibrationProcessor):
         log.info("Calculated rotation ET2HD: %s" % (rotation_matrix,))
 
         # compute translation using fwkbasepos and joint-lengths
-        hd_origin = self.fwkbase_position + self.joint1_length * z_vector + self.joint2_length * (-1 * up_vector)
+        hd_origin = self.fwkbase_position + self.joint_lengths[0] * z_vector + self.joint_lengths[1] * (-1 * up_vector) + self.origin_offset
         log.info("Calculated translation ET2HD: %s" % (hd_origin,))
 
         self.result_absolute_orientation = math.Pose(math.Quaternion.fromMatrix(rotation_matrix), hd_origin)
@@ -155,84 +156,23 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
     data_tracker_hip_positions = List()
     data_joint_angles = List()
 
-    # dataflow components
-    sink_result_jointangle_correction = Value()
-    source_tracker_hip_positions = Value()
-    source_joint_angles = Value()
+    # configuration
+    optimizationStepSize = Float(1.0)
+    optimizationStepFactor = Float(10.0)
 
-    @observe("facade")
-    def handle_facade_change(self, change):
-        facade = change['value']
-        if facade is None:
-            self.sink_result_jointangle_correction = None
-            if self.source_tracker_hip_positions is not None:
-                self.source_tracker_hip_positions.setCallback(None)
-            self.source_tracker_hip_positions = None
-            if self.source_joint_angles is not None:
-                self.source_joint_angles.setCallback(None)
-            self.source_joint_angles = None
-        else:
-            self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_jointangle_correction_out")
-
-            self.source_tracker_hip_positions = facade.instance.getApplicationPullSourcePositionList("ja_calib_hip_positions")
-            self.source_tracker_hip_positions.setCallback(self.handler_input_hip_positions)
-
-            self.source_joint_angles = facade.instance.getApplicationPullSourcePositionList("ja_calib_jointangles")
-            self.source_joint_angles.setCallback(self.handler_input_joint_angles)
-
-    def handler_input_hip_positions(self, ts):
-        pl = math.PositionList.fromList(self.data_tracker_hip_positions)
-        return measurement.PositionList(ts, pl)
-
-    def handler_input_joint_angles(self, ts):
-        pl = math.PositionList.fromList(self.data_joint_angles)
-        return measurement.PositionList(ts, pl)
+    joint_lengths = Value(np.array([0.20955, 0.20955]))
+    origin_offset = Value(np.array([0., 0., 0.]))
 
     def run(self):
-        ts = measurement.now()
-
         self.data_tracker_hip_positions = [r.hip_reference_pose.translation() for r in self.data]
         self.data_joint_angles = [r.jointangles for r in self.data]
 
-        return self.sink_result_jointangle_correction.get(ts).get()
+        hp = math.PositionList.fromList(self.data_tracker_hip_positions)
+        ja = math.PositionList.fromList(self.data_joint_angles)
 
-    # def prepare_stream(self, stream,
-    #                    tooltip_offset=None,
-    #                    absolute_orientation=None,
-    #                    forward_kinematics=None):
-    #
-    #     if tooltip_offset is None:
-    #         raise ValueError("TooltipOffset not supplied")
-    #
-    #     if absolute_orientation is None:
-    #         raise ValueError("AbsoluteOrientation not supplied")
-    #
-    #     if forward_kinematics is None:
-    #         raise ValueError("ForwardKinematics not supplied")
-    #
-    #
-    #     stream_fields = stream[0]._fields
-    #
-    #     data_fieldnames = list(stream_fields)
-    #     data_fieldnames.append("haptic_pose")
-    #     data_fieldnames.append("hip_reference_pose")
-    #
-    #     DataSet = namedtuple('DataSet', data_fieldnames)
-    #
-    #     absolute_orientation_inv = absolute_orientation.invert()
-    #
-    #     result = []
-    #
-    #     for record in stream:
-    #         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
-    #         hip_reference_pose = (
-    #         absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
-    #
-    #         values = list(record) + [haptic_pose, hip_reference_pose]
-    #         result.append(DataSet(*values))
-    #
-    #     return result
-
+        result = haptics.computePhantomLMCalibration(ja, hp, self.joint_lengths, self.origin_offset,
+                                                     self.optimizationStepSize, self.optimizationStepFactor )
+        return result
 
 
 class GimbalAngleCalibrationProcessor(CalibrationProcessor):
@@ -245,59 +185,13 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
     data_joint_angles = List()
     data_gimbal_angles = List()
 
-    # dataflow components
-    sink_result_gimbalangle_correction = Value()
-    source_joint_angle_correction = Value()
-    source_zrefaxis = Value()
-    source_joint_angles = Value()
-    source_gimbal_angles = Value()
+    # configuration
+    optimizationStepSize = Float(1.0)
+    optimizationStepFactor = Float(10.0)
 
-    @observe("facade")
-    def handle_facade_change(self, change):
-        facade = change['value']
-        if facade is None:
-            self.sink_result_gimbalangle_correction = None
-            if self.source_joint_angle_correction is not None:
-                self.source_joint_angle_correction.setCallback(None)
-            self.source_joint_angle_correction = None
-            if self.source_zrefaxis is not None:
-                self.source_zrefaxis.setCallback(None)
-            self.source_zrefaxis = None
-            if self.source_joint_angles is not None:
-                self.source_joint_angles.setCallback(None)
-            self.source_joint_angles = None
-            if self.source_gimbal_angles is not None:
-                self.source_gimbal_angles.setCallback(None)
-            self.source_gimbal_angles = None
-        else:
-            self.sink_result_gimbalangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_gimbalangle_correction_out")
+    joint_lengths = Value(np.array([0.20955, 0.20955]))
+    origin_offset = Value(np.array([0., 0., 0.]))
 
-            self.source_joint_angle_correction = facade.instance.getApplicationPullSourceMatrix3x3("ga_calib_jointangle_correction")
-            self.source_joint_angle_correction.setCallback(self.handler_input_joint_angle_correction)
-
-            self.source_zrefaxis = facade.instance.getApplicationPullSourcePositionList("ga_calib_zrefaxis")
-            self.source_zrefaxis.setCallback(self.handler_input_zrefaxis)
-
-            self.source_joint_angles = facade.instance.getApplicationPullSourcePositionList("ga_calib_jointangles")
-            self.source_joint_angles.setCallback(self.handler_input_joint_angles)
-
-            self.source_gimbal_angles = facade.instance.getApplicationPullSourcePositionList("ga_calib_gimbalangles")
-            self.source_gimbal_angles.setCallback(self.handler_input_gimbal_angles)
-
-    def handler_input_joint_angle_correction(self, ts):
-        return measurement.Matrix3x3(ts, self.data_joint_angle_correction)
-
-    def handler_input_zrefaxis(self, ts):
-        pl = math.PositionList.fromList(self.data_zrefaxis)
-        return measurement.PositionList(ts, pl)
-
-    def handler_input_joint_angles(self, ts):
-        pl = math.PositionList.fromList(self.data_joint_angles)
-        return measurement.PositionList(ts, pl)
-
-    def handler_input_gimbal_angles(self, ts):
-        pl = math.PositionList.fromList(self.data_gimbal_angles)
-        return measurement.PositionList(ts, pl)
 
     def run(self):
         ts = measurement.now()
@@ -306,54 +200,16 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
         self.data_joint_angles = [r.jointangles for r in self.data]
         self.data_gimbal_angles = [r.gimbalangles for r in self.data]
 
-        return self.sink_result_gimbalangle_correction.get(ts).get()
+        zr = math.PositionList.fromList(self.data_zrefaxis)
+        ja = math.PositionList.fromList(self.data_joint_angles)
+        ga = math.PositionList.fromList(self.data_gimbal_angles)
 
-    # def prepare_stream(self, stream,
-    #                    tooltip_offset=None,
-    #                    absolute_orientation=None,
-    #                    forward_kinematics=None,
-    #                    zrefaxis_calib=None):
-    #
-    #     if tooltip_offset is None:
-    #         raise ValueError("TooltipOffset not supplied")
-    #
-    #     if absolute_orientation is None:
-    #         raise ValueError("AbsoluteOrientation not supplied")
-    #
-    #     if forward_kinematics is None:
-    #         raise ValueError("ForwardKinematics not supplied")
-    #
-    #     if zrefaxis_calib is None:
-    #         raise ValueError("Z-Axis reference not supplied")
-    #
-    #
-    #     stream_fields = stream[0]._fields
-    #
-    #     data_fieldnames = list(stream_fields)
-    #     data_fieldnames.append("haptic_pose")
-    #     data_fieldnames.append("zrefaxis")
-    #
-    #     DataSet = namedtuple('DataSet', data_fieldnames)
-    #
-    #     absolute_orientation_inv = absolute_orientation.invert()
-    #
-    #     result = []
-    #
-    #     for record in stream:
-    #         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
-    #
-    #         # HIP target pose in HDorigin
-    #         hiptarget_rotation = math.Quaternion((absolute_orientation_inv * record.externaltracker_pose).rotation())
-    #         ht_pose_no_trans = math.Pose(hiptarget_rotation, np.array([0, 0, 0]))
-    #
-    #         # re-orient zrefaxis_calib using hiptarget pose
-    #         zrefaxis = ht_pose_no_trans * zrefaxis_calib
-    #         zrefaxis = zrefaxis / np.linalg.norm(zrefaxis)
-    #
-    #         values = list(record) + [haptic_pose, zrefaxis]
-    #         result.append(DataSet(*values))
-    #
-    #     return result
+
+        result = haptics.computePhantomLMGimbalCalibration(ja, ga, zr, self.data_joint_angle_correction,
+                                                           self.joint_lengths, self.origin_offset,
+                                                           self.optimizationStepSize, self.optimizationStepFactor)
+
+        return result
 
 
 class ReferenceOrientationProcessor(CalibrationProcessor):
@@ -619,113 +475,3 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         theta6_correction = self.compute_theta6_correction(theta6_data, theta6_angles)
 
         return zref, corrected_zaxis_points_ot_mean, theta6_correction
-
-    # def prepare_stream(self, stream,
-    #                    tooltip_offset=None,
-    #                    absolute_orientation=None,
-    #                    forward_kinematics=None,
-    #                    forward_kinematics_5dof=None,
-    #                    use_markers=True):
-    #
-    #     if tooltip_offset is None:
-    #         raise ValueError("TooltipOffset not supplied")
-    #
-    #     if absolute_orientation is None:
-    #         raise ValueError("AbsoluteOrientation not supplied")
-    #
-    #     if forward_kinematics is None:
-    #         raise ValueError("ForwardKinematics not supplied")
-    #     stream_fields = stream[0]._fields
-    #
-    #     data_fieldnames = list(stream_fields)
-    #     data_fieldnames.append("haptic_pose")
-    #     data_fieldnames.append("mean_marker_error")
-    #     data_fieldnames.append("target_position")
-    #     data_fieldnames.append("target_markers")
-    #     data_fieldnames.append("device_to_stylus_5dof")
-    #     data_fieldnames.append("hiptarget_pose")
-    #
-    #     DataSet = namedtuple('DataSet', data_fieldnames)
-    #
-    #     absolute_orientation_inv = absolute_orientation.invert()
-    #
-    #     # find marker count and verify that it is constant for the complete dataset
-    #     nmarkers = 0
-    #     if use_markers:
-    #         nmarkers = len(stream[0].externaltracker_markers)
-    #         assert (np.asarray([len(d.externaltracker_markers) for d in stream
-    #                             if d.externaltracker_markers is not None]) == nmarkers).all()
-    #
-    #     rel_marker_positions = []
-    #     skipped_markers = 0
-    #
-    #
-    #     result = []
-    #
-    #     for record in stream:
-    #         # fwk pose in HDorigin
-    #         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
-    #
-    #         # HIP target pose in HDorigin
-    #         hiptarget_pose = absolute_orientation_inv * record.externaltracker_pose
-    #         hiptarget_pose_inv = hiptarget_pose.invert()
-    #
-    #         mean_marker_error = None
-    #         markers = []
-    #
-    #         if use_markers:
-    #             if record.externaltracker_markers is not None:
-    #                 # HIP target markers in HDorigin
-    #                 hiptarget_markers = [absolute_orientation_inv * m for m in record.externaltracker_markers]
-    #                 if not rel_marker_positions:
-    #                     # initialize positions
-    #                     for m in hiptarget_markers:
-    #                         rel_marker_positions.append(hiptarget_pose_inv * m)
-    #                         markers.append(m)
-    #                 else:
-    #                     # validate positions
-    #                     markers = [None, ] * nmarkers
-    #                     dbg_dists = []
-    #                     for m in hiptarget_markers:
-    #                         dist_ = []
-    #                         for i, relm in enumerate(rel_marker_positions):
-    #                             dist_.append((i, norm(relm - (hiptarget_pose_inv * m))))
-    #                         dist_ = sorted(dist_, lambda x, y: cmp(x[1], y[1]))
-    #                         markers[dist_[0][0]] = m
-    #                         dbg_dists.append(dist_)
-    #
-    #                     mean_marker_error = np.asarray([d[0][1] for d in dbg_dists]).mean()
-    #
-    #                     # XXX remove print statements or improve to make useful logging output
-    #                     if None in markers:
-    #                         log.warn("Incomplete marker dataset received!")
-    #                         # print "Markers:"
-    #                         # for m in markers:
-    #                         #     print m
-    #                         # print "Distances:"
-    #                         # for i, dist_ in enumerate(dbg_dists):
-    #                         #     print "Item%d" % i
-    #                         #     for i,m in dist_:
-    #                         #         print i, m
-    #                         skipped_markers += 1
-    #                         markers = []
-    #
-    #         # calculate the stylus pose (5DOF) based on the calibrated correction_factors and the measured angles
-    #         device_to_stylus_5dof = forward_kinematics_5dof.calculate_pose(record.jointangles, record.gimbalangles)
-    #         device_to_stylus_5dof_inv = device_to_stylus_5dof.invert()
-    #
-    #         # multiply the inverse of the externaltracker to stylus transform with the externaltracker to stylus target
-    #         target_position = (device_to_stylus_5dof_inv * hiptarget_pose).translation()
-    #
-    #         # back-project markers using the corrected stylus pose (5dof)
-    #         if use_markers and markers:
-    #             target_markers = np.asarray([device_to_stylus_5dof_inv * m for m in markers])
-    #         else:
-    #             target_markers = None
-    #
-    #         values = list(record) + [haptic_pose, mean_marker_error,
-    #                                  target_position, target_markers, device_to_stylus_5dof,
-    #                                  hiptarget_pose]
-    #         result.append(DataSet(*values))
-    #
-    #     return result

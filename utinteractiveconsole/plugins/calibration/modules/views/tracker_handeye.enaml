@@ -7,7 +7,7 @@ with enaml.imports():
     from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
 
 
-enamldef TrackerHandEyeCalibrationPanel(WizardPanel):
+enamldef TrackerHandEyeCalibrationPanel(WizardPanel): tc_panel:
 
     constraints = [
         vbox( hbox(content, results_txt),
@@ -18,7 +18,6 @@ enamldef TrackerHandEyeCalibrationPanel(WizardPanel):
     ]
 
     Html: content:
-        limit_height = 'strong'
         source = """
         <h1>%s</h1>
         <p>Please attach the two tracking targets rigidly.
