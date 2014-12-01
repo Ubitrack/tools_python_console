@@ -159,20 +159,62 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
     # configuration
     optimizationStepSize = Float(1.0)
     optimizationStepFactor = Float(10.0)
-
+    #
     joint_lengths = Value(np.array([0.20955, 0.20955]))
     origin_offset = Value(np.array([0., 0., 0.]))
+    #
+    # def run(self):
+    #     self.data_tracker_hip_positions = [r.hip_reference_pose.translation() for r in self.data]
+    #     self.data_joint_angles = [r.jointangles for r in self.data]
+    #
+    #     hp = math.PositionList.fromList(self.data_tracker_hip_positions)
+    #     ja = math.PositionList.fromList(self.data_joint_angles)
+    #
+    #     result = haptics.computePhantomLMCalibration(ja, hp, self.joint_lengths, self.origin_offset,
+    #                                                  self.optimizationStepSize, self.optimizationStepFactor )
+    #     return result
+
+    # dataflow components
+    sink_result_jointangle_correction = Value()
+    source_tracker_hip_positions = Value()
+    source_joint_angles = Value()
+
+    @observe("facade")
+    def handle_facade_change(self, change):
+        facade = change['value']
+        if facade is None:
+            self.sink_result_jointangle_correction = None
+            if self.source_tracker_hip_positions is not None:
+                self.source_tracker_hip_positions.setCallback(None)
+            self.source_tracker_hip_positions = None
+            if self.source_joint_angles is not None:
+                self.source_joint_angles.setCallback(None)
+            self.source_joint_angles = None
+        else:
+            self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_jointangle_correction_out")
+
+            self.source_tracker_hip_positions = facade.instance.getApplicationPullSourcePositionList("ja_calib_hip_positions")
+            self.source_tracker_hip_positions.setCallback(self.handler_input_hip_positions)
+
+            self.source_joint_angles = facade.instance.getApplicationPullSourcePositionList("ja_calib_jointangles")
+            self.source_joint_angles.setCallback(self.handler_input_joint_angles)
+
+    def handler_input_hip_positions(self, ts):
+        pl = math.PositionList.fromList(self.data_tracker_hip_positions)
+        return measurement.PositionList(ts, pl)
+
+    def handler_input_joint_angles(self, ts):
+        pl = math.PositionList.fromList(self.data_joint_angles)
+        return measurement.PositionList(ts, pl)
 
     def run(self):
+        ts = measurement.now()
+
         self.data_tracker_hip_positions = [r.hip_reference_pose.translation() for r in self.data]
         self.data_joint_angles = [r.jointangles for r in self.data]
 
-        hp = math.PositionList.fromList(self.data_tracker_hip_positions)
-        ja = math.PositionList.fromList(self.data_joint_angles)
+        return self.sink_result_jointangle_correction.get(ts).get()
 
-        result = haptics.computePhantomLMCalibration(ja, hp, self.joint_lengths, self.origin_offset,
-                                                     self.optimizationStepSize, self.optimizationStepFactor )
-        return result
 
 
 class GimbalAngleCalibrationProcessor(CalibrationProcessor):
@@ -188,10 +230,82 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
     # configuration
     optimizationStepSize = Float(1.0)
     optimizationStepFactor = Float(10.0)
-
+    #
     joint_lengths = Value(np.array([0.20955, 0.20955]))
     origin_offset = Value(np.array([0., 0., 0.]))
+    #
+    #
+    # def run(self):
+    #     ts = measurement.now()
+    #
+    #     self.data_zrefaxis = [r.zrefaxis for r in self.data]
+    #     self.data_joint_angles = [r.jointangles for r in self.data]
+    #     self.data_gimbal_angles = [r.gimbalangles for r in self.data]
+    #
+    #     zr = math.PositionList.fromList(self.data_zrefaxis)
+    #     ja = math.PositionList.fromList(self.data_joint_angles)
+    #     ga = math.PositionList.fromList(self.data_gimbal_angles)
+    #
+    #
+    #     result = haptics.computePhantomLMGimbalCalibration(ja, ga, zr, self.data_joint_angle_correction,
+    #                                                        self.joint_lengths, self.origin_offset,
+    #                                                        self.optimizationStepSize, self.optimizationStepFactor)
+    #
+    #     return result
 
+    # dataflow components
+    sink_result_gimbalangle_correction = Value()
+    source_joint_angle_correction = Value()
+    source_zrefaxis = Value()
+    source_joint_angles = Value()
+    source_gimbal_angles = Value()
+
+    @observe("facade")
+    def handle_facade_change(self, change):
+        facade = change['value']
+        if facade is None:
+            self.sink_result_gimbalangle_correction = None
+            if self.source_joint_angle_correction is not None:
+                self.source_joint_angle_correction.setCallback(None)
+            self.source_joint_angle_correction = None
+            if self.source_zrefaxis is not None:
+                self.source_zrefaxis.setCallback(None)
+            self.source_zrefaxis = None
+            if self.source_joint_angles is not None:
+                self.source_joint_angles.setCallback(None)
+            self.source_joint_angles = None
+            if self.source_gimbal_angles is not None:
+                self.source_gimbal_angles.setCallback(None)
+            self.source_gimbal_angles = None
+        else:
+            self.sink_result_gimbalangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_gimbalangle_correction_out")
+
+            self.source_joint_angle_correction = facade.instance.getApplicationPullSourceMatrix3x3("ga_calib_jointangle_correction")
+            self.source_joint_angle_correction.setCallback(self.handler_input_joint_angle_correction)
+
+            self.source_zrefaxis = facade.instance.getApplicationPullSourcePositionList("ga_calib_zrefaxis")
+            self.source_zrefaxis.setCallback(self.handler_input_zrefaxis)
+
+            self.source_joint_angles = facade.instance.getApplicationPullSourcePositionList("ga_calib_jointangles")
+            self.source_joint_angles.setCallback(self.handler_input_joint_angles)
+
+            self.source_gimbal_angles = facade.instance.getApplicationPullSourcePositionList("ga_calib_gimbalangles")
+            self.source_gimbal_angles.setCallback(self.handler_input_gimbal_angles)
+
+    def handler_input_joint_angle_correction(self, ts):
+        return measurement.Matrix3x3(ts, self.data_joint_angle_correction)
+
+    def handler_input_zrefaxis(self, ts):
+        pl = math.PositionList.fromList(self.data_zrefaxis)
+        return measurement.PositionList(ts, pl)
+
+    def handler_input_joint_angles(self, ts):
+        pl = math.PositionList.fromList(self.data_joint_angles)
+        return measurement.PositionList(ts, pl)
+
+    def handler_input_gimbal_angles(self, ts):
+        pl = math.PositionList.fromList(self.data_gimbal_angles)
+        return measurement.PositionList(ts, pl)
 
     def run(self):
         ts = measurement.now()
@@ -200,16 +314,7 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
         self.data_joint_angles = [r.jointangles for r in self.data]
         self.data_gimbal_angles = [r.gimbalangles for r in self.data]
 
-        zr = math.PositionList.fromList(self.data_zrefaxis)
-        ja = math.PositionList.fromList(self.data_joint_angles)
-        ga = math.PositionList.fromList(self.data_gimbal_angles)
-
-
-        result = haptics.computePhantomLMGimbalCalibration(ja, ga, zr, self.data_joint_angle_correction,
-                                                           self.joint_lengths, self.origin_offset,
-                                                           self.optimizationStepSize, self.optimizationStepFactor)
-
-        return result
+        return self.sink_result_gimbalangle_correction.get(ts).get()
 
 
 class ReferenceOrientationProcessor(CalibrationProcessor):
