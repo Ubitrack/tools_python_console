@@ -157,11 +157,11 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
     data_joint_angles = List()
 
     # configuration
-    # optimizationStepSize = Float(1.0)
-    # optimizationStepFactor = Float(10.0)
+    optimizationStepSize = Float(1.0)
+    optimizationStepFactor = Float(10.0)
     #
-    # joint_lengths = Value(np.array([0.20955, 0.20955]))
-    # origin_offset = Value(np.array([0., 0., 0.]))
+    joint_lengths = Value(np.array([0.20955, 0.20955]))
+    origin_offset = Value(np.array([0., 0., 0.]))
     #
     # def run(self):
     #     self.data_tracker_hip_positions = [r.hip_reference_pose.translation() for r in self.data]
@@ -228,11 +228,11 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
     data_gimbal_angles = List()
 
     # configuration
-    # optimizationStepSize = Float(1.0)
-    # optimizationStepFactor = Float(10.0)
+    optimizationStepSize = Float(1.0)
+    optimizationStepFactor = Float(10.0)
     #
-    # joint_lengths = Value(np.array([0.20955, 0.20955]))
-    # origin_offset = Value(np.array([0., 0., 0.]))
+    joint_lengths = Value(np.array([0.20955, 0.20955]))
+    origin_offset = Value(np.array([0., 0., 0.]))
     #
     #
     # def run(self):
