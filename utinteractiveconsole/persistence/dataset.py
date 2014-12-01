@@ -5,7 +5,7 @@ from atom.api import Atom, Value, Dict, List, Str, Int, Typed
 import logging
 import new
 
-from .datasource import DataSource
+from .recordsource import RecordSource
 
 log = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class DataSet(Atom):
     name = Str()
     title = Str()
 
-    datasource = Typed(DataSource)
+    datasource = Typed(RecordSource)
     processor_factory = Value()
     attributes = Dict()
 

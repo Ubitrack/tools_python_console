@@ -17,9 +17,7 @@ from .datasource import DataSource
 
 log = logging.getLogger(__name__)
 
-
-MS_DIVIDER = 1000000.0
-UBITRACK_DATATYPES = ['distance', 'position2D', 'position3D', 'quat', 'pose', 'mat33', 'mat34', 'mat44']
+from .streamfile import MS_DIVIDER, UBITRACK_DATATYPES
 
 def instances_from_config(config, pathname):
     path = pathname.split(".")
