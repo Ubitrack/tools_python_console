@@ -1,4 +1,6 @@
 __author__ = 'jack'
+from utinteractiveconsole.util import deprecate_module
+deprecate_module()
 
 from atom.api import Atom, Value, List, Bool
 from collections import namedtuple

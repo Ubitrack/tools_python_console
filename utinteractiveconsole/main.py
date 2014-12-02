@@ -19,6 +19,7 @@ import os, sys
 import ConfigParser
 from optparse import OptionParser
 import logging
+import warnings
 
 
 # hack to register the opengl widget factory
@@ -40,8 +41,8 @@ from utinteractiveconsole.guilogging import Syslog
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
-
+logging.captureWarnings(True)
+warnings.simplefilter("always")
 
 
 def main():

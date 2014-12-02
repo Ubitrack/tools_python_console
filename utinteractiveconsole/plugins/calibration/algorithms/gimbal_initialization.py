@@ -1,4 +1,6 @@
 __author__ = 'jack'
+from utinteractiveconsole.util import deprecate_module
+deprecate_module()
 
 import logging
 import os
@@ -11,7 +13,6 @@ from scipy import stats
 from scipy.stats import scoreatpercentile
 from scipy.stats import nanmedian
 
-
 from ubitrack.core import util, measurement, math
 from utinteractiveconsole.playback import (loadData, DSC, interpolatePoseList,
                                            interpolateVec3List, selectOnlyMatchingSamples)
@@ -19,6 +20,9 @@ from utinteractiveconsole.playback import (loadData, DSC, interpolatePoseList,
 from .phantom_forward_kinematics import FWKinematicPhantom, FWKinematicPhantom2
 
 log = logging.getLogger(__name__)
+
+
+
 
 def loadCalibrationFiles(root_dir):
     if isinstance(root_dir, unicode):

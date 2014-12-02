@@ -1,4 +1,6 @@
 __author__ = 'jack'
+from utinteractiveconsole.util import deprecate_module
+deprecate_module()
 
 import numpy as np
 from numpy.linalg import norm
