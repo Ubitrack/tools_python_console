@@ -2,7 +2,8 @@ from enaml.layout.api import hbox, vbox, spacer, align
 from enaml.widgets.api import (
     Container, Html, Page, PushButton,
     GroupBox, Form, Label, Field, CheckBox, ComboBox,
-    MultilineField, PushButton, DockItem, MPLCanvas
+    MultilineField, PushButton, DockItem, MPLCanvas,
+    MainWindow
 )
 from enaml.styling import StyleSheet, Style, Setter
 from enaml.stdlib.fields import IntField, FloatField
@@ -217,7 +218,7 @@ enamldef OfflineCalibrationPanel(WizardPanel):
             module_controller.do_visualize_results()
 
 
-enamldef OfflineCalibrationResultPanel(DockItem): wizard:
+enamldef OfflineCalibrationResultPanel(MainWindow): wizard:
     title = "Offline Calibration Results"
     attr boxplot_position_errors
     attr boxplot_orientation_errors

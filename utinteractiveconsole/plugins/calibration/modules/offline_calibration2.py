@@ -911,10 +911,10 @@ class OfflineCalibrationController(CalibrationController):
         # add to layout
         wizard_controller = self.wizard_state.controller
         parent = wizard_controller.wizview.parent
-
         panel.set_parent(parent)
-        op = FloatItem(item=panel.name,)
-        parent.update_layout(op)
+        # op = FloatItem(item=panel.name,)
+        # parent.update_layout(op)
+        panel.show()
 
 
 class OfflineCalibrationModule(ModuleBase):
