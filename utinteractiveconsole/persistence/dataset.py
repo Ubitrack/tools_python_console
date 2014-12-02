@@ -26,6 +26,9 @@ class DataSet(Atom):
 
     connector_class = Value()
 
+    @property
+    def output_fieldnames(self):
+        return self.recordsource.output_fieldnames
 
     def _default_reference_timestamps(self):
         return self.recordsource.reference_timestamps
@@ -58,9 +61,10 @@ class DataSet(Atom):
         attrs["names"] = List(default=names)
 
         def update_data(s, ds):
-            for k,v in ds.__dict__.items():
-                if hasattr(s, k):
-                    setattr(s, k, v)
+            for key in names:
+                value = getattr(ds, key)
+                if hasattr(s, key):
+                    setattr(s, key, value)
 
         attrs['__call__'] = update_data
         return new.classobj("DataConnector_%s_%s" % (self.name, self.processor.name), (Atom,), attrs)

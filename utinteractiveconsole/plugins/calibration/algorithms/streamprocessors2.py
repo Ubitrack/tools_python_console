@@ -7,6 +7,7 @@ import logging
 
 from ubitrack.core import math
 import numpy as np
+from numpy.linalg import norm
 
 log = logging.getLogger(__name__)
 
@@ -185,6 +186,7 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
             # re-orient zrefaxis_calib using hiptarget pose
             zrefaxis = ht_pose_no_trans * self.zrefaxis_calib
+            # zrefaxis = hiptarget_rotation.transformVector(self.zrefaxis_calib)
             attrs['zrefaxis'] = zrefaxis / np.linalg.norm(zrefaxis)
 
             yield rcls(**attrs)

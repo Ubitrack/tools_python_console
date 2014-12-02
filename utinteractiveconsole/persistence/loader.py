@@ -36,20 +36,6 @@ def instances_from_config(config, pathname):
     return CustomEntryPoint.instances_from_items(section.items())
 
 
-def get_recordsourceloader(filename, working_directory=None):
-    if working_directory is None:
-        working_directory = os.path.dirname(filename)
-    config = None
-    if os.path.isfile(filename):
-        try:
-            log.info("Loading recordsources from file: %s" % (filename,))
-            config = yaml.load(open(filename, 'r'))
-        except Exception, e:
-            log.error("Error parsing config file(s): %s" % (filename,))
-            log.exception(e)
-    if config is not None:
-        return DataSourceLoader(config=config, working_directory=working_directory)
-    return None
 
 
 class DataSourceLoader(Atom):
@@ -65,6 +51,7 @@ class DataSourceLoader(Atom):
 
     streamprocessors = Dict()
     calibreaders = Dict()
+    converters = Dict()
 
     def _default_streamprocessors(self):
         result = instances_from_config(self.config, "import.streamprocessors")
@@ -74,6 +61,11 @@ class DataSourceLoader(Atom):
     def _default_calibreaders(self):
         result = instances_from_config(self.config, "import.calibreaders")
         # log.info("Available calib readers: %s" % ",".join(result.keys()))
+        return result
+
+    def _default_converters(self):
+        result = instances_from_config(self.config, "import.converters")
+        # log.info("Available converters: %s" % ",".join(result.keys()))
         return result
 
 
@@ -91,10 +83,14 @@ class DataSourceLoader(Atom):
         fields = []
 
         for k, v in columns.items():
+            is_array = v.get('is_array', "false")
+            if isinstance(is_array, (str,unicode)):
+                is_array = is_array.lower() == "true"
+
             fs = StreamFileSpec(fieldname=k,
                                 filename=os.path.join(data_directory, v['filename']).strip(),
                                 datatype=v['datatype'].strip().lower(),
-                                is_array=v.get('is_array', "false").lower() == "true",
+                                is_array=is_array,
                                 )
             f = FieldInterpolator(filespec=fs,
                                   is_reference=bool(k == reference_column),
@@ -121,15 +117,19 @@ class DataSourceLoader(Atom):
                     reader = self.calibreaders.get(spec['reader'])
                     if reader is not None:
                         log.info("Load calibfile from: %s for key: %s" % (spec['filename'], key))
-                        attributes[key] = reader(os.path.join(calib_directory, spec['filename']).encode(sys.getfilesystemencoding()))
+                        cf_value = reader(os.path.join(calib_directory, spec['filename']).encode(sys.getfilesystemencoding()))
+                        converter = spec.get('converter', None)
+                        if converter is not None and converter in self.converters.keys():
+                            cf_value = self.converters[converter](cf_value)
+                        attributes[key] = cf_value
                     else:
                         log.warn("Calibfile reader not found: %s" % spec['reader'])
                 elif spec['type'] == 'instance':
                     loader = CustomEntryPoint.parse('loader', spec['loader']).load()
                     if loader is not None:
-                        log.info("create instance for key: %s" % key)
                         args = spec.get('args', [])
                         kwargs = spec.get('kwargs', {})
+                        log.info("create instance for key: %s (args=%s, kwargs=%s)" % (key, args, kwargs))
                         attributes[key] = loader(self.working_directory, ds_cfg, *args, **kwargs)
             except Exception, e:
                 log.error("Error while computing attributes for dataset: %s" % dataset_sname)
@@ -180,3 +180,19 @@ class DataSourceLoader(Atom):
 
     def _default_dataset_names(self):
         return sorted(self.datasets.keys())
+
+
+def get_recordsourceloader(filename, working_directory=None, loader_cls=DataSourceLoader):
+    if working_directory is None:
+        working_directory = os.path.dirname(filename)
+    config = None
+    if os.path.isfile(filename):
+        try:
+            log.info("Loading recordsources from file: %s" % (filename,))
+            config = yaml.load(open(filename, 'r'))
+        except Exception, e:
+            log.error("Error parsing config file(s): %s" % (filename,))
+            log.exception(e)
+    if config is not None:
+        return loader_cls(config=config, working_directory=working_directory)
+    return None

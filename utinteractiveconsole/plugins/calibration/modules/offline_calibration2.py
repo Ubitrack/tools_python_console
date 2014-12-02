@@ -54,7 +54,7 @@ from utinteractiveconsole.plugins.calibration.algorithms.streamprocessors2 impor
 
 
 # Initialization of disabled steps
-tooltip_null_calibration =  math.Pose(math.Quaternion(), np.array([0., 0., 0.]))
+tooltip_null_calibration = math.Pose(math.Quaternion(), np.array([0., 0., 0.]))
 absolute_orientation_null_calibration = math.Pose(math.Quaternion(), np.array([0., 0., 0.]))
 reference_orientation_null_calibration = np.array([0., 0., 1.])
 angle_null_correction = np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
@@ -230,6 +230,7 @@ class OfflineCalibrationParameters(Atom):
     gimbal_angle_calibration_enabled = Bool(False)
     gimbal_angle_calibration_datasource = Str()
     ga_minimal_angle_between_measurements = Float(0.1)
+    ga_use_tooltip_offset = Bool(False)
 
     # haptic device
     joint_lengths = Value(np.array([0.13335, 0.13335]))
@@ -412,16 +413,17 @@ class OfflineCalibrationProcessor(Atom):
 
     def do_gimbalangle_correction(self, ga_data):
         log.info("Gimbal-Angle Correction")
+        par = self.parameters
 
         fwk = self.get_fwk(self.result.jointangles_correction_result, angle_null_correction)
 
         ga_streamproc_attributes = dict(absolute_orientation=self.result.absolute_orientation_result,
-                                        tooltip_offset=self.result.tooltip_calibration_result,
+                                        tooltip_offset=self.result.tooltip_calibration_result if par.ga_use_tooltip_offset else tooltip_null_calibration,
                                         forward_kinematics=fwk,
                                         zrefaxis_calib=self.result.zaxis_reference_result)
 
         ga_selector = RelativeOrienationDistanceStreamFilter("haptic_pose",
-                                                             min_distance=self.parameters.ga_minimal_angle_between_measurements)
+                                                             min_distance=par.ga_minimal_angle_between_measurements)
 
         ds = DataSet(name="gimbal_angles_calibration_data",
                      title="Gimbal Angles Calibration DataSet",
@@ -433,8 +435,8 @@ class OfflineCalibrationProcessor(Atom):
 
         ga_processor = GimbalAngleCalibrationProcessor(dataset=ds,
                                                        data_joint_angle_correction=self.result.jointangles_correction_result,
-                                                       joint_lengths=self.parameters.joint_lengths,
-                                                       origin_offset=self.parameters.origin_offset,)
+                                                       joint_lengths=par.joint_lengths,
+                                                       origin_offset=par.origin_offset,)
 
         ga_processor.facade = self.facade
         gimbalangle_correction = ga_processor.run()
@@ -853,6 +855,7 @@ class OfflineCalibrationController(CalibrationController):
                 log.info("Gimbal-Angle Calibration Enabled")
                 self.parameters.gimbal_angle_calibration_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "gimbal_angle_calibration_datasource")
                 self.parameters.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
+                self.parameters.ga_use_tooltip_offset = gbl_cfg.getboolean(parameters_sname, "ga_use_tooltip_offset")
 
         else:
             log.warn("No parameters found for offline calibration - using defaults. Define parameters in section: %s" % parameters_sname)

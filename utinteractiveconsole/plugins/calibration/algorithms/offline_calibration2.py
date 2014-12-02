@@ -560,7 +560,7 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         zaxis_points.append(target_circle_center)
 
         # theta6 fitting helpers
-        theta6_angles = np.asarray([d.gimbalangles[2] for d in self.data])
+        theta6_angles = np.asarray([d.gimbalangles[2] for d in data])
         best_residual_radius = target_center_info[2][2] / target_center_info[2][3]
         theta6_data = dict(points=target_position, radius=target_center_info[2][2], residual=target_center_info[2][3],
                            xc=target_circle_center[0], yc=target_circle_center[1])

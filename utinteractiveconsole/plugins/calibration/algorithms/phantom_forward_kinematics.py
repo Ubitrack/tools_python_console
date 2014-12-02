@@ -9,6 +9,8 @@ from ubitrack.core import math
 
 log = logging.getLogger(__name__)
 
+angle_null_correction = np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
+
 class FWKinematicPhantom(object):
 
     def __init__(self, joint_lengths, jointangle_correction, gimbalangle_correction, origin_calib=None, disable_theta6=False):
@@ -237,13 +239,13 @@ def from_config(root_directory, context,
     log.info("Create FWK Instance with: %s, %s" % (jointangle_correction, gimbalangle_correction, ))
     calib_directory = os.path.join(root_directory, context.get("calib_directory"))
 
-    ja_correction = util.readCalibMeasurementMatrix3x3(os.path.join(calib_directory, jointangle_correction).encode(sys.getfilesystemencoding())) if jointangle_correction else None
-    ga_correction = util.readCalibMeasurementMatrix3x3(os.path.join(calib_directory, gimbalangle_correction).encode(sys.getfilesystemencoding())) if gimbalangle_correction else None
+    ja_correction = util.readCalibMeasurementMatrix3x3(os.path.join(calib_directory, jointangle_correction).encode(sys.getfilesystemencoding())) if jointangle_correction else angle_null_correction
+    ga_correction = util.readCalibMeasurementMatrix3x3(os.path.join(calib_directory, gimbalangle_correction).encode(sys.getfilesystemencoding())) if gimbalangle_correction else angle_null_correction
     j_length = np.array([float(v.strip()) for v in joint_length.split(',')]) if joint_length else None
     o_offset = np.array([float(v.strip()) for v in origin_offset.split(',')]) if origin_offset else np.array([0., 0., 0.])
-    d_theta6 = disable_theta6.strip().lower() == 'true' if disable_theta6 else False
-
-    print j_length, ja_correction, ga_correction, o_offset, d_theta6
+    d_theta6 = disable_theta6 if disable_theta6 is not None else False
+    if isinstance(d_theta6, (str, unicode)):
+        d_theta6 = d_theta6.strip().lower() == 'true'
 
     if j_length is not None and ja_correction is not None and ga_correction is not None:
         return FWKinematicPhantom(j_length, ja_correction, ga_correction, origin_calib=o_offset, disable_theta6=d_theta6)
