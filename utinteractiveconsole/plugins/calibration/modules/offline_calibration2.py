@@ -20,17 +20,22 @@ import enaml
 with enaml.imports():
     from .views.offline_calibration2 import OfflineCalibrationPanel, OfflineCalibrationResultPanel
 
+from ubitrack.core import util, measurement, math
+
+from utinteractiveconsole.persistence.dataset import DataSet
+from utinteractiveconsole.persistence.recordsource import RecordSource, FieldInterpolator
+from utinteractiveconsole.persistence.streamfile import StreamFileSpec
+
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import CalibrationController
 
-from ubitrack.core import util, measurement, math
 from utinteractiveconsole.playback import (loadData, DSC, interpolatePoseList,
                                            interpolateVec3List, selectOnlyMatchingSamples,
                                            selectNearestNeighbour)
 
 from utinteractiveconsole.plugins.calibration.algorithms.phantom_forward_kinematics import FWKinematicPhantom
 
-from utinteractiveconsole.plugins.calibration.algorithms.streamfilters import (
+from utinteractiveconsole.plugins.calibration.algorithms.streamfilters2 import (
     RelativeOrienationDistanceStreamFilter, StaticPointDistanceStreamFilter,
     RelativePointDistanceStreamFilter, TwoPointDistanceStreamFilter
 )
@@ -42,16 +47,10 @@ from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration2 im
     GimbalAngleCalibrationProcessor
 )
 
-from utinteractiveconsole.plugins.calibration.algorithms.streamprocessors import (
+from utinteractiveconsole.plugins.calibration.algorithms.streamprocessors2 import (
     TooltipStreamProcessor, AbsoluteOrientationStreamProcessor, JointAngleCalibrationStreamProcessor,
     GimbalAngleCalibrationStreamProcessor, ReferenceOrientationStreamProcessor
 )
-
-
-available_interpolators = dict(interpolatePoseList=interpolatePoseList,
-                               interpolateVec3List=interpolateVec3List,
-                               selectOnlyMatchingSamples=selectOnlyMatchingSamples,
-                               selectNearestNeighbour=selectNearestNeighbour,)
 
 
 # Initialization of disabled steps
@@ -76,16 +75,14 @@ def compute_position_errors(stream,
     if forward_kinematics is None:
         raise ValueError("ForwardKinematics not supplied")
 
-    len_data = len(stream)
     absolute_orientation_inv = absolute_orientation.invert()
-    position_errors = np.zeros((len_data,), dtype=np.double)
-    for i, record in enumerate(stream):
+    position_errors = []
+    for record in stream:
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
-        hip_reference_pose = (
-        absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
-        position_errors[i] = norm(hip_reference_pose.translation() - haptic_pose.translation())
+        hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
+        position_errors.append(norm(hip_reference_pose.translation() - haptic_pose.translation()))
 
-    return position_errors
+    return np.array(position_errors)
 
 
 def compute_orientation_errors(stream,
@@ -108,14 +105,12 @@ def compute_orientation_errors(stream,
 
     zaxis = np.array([0, 0, 1])
 
-    len_data = len(stream)
     absolute_orientation_inv = absolute_orientation.invert()
-    orientation_errors = np.zeros((len_data,), dtype=np.double)
+    orientation_errors = []
 
-    for i, record in enumerate(stream):
+    for record in stream:
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
-        hip_reference_pose = (
-        absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
+        hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
 
         z_fwk = math.Quaternion(haptic_pose.rotation()).transformVector(zaxis)
         z_ref = math.Quaternion(hip_reference_pose.rotation()).transformVector(zref_axis)
@@ -124,10 +119,9 @@ def compute_orientation_errors(stream,
         z_fwk /= norm(z_fwk)
         z_ref /= norm(z_ref)
 
-        orientation_errors[i] = degrees(acos(z_ref.dot(z_fwk)))
+        orientation_errors.append(degrees(acos(z_ref.dot(z_fwk))))
 
-    return orientation_errors
-
+    return np.array(orientation_errors)
 
 
 class BackgroundCalculationThread(QtCore.QThread):
@@ -149,8 +143,6 @@ class BackgroundCalculationThread(QtCore.QThread):
 
     def set_is_working(self, v):
         self.processor.is_working = v
-
-
 
 
 class OfflineCalibrationResults(Atom):
@@ -278,18 +270,18 @@ class OfflineCalibrationProcessor(Atom):
     def do_tooltip_calibration(self, tt_data):
         log.info("Tooltip Calibration")
 
-        tt_streamproc = TooltipStreamProcessor(raw_data=tt_data)
-        tt_processor = TooltipCalibrationProcessor()
-
         tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
                                                              min_distance=self.parameters.tt_minimal_angle_between_measurements)
-        selected_tt_data = tt_selector.process(tt_streamproc.emit())
-        log.info("Offline Tooltip Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
 
-        tt_processor.data = selected_tt_data
+        ds = DataSet(name="tooltip_calibration_data",
+                     title="Tooltip Calibration DataSet",
+                     recordsource=tt_data,
+                     processor_factory=TooltipStreamProcessor,
+                     stream_filters=[tt_selector, ],
+                     )
 
+        tt_processor = TooltipCalibrationProcessor(dataset=ds)
         self.result.tooltip_calibration_result = tt_processor.run()
-
         log.info("Result for Tooltip Calibration: %s" % str(self.result.tooltip_calibration_result))
 
         return True
@@ -297,19 +289,13 @@ class OfflineCalibrationProcessor(Atom):
     def do_fwkbase_position_calibration(self, tt_data):
         log.info("FWKBase Position Calibration")
 
-        tt_streamproc = TooltipStreamProcessor(raw_data=tt_data)
-        tt_processor = TooltipAbsolutePositionCalibrationProcessor()
+        ds = DataSet(name="fwkbase_position_calibration_data",
+                     title="FWKBase Position Calibration DataSet",
+                     recordsource=tt_data,
+                     processor_factory=TooltipStreamProcessor,
+                     )
 
-        # use all data for now
-        # tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
-        #                                                      min_distance=self.parameters.tt_minimal_angle_between_measurements)
-        # selected_tt_data = tt_selector.process(tt_streamproc.emit())
-        selected_tt_data = tt_streamproc.emit()
-
-        log.info("Offline FWKBase Position Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
-
-        tt_processor.data = selected_tt_data
-
+        tt_processor = TooltipAbsolutePositionCalibrationProcessor(dataset=ds)
         self.result.fwkbase_position_calibration_result = tt_processor.run()
 
         log.info("Result for FWKBase Position Calibration: %s" % str(self.result.fwkbase_position_calibration_result))
@@ -319,19 +305,13 @@ class OfflineCalibrationProcessor(Atom):
     def do_fwkbase_position2_calibration(self, tt_data):
         log.info("FWKBase Position2 Calibration")
 
-        tt_streamproc = TooltipStreamProcessor(raw_data=tt_data)
-        tt_processor = TooltipAbsolutePositionCalibrationProcessor()
+        ds = DataSet(name="fwkbase_position_calibration_data",
+                     title="FWKBase Position Calibration DataSet",
+                     recordsource=tt_data,
+                     processor_factory=TooltipStreamProcessor,
+                     )
 
-        # use all data for now
-        # tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
-        #                                                      min_distance=self.parameters.tt_minimal_angle_between_measurements)
-        # selected_tt_data = tt_selector.process(tt_streamproc.emit())
-        selected_tt_data = tt_streamproc.emit()
-
-        log.info("Offline FWKBase Position2 Calibration (%d out of %d records selected)" % (len(selected_tt_data), len(tt_data)))
-
-        tt_processor.data = selected_tt_data
-
+        tt_processor = TooltipAbsolutePositionCalibrationProcessor(dataset=ds)
         self.result.fwkbase_position2_calibration_result = tt_processor.run()
 
         log.info("Result for FWKBase Position2 Calibration: %s" % str(self.result.fwkbase_position2_calibration_result))
@@ -343,44 +323,53 @@ class OfflineCalibrationProcessor(Atom):
         log.info("Absolute Orientation: %s" % ao_method)
 
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
-        ao_streamproc = AbsoluteOrientationStreamProcessor(raw_data=ao_data,
-                                                           tooltip_offset=self.result.tooltip_calibration_result,
-                                                           forward_kinematics=fwk)
+
+        ao_streamproc_factory = AbsoluteOrientationStreamProcessor
+        ao_streamproc_attributes = dict(tooltip_offset=self.result.tooltip_calibration_result,
+                                        forward_kinematics=fwk)
+
+        ao_processor_attributes = dict()
+        stream_filters = []
 
         if ao_method == "fwkpose":
-            ao_processor = AbsoluteOrientationCalibrationProcessor()
+            ao_processor_factory = AbsoluteOrientationCalibrationProcessor
+
+            # no attributes
 
             ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
                                                            max_distance=self.ao_maxdistance_from_origin)
+            stream_filters.append(ao_selector1)
 
             ao_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
                                                              min_distance=self.ao_minimal_distance_between_measurements)
-
-            selected_ao_data = ao_selector2.process(ao_selector1.process(ao_streamproc.emit()))
-            log.info(
-                "Absolute Orientation Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
+            stream_filters.append(ao_selector2)
 
         elif ao_method == "fwkbase":
-            ao_processor = AbsoluteOrientationFWKBaseCalibrationProcessor(fwkbase_position=self.result.fwkbase_position_calibration_result,
-                                                                       fwkbase_position2=self.result.fwkbase_position2_calibration_result,
-                                                                       negate_upvector=self.parameters.ao_negate_upvector,
-                                                                       joint_lengths=self.parameters.joint_lengths,
-                                                                       origin_offset=self.parameters.origin_offset,)
-            selected_ao_data = ao_streamproc.emit()
-            # log.info(
-            #     "Absolute Orientation FWKBase Calibration (%d out of %d records selected)" % (len(selected_ao_data), len(ao_data)))
+            ao_processor_factory = AbsoluteOrientationFWKBaseCalibrationProcessor
+
+            ao_processor_attributes['fwkbase_position'] = self.result.fwkbase_position_calibration_result
+            ao_processor_attributes['fwkbase_position2'] = self.result.fwkbase_position2_calibration_result
+            ao_processor_attributes['negate_upvector'] = self.parameters.ao_negate_upvector
+            ao_processor_attributes['joint_lengths'] = self.parameters.joint_lengths
+            ao_processor_attributes['origin_offset'] = self.parameters.origin_offset
+
+            # no stream filters
+
         else:
             raise ValueError("Invalid method for Absolute Orientation: %s" % ao_method)
 
-        if len(selected_ao_data) == 0:
-            log.error("No Records selected for Absolute Orientation Calibration - please redo data-collection and provide valid data.")
-            return False
+        ds = DataSet(name="absolute_orientation_calibration_data",
+                     title="Absolute Orientation Calibration DataSet",
+                     recordsource=ao_data,
+                     processor_factory=ao_streamproc_factory,
+                     attributes=ao_streamproc_attributes,
+                     stream_filters=stream_filters,
+                     )
 
-        ao_processor.data = selected_ao_data
+        ao_processor = ao_processor_factory(dataset=ds, **ao_processor_attributes)
 
         self.result.absolute_orientation_result = ao_processor.run()
 
-        ao_processor.facade = None
         log.info("Result for Absolute Orientation: %s" % str(self.result.absolute_orientation_result))
 
         return True
@@ -388,14 +377,10 @@ class OfflineCalibrationProcessor(Atom):
     def do_jointangle_correction(self, ja_data):
         log.info("Joint-Angle Correction")
 
-        ja_processor = JointAngleCalibrationProcessor(joint_lengths=self.parameters.joint_lengths,
-                                                      origin_offset=self.parameters.origin_offset,)
-
         fwk = self.get_fwk(angle_null_correction, angle_null_correction)
-        ja_streamproc = JointAngleCalibrationStreamProcessor(raw_data=ja_data,
-                                                             tooltip_offset=self.result.tooltip_calibration_result,
-                                                             absolute_orientation=self.result.absolute_orientation_result,
-                                                             forward_kinematics=fwk)
+        ja_streamproc_attributes = dict(tooltip_offset=self.result.tooltip_calibration_result,
+                                        absolute_orientation=self.result.absolute_orientation_result,
+                                        forward_kinematics=fwk)
 
         # simple way to avoid outliers from the external tracker: limit distance to reference ...
         ja_selector1 = TwoPointDistanceStreamFilter("hip_reference_pose", "haptic_pose",
@@ -405,15 +390,22 @@ class OfflineCalibrationProcessor(Atom):
         ja_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
                                                          min_distance=self.ja_minimal_distance_between_measurements)
 
-        selected_ja_data = ja_selector2.process(ja_selector1.process(ja_streamproc.emit()))
-        log.info("Joint-Angles Calibration (%d out of %d records selected)" % (len(selected_ja_data), len(ja_data)))
+        ds = DataSet(name="joint_angles_calibration_data",
+                     title="Joint Angles Calibration DataSet",
+                     recordsource=ja_data,
+                     processor_factory=JointAngleCalibrationStreamProcessor,
+                     attributes=ja_streamproc_attributes,
+                     stream_filters=[ja_selector1, ja_selector2],
+                     )
 
-        ja_processor.data = selected_ja_data
+        ja_processor = JointAngleCalibrationProcessor(dataset=ds,
+                                                      joint_lengths=self.parameters.joint_lengths,
+                                                      origin_offset=self.parameters.origin_offset,)
+
         ja_processor.facade = self.facade
-
         self.result.jointangles_correction_result = ja_processor.run()
-
         ja_processor.facade = None
+
         log.info("Result for Joint-Angles Correction: %s" % str(self.result.jointangles_correction_result))
 
         return True
@@ -421,26 +413,30 @@ class OfflineCalibrationProcessor(Atom):
     def do_gimbalangle_correction(self, ga_data):
         log.info("Gimbal-Angle Correction")
 
-        ga_processor = GimbalAngleCalibrationProcessor(joint_lengths=self.parameters.joint_lengths,
-                                                       origin_offset=self.parameters.origin_offset,)
         fwk = self.get_fwk(self.result.jointangles_correction_result, angle_null_correction)
 
-        ga_streamproc = GimbalAngleCalibrationStreamProcessor(raw_data=ga_data,
-                                                              absolute_orientation=self.result.absolute_orientation_result,
-                                                              tooltip_offset=self.result.tooltip_calibration_result,
-                                                              forward_kinematics=fwk,
-                                                              zrefaxis_calib=self.result.zaxis_reference_result)
+        ga_streamproc_attributes = dict(absolute_orientation=self.result.absolute_orientation_result,
+                                        tooltip_offset=self.result.tooltip_calibration_result,
+                                        forward_kinematics=fwk,
+                                        zrefaxis_calib=self.result.zaxis_reference_result)
 
         ga_selector = RelativeOrienationDistanceStreamFilter("haptic_pose",
                                                              min_distance=self.parameters.ga_minimal_angle_between_measurements)
 
-        selected_ga_data = ga_selector.process(ga_streamproc.emit())
-        log.info("Gimbal-Angles Calibration (%d out of %d records selected)" % (len(selected_ga_data), len(ga_data)))
+        ds = DataSet(name="gimbal_angles_calibration_data",
+                     title="Gimbal Angles Calibration DataSet",
+                     recordsource=ga_data,
+                     processor_factory=GimbalAngleCalibrationStreamProcessor,
+                     attributes=ga_streamproc_attributes,
+                     stream_filters=[ga_selector, ],
+                     )
 
-        ga_processor.data_joint_angle_correction = self.result.jointangles_correction_result
-        ga_processor.data = selected_ga_data
+        ga_processor = GimbalAngleCalibrationProcessor(dataset=ds,
+                                                       data_joint_angle_correction=self.result.jointangles_correction_result,
+                                                       joint_lengths=self.parameters.joint_lengths,
+                                                       origin_offset=self.parameters.origin_offset,)
+
         ga_processor.facade = self.facade
-
         gimbalangle_correction = ga_processor.run()
 
         # add theta6 correction here
@@ -458,22 +454,23 @@ class OfflineCalibrationProcessor(Atom):
     def do_reference_orientation(self, ro_data):
         log.info("Calculate Reference Orientation")
 
-        ro_processor = ReferenceOrientationProcessor()
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
         fwk_5dof = self.get_fwk(self.result.jointangles_correction_result, angle_null_correction, disable_theta6=True)
 
-        ro_streamproc = ReferenceOrientationStreamProcessor(raw_data=ro_data,
-                                                            tooltip_offset=self.result.tooltip_calibration_result,
-                                                            absolute_orientation=self.result.absolute_orientation_result,
-                                                            forward_kinematics=fwk,
-                                                            forward_kinematics_5dof=fwk_5dof)
+        ro_streamproc_attributes = dict(tooltip_offset=self.result.tooltip_calibration_result,
+                                        absolute_orientation=self.result.absolute_orientation_result,
+                                        forward_kinematics=fwk,
+                                        forward_kinematics_5dof=fwk_5dof)
 
-        # no filtering for now
-        selected_ro_data = ro_streamproc.emit()
+        ds = DataSet(name="reference_orientation_calibration_data",
+                     title="Reference Orientation Calibration DataSet",
+                     recordsource=ro_data,
+                     processor_factory=ReferenceOrientationStreamProcessor,
+                     attributes=ro_streamproc_attributes,
+                     )
 
-        log.info("Reference Orientation (%d out of %d records selected)" % (len(selected_ro_data), len(ro_data)))
+        ro_processor = ReferenceOrientationProcessor(dataset=ds)
 
-        ro_processor.data = selected_ro_data
         ro_processor.facade = self.facade
 
         zaxis_reference, zaxis_points, theta6_correction = ro_processor.run(use_markers=True)
@@ -481,7 +478,7 @@ class OfflineCalibrationProcessor(Atom):
         self.result.zaxis_points_result = zaxis_points
 
         if theta6_correction is not None:
-            self.result.theta6_correction_result =  theta6_correction
+            self.result.theta6_correction_result = theta6_correction
 
         ro_processor.facade = None
         log.info("Result for ReferenceOrientation: %s" % str(self.result.zaxis_reference_result))
@@ -685,27 +682,34 @@ class OfflineCalibrationProcessor(Atom):
         log.info("Load Datasource: %s" % datasource_sname)
         ds_cfg = dict(config.items(datasource_sname))
         data_directory = ds_cfg["data_directory"]
-        reference_data = [(k.replace("reference.", ""), v) for k, v in ds_cfg.items() if k.startswith("reference.")][0]
-        items = [(k.replace("item.", ""), v) for k, v in ds_cfg.items() if k.startswith("item.")]
+        reference_column = ds_cfg["reference"]
+        columns = [(k.replace("item.", ""), [si.strip() for si in v.split(",")]) for k, v in ds_cfg.items() if k.startswith("item.")]
 
-        def mkDSC(name, spec):
-            spec_items = [si.strip() for si in spec.split(",")]
-            if len(spec_items) < 2:
-                raise ValueError("Invalid Configuration for datasource element: %s" % name)
-            filename = spec_items[0]
-            reader = getattr(util, spec_items[1], None)
-            if reader is None:
-                raise ValueError("Invalid Configuration for datasource element: %s -> reader not found: %s" % (name, spec_items[1]))
-            interpolator = None
-            if len(spec_items) > 2:
-                interpolator = available_interpolators.get(spec_items[2], None)
-                if interpolator is None:
-                    raise ValueError("Invalid Configuration for datasource element: %s -> interpolator not found: %s" % (name, spec_items[2]))
-            return DSC(name, filename, reader, interpolator=interpolator)
+        fields = []
 
-        return loadData(data_directory,
-                        mkDSC(*reference_data),
-                        items=(mkDSC(*i) for i in items))
+        for k, v in columns:
+            filename, datatype, selector = v
+            is_array = False
+            # hack until we refator configuration system
+            if datatype.endswith('-list'):
+                is_array = True
+                datatype = datatype.replace('-list', '')
+
+            fs = StreamFileSpec(fieldname=k,
+                                filename=os.path.join(data_directory, filename).strip(),
+                                datatype=datatype.lower(),
+                                is_array=is_array,
+                                )
+            f = FieldInterpolator(filespec=fs,
+                                  is_reference=bool(k == reference_column),
+                                  selector=selector.lower(),
+                                  latency=0.0)
+            fields.append(f)
+
+        return RecordSource(name=datasource_sname,
+                            title=datasource_sname,
+                            fieldspec=fields)
+
 
     def load_datasources(self):
         all_datasources = set()
@@ -727,13 +731,8 @@ class OfflineCalibrationProcessor(Atom):
         config = self.context.get("config")
         result = {}
         for datasource_sname in sorted(all_datasources):
-            data = self.load_datasource(config, datasource_sname)
-            record_count = len(data)
-            if record_count > 0:
-                log.info('Loaded %d records with fieldnames: %s' % (record_count, ','.join(data[0]._fields)))
-                result[datasource_sname] = data
-            else:
-                log.warn('No records loaded!')
+            datasource = self.load_datasource(config, datasource_sname)
+            result[datasource_sname] = datasource
 
         return result
 
@@ -745,13 +744,6 @@ class OfflineCalibrationProcessor(Atom):
                                   gimbalangle_calib,
                                   self.parameters.origin_offset,
                                   disable_theta6=disable_theta6)
-
-
-
-
-
-
-
 
 
 class OfflineCalibrationController(CalibrationController):

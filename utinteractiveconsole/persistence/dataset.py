@@ -17,6 +17,7 @@ class DataSet(Atom):
 
     recordsource = Typed(RecordSource)
     processor_factory = Value()
+    stream_filters = List()
     attributes = Dict()
 
     processor = Value()
@@ -24,10 +25,6 @@ class DataSet(Atom):
     interval = Int()
 
     connector_class = Value()
-
-    # not yet implemented
-    # stream_filters = List()
-
 
 
     def _default_reference_timestamps(self):
@@ -50,7 +47,6 @@ class DataSet(Atom):
         if config_complete:
             return p_cls(**p_kw)
         return None        
-        
 
     def _default_connector_class(self):
         attrs = {}
@@ -67,12 +63,17 @@ class DataSet(Atom):
                     setattr(s, k, v)
 
         attrs['__call__'] = update_data
-        return new.classobj("DataConnector_%s" % self.processor.name, (Atom,), attrs)
+        return new.classobj("DataConnector_%s_%s" % (self.name, self.processor.name), (Atom,), attrs)
 
     def __iter__(self):
         
         if self.processor is None:
             raise StopIteration()
 
-        for record in self.processor:
+        # apply stream filters
+        producer = self.processor
+        for sfilter in self.stream_filters:
+            producer = sfilter.process(producer)
+
+        for record in producer:
             yield record

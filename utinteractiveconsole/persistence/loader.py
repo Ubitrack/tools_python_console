@@ -88,7 +88,6 @@ class DataSourceLoader(Atom):
         reference_column = ds_cfg["reference"]
         columns = ds_cfg["columns"]
 
-        reference_data = None
         fields = []
 
         for k, v in columns.items():
@@ -102,7 +101,6 @@ class DataSourceLoader(Atom):
                                   selector=v.get('selector', 'matching').strip().lower(),
                                   latency=float(v.get('latency', 0.0)))
             fields.append(f)
-
 
         return RecordSource(name=recordsource_sname,
                             title=title,

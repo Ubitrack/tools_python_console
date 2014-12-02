@@ -18,11 +18,13 @@ from scipy import stats
 
 from collections import namedtuple
 
-from atom.api import Atom, Value, Float, Int, List, observe, Bool
+from atom.api import Atom, Value, Float, Int, List, observe, Bool, Typed
 import time
 
 from ubitrack.core import measurement, math, util, calibration
 from ubitrack.haptics import haptics
+
+from utinteractiveconsole.persistence.dataset import DataSet
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +35,7 @@ class CalibrationProcessor(Atom):
     facade = Value()
 
     # the data stream to be consumed by this processor
-    data = List()
+    dataset = Typed(DataSet)
 
 
 class TooltipCalibrationProcessor(CalibrationProcessor):
@@ -45,7 +47,13 @@ class TooltipCalibrationProcessor(CalibrationProcessor):
     result_tooltip_offset = Value(None)
 
     def run(self):
-        self.data_tracker_poses = [r.externaltracker_pose for r in self.data]
+        self.data_tracker_poses = []
+        record_count = 0
+        for record in self.dataset:
+            self.data_tracker_poses.append(record.externaltracker_pose)
+            record_count += 1
+        log.info("Offline Tooltip Calibration (%d records selected)" % (record_count,))
+
         self.result_tooltip_offset = calibration.tipCalibrationPose(math.PoseList.fromList(self.data_tracker_poses))
         # XXX calculate RMS Error here and report it.
         return self.result_tooltip_offset
@@ -79,11 +87,18 @@ class AbsoluteOrientationCalibrationProcessor(CalibrationProcessor):
     result_absolute_orientation = Value()
 
     def run(self):
-        self.data_tracker_hip_positions = [r.externaltracker_hip_position for r in self.data]
-        self.data_fwk_hip_positions = [r.haptic_pose.translation() for r in self.data]
+        self.data_tracker_hip_positions = []
+        self.data_fwk_hip_positions = []
+        record_count = 0
+        for record in self.dataset:
+            self.data_tracker_hip_positions.append(record.externaltracker_hip_position)
+            self.data_fwk_hip_positions.append(record.haptic_pose.translation())
+            record_count += 1
 
-        acfp = math.PositionList.fromList([p for p in self.data_fwk_hip_positions])
-        acep = math.PositionList.fromList([p for p in self.data_tracker_hip_positions])
+        log.info(
+            "Absolute Orientation Calibration (%d records selected)" % (record_count,))
+        acep = math.PositionList.fromList(self.data_tracker_hip_positions)
+        acfp = math.PositionList.fromList(self.data_fwk_hip_positions)
 
         # XXX should be absoluteOrientationError
         self.result_absolute_orientation = calibration.absoluteOrientation(acfp, acep)
@@ -112,9 +127,18 @@ class AbsoluteOrientationFWKBaseCalibrationProcessor(CalibrationProcessor):
     result_absolute_orientation = Value()
 
     def run(self):
+        self.data_tracker_hip_positions = []
+        self.data_theta1_angles = []
 
-        self.data_tracker_hip_positions = [r.externaltracker_hip_position for r in self.data]
-        self.data_theta1_angles = [r.jointangles[0] for r in self.data]
+        record_count = 0
+        for record in self.dataset:
+            self.data_tracker_hip_positions.append(record.externaltracker_hip_position)
+            self.data_theta1_angles.append(record.jointangles[0])
+            record_count += 1
+
+        if record_count == 0:
+            log.error("No Records selected for Absolute Orientation Calibration - please redo data-collection and provide valid data.")
+            return None
 
         # find a record that is closest to theta1 == 0
         # XXX this could be changed to use the center of the measured range for theta1
@@ -210,8 +234,16 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
     def run(self):
         ts = measurement.now()
 
-        self.data_tracker_hip_positions = [r.hip_reference_pose.translation() for r in self.data]
-        self.data_joint_angles = [r.jointangles for r in self.data]
+        self.data_tracker_hip_positions = []
+        self.data_joint_angles = []
+
+        record_count = 0
+        for record in self.dataset:
+            self.data_tracker_hip_positions.append(record.hip_reference_pose.translation())
+            self.data_joint_angles.append(record.jointangles)
+            record_count += 1
+
+        log.info("Joint-Angles Calibration (%d records selected)" % (record_count,))
 
         return self.sink_result_jointangle_correction.get(ts).get()
 
@@ -310,9 +342,18 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
     def run(self):
         ts = measurement.now()
 
-        self.data_zrefaxis = [r.zrefaxis for r in self.data]
-        self.data_joint_angles = [r.jointangles for r in self.data]
-        self.data_gimbal_angles = [r.gimbalangles for r in self.data]
+        self.data_zrefaxis = []
+        self.data_joint_angles = []
+        self.data_gimbal_angles = []
+
+        record_count = 0
+        for record in self.dataset:
+            self.data_zrefaxis.append(record.zrefaxis)
+            self.data_joint_angles.append(record.jointangles)
+            self.data_gimbal_angles.append(record.gimbalangles)
+            record_count += 1
+
+        log.info("Gimbal-Angles Calibration (%d records selected)" % (record_count,))
 
         return self.sink_result_gimbalangle_correction.get(ts).get()
 
@@ -505,8 +546,14 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         # haptic interface point as origin in the correct coordinate system
         zaxis_points = [np.array([0.0, 0.0, 0.0])]
 
+        # bulk load here, since we need to iterate multiple times over the dataset
+        data = list(self.dataset)
+
+        log.info("Reference Orientation (%d records selected)" % (len(data),))
+
+
         # the center of the circle described by the center-of-mass of the tracking target
-        target_position = np.asarray([d.target_position for d in self.data])
+        target_position = np.asarray([d.target_position for d in data])
 
         # center info consists of: ((xz_slope, xz_intercept), (yz_slope, yz_intercept), (xc, yc, radius, residual))
         target_circle_center, target_center_info = self.find_center(target_position)
@@ -520,8 +567,8 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
 
 
         if use_markers:
-            num_markers = len(self.data[0].target_markers)
-            target_markers = np.asarray([d.target_markers for d in self.data])
+            num_markers = len(data[0].target_markers)
+            target_markers = np.asarray([d.target_markers for d in data])
             # individual markers travel on circles as well - find their centers
             for i in range(num_markers):
                 m_circle_center, m_center_info = self.find_center(target_markers[:, i, :])
@@ -536,10 +583,9 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         zaxis = self.find_zaxis(zaxis_points)
 
         # project zaxis back into OTtarget coordinates
-        #corrected_zaxis_ot = []
         corrected_zaxis_points_ot = []
 
-        for record in self.data:
+        for record in data:
             hiptarget_pose_inv = record.hiptarget_pose.invert()
             # un-project markers using the corrected stylus pose (5dof)
             #corrected_zaxis_ot.append(hiptarget_pose_inv * (record.device_to_stylus_5dof * zaxis))
@@ -549,22 +595,6 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
             for i, p in enumerate(zaxis_points):
                 otp.append(hiptarget_pose_inv * (record.device_to_stylus_5dof * p))
             corrected_zaxis_points_ot.append(otp)
-
-
-        if False:
-            corrected_zaxis_ot = np.asarray(corrected_zaxis_ot)
-            # maybe a more clever approach to mean could be used here .. svd ??
-            corrected_zaxis_ot_mean = corrected_zaxis_ot.mean(axis=0)
-
-
-            # normalize
-            corrected_zaxis_ot_mean /= np.linalg.norm(corrected_zaxis_ot_mean)
-            log.info("Corrected Z-Axis in OT space: %s" % (corrected_zaxis_ot_mean,))
-
-
-            # unused data:
-            zref = np.asarray(corrected_zaxis_ot_mean)
-            zref = zref / np.linalg.norm(zref)
 
 
         corrected_zaxis_points_ot = np.asarray(corrected_zaxis_points_ot)
