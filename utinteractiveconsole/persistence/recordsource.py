@@ -1,7 +1,8 @@
 __author__ = 'jack'
 
-from atom.api import Atom, List, Str, Enum, Bool, Float, Typed, Value, Long
+from atom.api import Atom, List, Str, Enum, Bool, Float, Typed, Value, Coerced
 
+import numpy as np
 import new
 import logging
 
@@ -13,7 +14,7 @@ log = logging.getLogger(__name__)
 class FieldInterpolator(Atom):
     filespec = Typed(StreamFileSpec)
     is_reference = Bool(False)
-    interpolator = Enum(['matching', 'nearest', 'interpolate'])
+    selector = Enum('matching', 'nearest', 'interpolate')
     latency = Float(0.0)
 
     streamfile = Typed(StreamFile)
@@ -50,16 +51,17 @@ class FieldInterpolator(Atom):
         return self.filespec.getStreamFile()
 
     def get(self, dts):
-        return self.streamfile.get(dts - self.latency, self.interpolator)
+        return self.streamfile.get(dts - self.latency, self.selector)
 
 
 class RecordSource(Atom):
     name = Str()
+    title = Str()
     fieldspec = List()
 
     ignore_incomplete_records = Bool(True)
 
-    fieldnames = List()
+    output_fieldnames = List()
     record_class = Value()
     reference_field = Typed(FieldInterpolator)
 
@@ -72,21 +74,20 @@ class RecordSource(Atom):
     @property
     def reference_timestamps(self):
         if self.reference_field is not None:
-            return self.reference_field.interval
+            return self.reference_field.timestamps
         return None
 
     @property
     def reference_interval(self):
         if self.reference_field is not None:
-            return self.reference_field.timestamps
+            return self.reference_field.interval
         return None
 
-
-    def _default_fieldnames(self):
-        return [f.fieldname for f in self.fieldspec]
+    def _default_output_fieldnames(self):
+        return ['timestamp'] + [f.fieldname for f in self.fieldspec]
 
     def _default_record_class(self):
-        attrs = dict(timestamp=Long(),)
+        attrs = dict(timestamp=Coerced(np.int64),)
         for field in self.fieldspec:
             if field.fieldname in attrs:
                 log.warn("Duplicate key: %s in field specification for record source: %s - skipping" % (field.fieldname, self.name))
@@ -95,7 +96,6 @@ class RecordSource(Atom):
         return new.classobj("RecordClass_%s" % self.name, (Atom,), attrs)
 
     def _default_reference_field(self):
-        reference = None
         for field in self.fieldspec:
             if field.is_reference:
                 return field
@@ -108,7 +108,6 @@ class RecordSource(Atom):
         iir = self.ignore_incomplete_records
 
         for ts in reference.timestamps:
-
             record_complete = True
             attrs = dict(timestamp=ts)
             for field in fields:

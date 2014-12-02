@@ -14,7 +14,7 @@ from utinteractiveconsole.persistence.recordsource import RecordSource
 
 class BaseStreamProcessor(Atom):
 
-    name = Value()
+    name = None
     # data and setup
     recordsource = Typed(RecordSource)
 
@@ -26,7 +26,7 @@ class BaseStreamProcessor(Atom):
 
     @property
     def input_fieldnames(self):
-        return self.recordsource.fieldnames
+        return self.recordsource.output_fieldnames
 
     @property
     def output_fieldnames(self):
@@ -41,8 +41,10 @@ class BaseStreamProcessor(Atom):
             return rcls
         attrs = {}
         for key in self.additional_attributes:
+            if key in attrs:
+                log.warn("Duplicate field: %s defined for recordsource: %s" % (key, self.name))
             attrs[key] = Value()
-        return new.classobj()
+        return new.classobj('%s_%s' % (rcls.__name__, self.name), (rcls,), attrs)
 
 
     def check_input(self):
@@ -75,9 +77,14 @@ class NullStreamProcessor(BaseStreamProcessor):
     additional_attributes = []
 
     def __iter__(self):
+        rcls = self.make_record_class()
+        parent_fields = self.input_fieldnames
+        
         if self.check_input():
             for record in self.recordsource:
-                yield record
+                attrs = dict((k, getattr(record, k)) for k in parent_fields)
+                
+                yield rcls(**attrs)
 
 
 class TooltipStreamProcessor(NullStreamProcessor):
@@ -103,19 +110,16 @@ class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
         if not self.check_input():
             raise StopIteration()
 
+        rcls = self.make_record_class()
+        parent_fields = self.input_fieldnames
 
-        DataSet = namedtuple('DataSet', self.output_field_names)
+        for record in self.recordsource:
+            attrs = dict((k, getattr(record, k)) for k in parent_fields)
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+            attrs['externaltracker_hip_position'] = (record.externaltracker_pose * self.tooltip_offset).translation()
+            
+            yield rcls(**attrs)
 
-        result = []
-
-        for record in self.raw_data:
-            haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
-            externaltracker_hip_position = (record.externaltracker_pose * self.tooltip_offset).translation()
-
-            values = list(record) + [haptic_pose, externaltracker_hip_position]
-            result.append(DataSet(*values))
-
-        return result
 
 
 class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
@@ -125,36 +129,27 @@ class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
     required_attributes = ['tooltip_offset', 'absolute_orientation', 'forward_kinematics']
     additional_attributes = ['haptic_pose', 'hip_reference_pose']
 
-    def _default_output_field_names(self):
-        data_fieldnames = list(self.input_field_names)
-        data_fieldnames.append("haptic_pose")
-        data_fieldnames.append("hip_reference_pose")
-        return data_fieldnames
-
 
     tooltip_offset       = Value()
     absolute_orientation = Value()
     forward_kinematics   = Value()
 
-    def emit(self):
+    def __iter__(self):
 
         if not self.check_input():
-            return None
-
-        DataSet = namedtuple('DataSet', self.output_field_names)
+            raise StopIteration()
+        
+        rcls = self.make_record_class()
+        parent_fields = self.input_fieldnames
 
         absolute_orientation_inv = self.absolute_orientation.invert()
-        result = []
 
-        for record in self.raw_data:
-            haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
-            hip_reference_pose = (
-            absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset)
-
-            values = list(record) + [haptic_pose, hip_reference_pose]
-            result.append(DataSet(*values))
-
-        return result
+        for record in self.recordsource:
+            attrs = dict((k, getattr(record, k)) for k in parent_fields)
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+            attrs['hip_reference_pose'] = (absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset)
+            
+            yield rcls(**attrs)
 
 
 class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
@@ -164,31 +159,25 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
     required_attributes = ['tooltip_offset', 'zrefaxis_calib', 'absolute_orientation', 'forward_kinematics']
     additional_attributes = ['haptic_pose', 'zrefaxis']
 
-    def _default_output_field_names(self):
-        data_fieldnames = list(self.input_field_names)
-        data_fieldnames.append("haptic_pose")
-        data_fieldnames.append("zrefaxis")
-        return data_fieldnames
-
 
     tooltip_offset       = Value()
     absolute_orientation = Value()
     zrefaxis_calib       = Value()
     forward_kinematics   = Value()
 
-    def emit(self):
+    def __iter__(self):
 
         if not self.check_input():
-            return None
-
-        DataSet = namedtuple('DataSet', self.output_field_names)
+            raise StopIteration()
+        
+        rcls = self.make_record_class()
+        parent_fields = self.input_fieldnames
 
         absolute_orientation_inv = self.absolute_orientation.invert()
 
-        result = []
-
-        for record in self.raw_data:
-            haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+        for record in self.recordsource:
+            attrs = dict((k, getattr(record, k)) for k in parent_fields)
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
 
             # HIP target pose in HDorigin
             hiptarget_rotation = math.Quaternion((absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset).rotation())
@@ -196,12 +185,9 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
             # re-orient zrefaxis_calib using hiptarget pose
             zrefaxis = ht_pose_no_trans * self.zrefaxis_calib
-            zrefaxis = zrefaxis / np.linalg.norm(zrefaxis)
+            attrs['zrefaxis'] = zrefaxis / np.linalg.norm(zrefaxis)
 
-            values = list(record) + [haptic_pose, zrefaxis]
-            result.append(DataSet(*values))
-
-        return result
+            yield rcls(**attrs)
 
 
 class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
@@ -212,16 +198,6 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
     additional_attributes = ['haptic_pose', 'mean_marker_error', 'target_position',
                              'target_markers', 'device_to_stylus_5dof', 'hiptarget_pose']
 
-    def _default_output_field_names(self):
-        data_fieldnames = list(self.input_field_names)
-        data_fieldnames.append("haptic_pose")
-        data_fieldnames.append("mean_marker_error")
-        data_fieldnames.append("target_position")
-        data_fieldnames.append("target_markers")
-        data_fieldnames.append("device_to_stylus_5dof")
-        data_fieldnames.append("hiptarget_pose")
-        return data_fieldnames
-
 
     tooltip_offset       = Value()
     absolute_orientation = Value()
@@ -230,33 +206,38 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
 
     use_markers = Bool(True)
 
-    def emit(self):
+    def __iter__(self):
 
         if not self.check_input():
-            return None
-
-        DataSet = namedtuple('DataSet', self.output_field_names)
+            raise StopIteration()
+        
+        rcls = self.make_record_class()
+        parent_fields = self.input_fieldnames
 
         absolute_orientation_inv = self.absolute_orientation.invert()
 
         # find marker count and verify that it is constant for the complete dataset
         nmarkers = 0
-        if self.use_markers:
-            nmarkers = len(self.raw_data[0].externaltracker_markers)
-            assert (np.asarray([len(d.externaltracker_markers) for d in self.raw_data
-                                if d.externaltracker_markers is not None]) == nmarkers).all()
-
         rel_marker_positions = []
         skipped_markers = 0
 
-        result = []
 
-        for record in self.raw_data:
+        for record in self.recordsource:
+            attrs = dict((k, getattr(record, k)) for k in parent_fields)
+            if nmarkers == 0 and self.use_markers and record.externaltracker_markers is not None:
+                nmarkers = len(record.externaltracker_markers)
+
+            if len(record.externaltracker_markers) != nmarkers:
+                log.warn("Skipping record with invalid number of markers: %s (expected: %s)" % 
+                         (len(record.externaltracker_markers), nmarkers))
+                skipped_markers += 1
+                continue
+                
             # fwk pose in HDorigin
-            haptic_pose = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
 
             # HIP target pose in HDorigin
-            hiptarget_pose = absolute_orientation_inv * record.externaltracker_pose
+            attrs['hiptarget_pose'] = hiptarget_pose = absolute_orientation_inv * record.externaltracker_pose
             hiptarget_pose_inv = hiptarget_pose.invert()
 
             mean_marker_error = None
@@ -288,33 +269,22 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
                         # XXX remove print statements or improve to make useful logging output
                         if None in markers:
                             log.warn("Incomplete marker dataset received!")
-                            # print "Markers:"
-                            # for m in markers:
-                            #     print m
-                            # print "Distances:"
-                            # for i, dist_ in enumerate(dbg_dists):
-                            #     print "Item%d" % i
-                            #     for i,m in dist_:
-                            #         print i, m
                             skipped_markers += 1
-                            markers = []
+                            continue
+            attrs['mean_marker_error'] = mean_marker_error
 
             # calculate the stylus pose (5DOF) based on the calibrated correction_factors and the measured angles
-            device_to_stylus_5dof = self.forward_kinematics_5dof.calculate_pose(record.jointangles, record.gimbalangles)
+            attrs['device_to_stylus_5dof'] = device_to_stylus_5dof = \
+                self.forward_kinematics_5dof.calculate_pose(record.jointangles, record.gimbalangles)
             device_to_stylus_5dof_inv = device_to_stylus_5dof.invert()
 
             # multiply the inverse of the externaltracker to stylus transform with the externaltracker to stylus target
-            target_position = (device_to_stylus_5dof_inv * hiptarget_pose).translation()
+            attrs['target_position'] = (device_to_stylus_5dof_inv * hiptarget_pose).translation()
 
             # back-project markers using the corrected stylus pose (5dof)
-            if use_markers and markers:
-                target_markers = np.asarray([device_to_stylus_5dof_inv * m for m in markers])
+            if self.use_markers and markers:
+                attrs['target_markers'] = np.asarray([device_to_stylus_5dof_inv * m for m in markers])
             else:
-                target_markers = None
+                attrs['target_markers'] = None
 
-            values = list(record) + [haptic_pose, mean_marker_error,
-                                     target_position, target_markers, device_to_stylus_5dof,
-                                     hiptarget_pose]
-            result.append(DataSet(*values))
-
-        return result
+            yield rcls(**attrs)

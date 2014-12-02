@@ -10,14 +10,12 @@ import numpy as np
 
 from ubitrack.core import util, measurement, math
 from utinteractiveconsole.extension import CustomEntryPoint
-from utinteractiveconsole.playback import (loadData, DSC)
 
 from .dataset import DataSet
-from .datasource import DataSource
+from .recordsource import RecordSource, FieldInterpolator
+from .streamfile import StreamFileSpec
 
 log = logging.getLogger(__name__)
-
-from .streamfile import MS_DIVIDER, UBITRACK_DATATYPES
 
 def instances_from_config(config, pathname):
     path = pathname.split(".")
@@ -38,13 +36,13 @@ def instances_from_config(config, pathname):
     return CustomEntryPoint.instances_from_items(section.items())
 
 
-def get_datasourceloader(filename, working_directory=None):
+def get_recordsourceloader(filename, working_directory=None):
     if working_directory is None:
         working_directory = os.path.dirname(filename)
     config = None
     if os.path.isfile(filename):
         try:
-            log.info("Loading datasources from file: %s" % (filename,))
+            log.info("Loading recordsources from file: %s" % (filename,))
             config = yaml.load(open(filename, 'r'))
         except Exception, e:
             log.error("Error parsing config file(s): %s" % (filename,))
@@ -59,26 +57,14 @@ class DataSourceLoader(Atom):
     config = Value()
     working_directory = Value()
 
-    datasources = Dict()
-    datasource_names = List()
+    recordsources = Dict()
+    recordsource_names = List()
 
     datasets = Dict()
     dataset_names = List()
 
-    streamreaders = Dict()
-    streaminterpolators = Dict()
     streamprocessors = Dict()
     calibreaders = Dict()
-
-    def _default_streamreaders(self):
-        result = instances_from_config(self.config, "import.streamreaders")
-        # log.info("Available stream readers: %s" % ",".join(result.keys()))
-        return result
-
-    def _default_streaminterpolators(self):
-        result = instances_from_config(self.config, "import.streaminterpolators")
-        # log.info("Available stream interpolators: %s" % ",".join(result.keys()))
-        return result
 
     def _default_streamprocessors(self):
         result = instances_from_config(self.config, "import.streamprocessors")
@@ -91,9 +77,9 @@ class DataSourceLoader(Atom):
         return result
 
 
-    def load_datasource(self, config, datasource_sname):
-        log.info("Load Datasource: %s" % datasource_sname)
-        ds_cfg = config[datasource_sname]
+    def load_recordsource(self, config, recordsource_sname):
+        log.info("Load Datasource: %s" % recordsource_sname)
+        ds_cfg = config[recordsource_sname]
         title = ds_cfg.get('title')
 
         data_directory = os.path.join(self.working_directory, ds_cfg.get("data_directory"))
@@ -103,39 +89,24 @@ class DataSourceLoader(Atom):
         columns = ds_cfg["columns"]
 
         reference_data = None
-        items = []
+        fields = []
+
         for k, v in columns.items():
-            if k == reference_column:
-                reference_data = (k, v)
-            else:
-                items.append((k, v))
+            fs = StreamFileSpec(fieldname=k,
+                                filename=os.path.join(data_directory, v['filename']).strip(),
+                                datatype=v['datatype'].strip().lower(),
+                                is_array=v.get('is_array', "false").lower() == "true",
+                                )
+            f = FieldInterpolator(filespec=fs,
+                                  is_reference=bool(k == reference_column),
+                                  selector=v.get('selector', 'matching').strip().lower(),
+                                  latency=float(v.get('latency', 0.0)))
+            fields.append(f)
 
-        def mkDSC(name, spec):
-            filename = spec["filename"]
-            reader = self.streamreaders.get(spec["reader"], None)
-            if reader is None:
-                raise ValueError("Invalid Configuration for datasource element: %s -> reader not found: %s"
-                                 % (name, spec["reader"]))
-            interpolator_key = spec.get("interpolator")
-            interpolator = None
-            if interpolator_key is not None:
-                interpolator = self.streaminterpolators.get(interpolator_key, None)
-                if interpolator is None:
-                    raise ValueError("Invalid Configuration for datasource element: %s -> interpolator not found: %s"
-                                     % (name, interpolator_key))
-            return DSC(name, filename, reader, interpolator=interpolator)
 
-        records = loadData(data_directory,
-                        mkDSC(*reference_data),
-                        items=(mkDSC(*i) for i in items))
-        # some useful metadata
-        record_count = len(records)
-        ts_data = [p.timestamp for p in records]
-        # ms accuracy ok for now
-        interval = int(np.diff(np.asarray(ts_data)).mean() / MS_DIVIDER)
-        return DataSource(name=datasource_sname, title=title, data=records,
-                          record_count=record_count, reference_timestamps=ts_data, interval=interval)
-
+        return RecordSource(name=recordsource_sname,
+                            title=title,
+                            fieldspec=fields)
 
     def load_dataset(self, config, dataset_sname):
         log.info("Load Dataset: %s" % dataset_sname)
@@ -143,7 +114,7 @@ class DataSourceLoader(Atom):
         title = ds_cfg['title']
         calib_directory = os.path.join(self.working_directory, ds_cfg.get("calib_directory"))
 
-        datasource = self.datasources.get(ds_cfg['datasource'])
+        recordsource = self.recordsources.get(ds_cfg['recordsource'])
         processor_factory = self.streamprocessors.get(ds_cfg['processor'])
         attributes = {}
         for key, spec in ds_cfg.get('attributes', {}).items():
@@ -166,32 +137,25 @@ class DataSourceLoader(Atom):
                 log.error("Error while computing attributes for dataset: %s" % dataset_sname)
                 log.exception(e)
 
-        return DataSet(name=dataset_sname, title=title, datasource=datasource,
+        return DataSet(name=dataset_sname, title=title, recordsource=recordsource,
                        processor_factory=processor_factory, attributes=attributes)
 
 
-    def _default_datasources(self):
-        """default datasources"""
+    def _default_recordsources(self):
+        """default recordsources"""
         config = self.config
         result = {}
-        if config is not None and "datasources" in config:
-            if not isinstance(config["datasources"], dict):
-                raise ValueError("Invalid datasources configuration")
-            all_datasources = config["datasources"].keys()
-            for datasource_sname in sorted(all_datasources):
+        if config is not None and "recordsources" in config:
+            if not isinstance(config["recordsources"], dict):
+                raise ValueError("Invalid recordsources configuration")
+            all_recordsources = config["recordsources"].keys()
+            for recordsource_sname in sorted(all_recordsources):
                 try:
-                    data = self.load_datasource(config["datasources"], datasource_sname)
-                    record_count = data.record_count
-                    if record_count > 0:
-                        log.info('Datasource: %s loaded %d records with fieldnames: %s' %
-                                 (datasource_sname, record_count, ','.join(data.output_field_names)))
-                        result[datasource_sname] = data
-                    else:
-                        log.warn('No records loaded!')
+                    data = self.load_recordsource(config["recordsources"], recordsource_sname)
+                    result[recordsource_sname] = data
                 except Exception, e:
-                    log.error("Error while loading datasource: %s" % datasource_sname)
+                    log.error("Error while loading recordsource: %s" % recordsource_sname)
                     log.exception(e)
-
         return result
 
     def _default_datasets(self):
@@ -213,8 +177,8 @@ class DataSourceLoader(Atom):
         return result
 
 
-    def _default_datasource_names(self):
-        return sorted(self.datasources.keys())
+    def _default_recordsource_names(self):
+        return sorted(self.recordsources.keys())
 
     def _default_dataset_names(self):
         return sorted(self.datasets.keys())

@@ -1,6 +1,6 @@
 __author__ = 'jack'
 
-from atom.api import Atom, List, Str, Int, Enum, Bool, Typed, Value
+from atom.api import Atom, List, Str, Int, Enum, Bool, Typed, Value, Coerced
 
 import os
 import logging
@@ -10,7 +10,7 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-UBITRACK_DATATYPES = ['distance', 'position2D', 'position3D', 'quat', 'pose', 'mat33', 'mat34', 'mat44']
+UBITRACK_DATATYPES = ['distance', 'position2d', 'position3d', 'quat', 'pose', 'mat33', 'mat34', 'mat44']
 MS_DIVIDER = 1000000.0
 
 def get_streamreader_for_datatype(dtype, is_array=False):
@@ -19,12 +19,12 @@ def get_streamreader_for_datatype(dtype, is_array=False):
             raise NotImplemented("No streamreader available for: %s%s" % (dtype, "-list" if is_array else ""))
         else:
             raise NotImplemented("No streamreader available for: %s%s" % (dtype, "-list" if is_array else ""))
-    elif dtype == "position2D":
+    elif dtype == "position2d":
         if is_array:
             return util.PositionList2StreamReader
         else:
             return util.Position2DStreamReader
-    elif dtype == "position3D":
+    elif dtype == "position3d":
         if is_array:
             return util.PositionListStreamReader
         else:
@@ -61,7 +61,7 @@ def get_streamreader_for_datatype(dtype, is_array=False):
 class StreamFileSpec(Atom):
     fieldname = Str()
     filename = Str()
-    datatype = Enum(UBITRACK_DATATYPES)
+    datatype = Enum(*UBITRACK_DATATYPES)
     is_array = Bool(False)
 
     def getStreamFile(self):
@@ -80,7 +80,7 @@ class StreamFile(Atom):
     reader = Value()
 
     raw_data = Value()
-    timestamps = List()
+    timestamps = Coerced(np.ndarray)
     count = Int()
     interval = Int()
     values = List()
@@ -106,13 +106,13 @@ class StreamFile(Atom):
         return self.reader(buf).values()
 
     def _default_timestamps(self):
-        timestamps = [m.time() for m in self.raw_data]
+        timestamps = np.array([m.time() for m in self.raw_data])
         if not np.all(np.diff(timestamps) > 0):
             log.warn("Timestamps in stream: %s are not ascending" % self.fieldname)
         return timestamps
 
     def _default_interval(self):
-        return int(np.diff(np.asarray(self.timestamps)).mean() / MS_DIVIDER
+        return int(np.diff(np.asarray(self.timestamps)).mean() / MS_DIVIDER)
 
     def _default_count(self):
         return len(self.timestamps)
@@ -122,9 +122,9 @@ class StreamFile(Atom):
 
     def _default_interpolator(self):
         if not self.is_array:
-            if self.datatype == "position2D":
+            if self.datatype == "position2d":
                 return math.linearInterpolateVector2
-            elif self.datatype == "position3D":
+            elif self.datatype == "position3d":
                 return math.linearInterpolateVector3
             elif self.datatype == "quat":
                 return math.linearInterpolateQuaternion
@@ -132,12 +132,12 @@ class StreamFile(Atom):
                 return math.linearInterpolatePose
         return None
 
-    def get(self, dts, interpolator=None):
+    def get(self, dts, selector=None):
         src_ts = self.timestamps
         idx = (np.abs(src_ts-dts)).argmin()
 
         # None == select only matching
-        if interpolator is None or interpolator == "matching":
+        if selector is None or selector == "matching":
             if src_ts[idx] == dts:
                 return self.values[idx]
             else:
@@ -170,13 +170,13 @@ class StreamFile(Atom):
         if ediff != 0:
             h = float(tdiff) / float(ediff)
 
-        if interpolator == "nearest":
+        if selector == "nearest":
             if h < 0.5:
                 return self.values[idx1]
             else:
                 return self.values[idx2]
 
-        if self.interpolator is not None and interpolator == "interpolate":
+        if self.interpolator is not None and selector == "interpolate":
             return self.interpolator(self.values[idx1], self.values[idx2], h)
 
         raise NotImplemented("Interpolation for %s%s is not implemented." % (self.datatype, "-list" if self.is_array else ""))

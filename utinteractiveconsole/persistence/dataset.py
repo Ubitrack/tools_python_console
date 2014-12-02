@@ -15,7 +15,7 @@ class DataSet(Atom):
     name = Str()
     title = Str()
 
-    datasource = Typed(RecordSource)
+    recordsource = Typed(RecordSource)
     processor_factory = Value()
     attributes = Dict()
 
@@ -23,21 +23,38 @@ class DataSet(Atom):
     reference_timestamps = List()
     interval = Int()
 
-    def _default_reference_timestamps(self):
-        return self.datasource.reference_timestamps
-
-    def _default_interval(self):
-        return self.datasource.interval
-
-    def _default_processor(self):
-        return self.get_streamprocessor(self.datasource.emit())
+    connector_class = Value()
 
     # not yet implemented
     # stream_filters = List()
 
-    def make_connector_class(self):
+
+
+    def _default_reference_timestamps(self):
+        return self.recordsource.reference_timestamps
+
+    def _default_interval(self):
+        return self.recordsource.reference_interval
+
+    def _default_processor(self):
+        p_cls = self.processor_factory
+        p_kw = dict(recordsource=self.recordsource)
+        config_complete = True
+        for attr in p_cls.required_attributes:
+            if attr in self.attributes:
+                p_kw[attr] = self.attributes[attr]
+            else:
+                log.warn("Missing attribute: %s for streamprocessor in datasource: %s" % (attr, self.name))
+                config_complete = False
+
+        if config_complete:
+            return p_cls(**p_kw)
+        return None        
+        
+
+    def _default_connector_class(self):
         attrs = {}
-        names = self.processor.output_field_names
+        names = self.processor.output_fieldnames
 
         for k in names:
             attrs[k] = Value()
@@ -50,24 +67,12 @@ class DataSet(Atom):
                     setattr(s, k, v)
 
         attrs['__call__'] = update_data
-        return new.classobj("DataConnector", (Atom,), attrs)
+        return new.classobj("DataConnector_%s" % self.processor.name, (Atom,), attrs)
 
-    def get_streamprocessor(self, data):
-        p_cls = self.processor_factory
-        p_kw = dict(raw_data=data)
-        config_complete = True
-        for attr in p_cls.required_attributes:
-            if attr in self.attributes:
-                p_kw[attr] = self.attributes[attr]
-            else:
-                log.warn("Missing attribute: %s for streamprocessor in datasource: %s" % (attr, self.name))
-                config_complete = False
+    def __iter__(self):
+        
+        if self.processor is None:
+            raise StopIteration()
 
-        if config_complete:
-            return p_cls(**p_kw)
-        return None
-
-    def emit(self):
-        if self.processor is not None:
-            return self.processor.emit()
-        return None
+        for record in self.processor:
+            yield record
