@@ -250,7 +250,13 @@ class UbitrackConnectorBase(Atom):
 
 
     def handleSinkData(self, ts):
-        uip = self.update_ignore_ports
+        try:
+            uip = self.update_ignore_ports
+        except Exception, e:
+            log.error("Problem with observer setup in uthelpers connector (self: %s)" % (self,))
+            log.exception(e)
+            return
+
         for pi in self.ports:
             if pi.name in uip:
                 continue
