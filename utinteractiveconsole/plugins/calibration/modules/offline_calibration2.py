@@ -200,6 +200,7 @@ class OfflineCalibrationParameters(Atom):
     tooltip_enabled = Bool(False)
     tooltip_datasource = Str()
     tt_minimal_angle_between_measurements = Float(0.1)
+    tt_use_pose = Bool(False)
 
     # fwkbase_position
     fwkbase_position_enabled = Bool(False)
@@ -299,7 +300,8 @@ class OfflineCalibrationProcessor(Atom):
                      stream_filters=[tt_selector, ],
                      )
 
-        tt_processor = TooltipCalibrationProcessor(dataset=ds)
+        tt_processor = TooltipCalibrationProcessor(dataset=ds,
+                                                   use_tooltip_pose=self.parameters.tt_use_pose)
         self.result.tooltip_calibration_result = tt_processor.run()
         log.info("Result for Tooltip Calibration: %s" % str(self.result.tooltip_calibration_result))
 
@@ -886,6 +888,10 @@ class OfflineCalibrationProcessor(Atom):
         for i, ornerr in enumerate(self.result.orientation_errors):
             store_data(store, '/evaluation/orientation_errors/I%02d' % i, pd.Series(ornerr))
 
+        log.info("Store all datasources.")
+        for key, datasource in self.datasources.items():
+            datasource.export_data(store, '/datasource/%s' % key)
+
         log.info("Store all process data.")
         for processor_name, process_data_items in self.result.process_data.items():
             for i, process_data in enumerate(process_data_items):
@@ -971,6 +977,7 @@ class OfflineCalibrationController(CalibrationController):
                 log.info("Tooltip Calibration Enabled")
                 self.parameters.tooltip_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "tooltip_datasource")
                 self.parameters.tt_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "tt_minimal_angle_between_measurements")
+                self.parameters.tt_use_pose = gbl_cfg.getboolean(parameters_sname, "tt_use_pose")
 
             if gbl_cfg.has_option(parameters_sname, "fwkbase_position_enabled"):
                 self.parameters.fwkbase_position_enabled = gbl_cfg.getboolean(parameters_sname, "fwkbase_position_enabled")

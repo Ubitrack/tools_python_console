@@ -45,6 +45,7 @@ class TooltipCalibrationProcessor(CalibrationProcessor):
 
     # resulting tooltip offset is received from dataflow
     result_tooltip_offset = Value(None)
+    use_tooltip_pose = Bool(False)
 
     def run(self):
         self.data_tracker_poses = []
@@ -54,7 +55,12 @@ class TooltipCalibrationProcessor(CalibrationProcessor):
             record_count += 1
         log.info("Offline Tooltip Calibration (%d records selected)" % (record_count,))
 
-        self.result_tooltip_offset = calibration.tipCalibrationPose(math.PoseList.fromList(self.data_tracker_poses))
+        result = calibration.tipCalibrationPose(math.PoseList.fromList(self.data_tracker_poses))
+        if self.use_tooltip_pose:
+            self.result_tooltip_offset = result
+        else:
+            self.result_tooltip_offset = math.Pose(math.Quaternion(), result.translation())
+
         # XXX calculate RMS Error here and report it.
         return self.result_tooltip_offset
 
