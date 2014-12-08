@@ -12,7 +12,7 @@ from ubitrack.core import util, measurement, math
 from utinteractiveconsole.extension import CustomEntryPoint
 
 from .dataset import DataSet
-from .recordsource import RecordSource, FieldInterpolator
+from .recordsource import RecordSource, StreamInterpolator
 from .streamfile import StreamFileSpec
 
 log = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ class DataSourceLoader(Atom):
                                 datatype=v['datatype'].strip().lower(),
                                 is_array=is_array,
                                 )
-            f = FieldInterpolator(filespec=fs,
+            f = StreamInterpolator(filespec=fs,
                                   is_reference=bool(k == reference_column),
                                   selector=v.get('selector', 'matching').strip().lower(),
                                   latency=float(v.get('latency', 0.0)))
@@ -100,7 +100,7 @@ class DataSourceLoader(Atom):
 
         return RecordSource(name=recordsource_sname,
                             title=title,
-                            fieldspec=fields)
+                            fields=fields)
 
     def load_dataset(self, config, dataset_sname):
         log.info("Load Dataset: %s" % dataset_sname)

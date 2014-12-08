@@ -6,14 +6,15 @@ import logging
 from math import degrees, acos
 import numpy as np
 from numpy.linalg import norm
-from collections import namedtuple
 
 log = logging.getLogger(__name__)
 
-from atom.api import Atom, Event, Bool, Str, Value, Typed, List, Float, Int, observe, Enum
+from atom.api import Atom, Bool, Str, Value, Typed, List, Dict, Float, Int, Enum
 from enaml.qt import QtCore
 from enaml.application import deferred_call
-from enaml.layout.api import InsertItem, FloatItem
+from enaml.widgets.api import FileDialogEx
+from enaml.stdlib.dialog_buttons import DialogButton
+from enaml.stdlib.message_box import MessageBox
 
 import enaml
 
@@ -23,15 +24,12 @@ with enaml.imports():
 from ubitrack.core import util, measurement, math
 
 from utinteractiveconsole.persistence.dataset import DataSet
-from utinteractiveconsole.persistence.recordsource import RecordSource, FieldInterpolator
+from utinteractiveconsole.persistence.recordschema import DataType
+from utinteractiveconsole.persistence.recordsource import RecordSource, StreamInterpolator
 from utinteractiveconsole.persistence.streamfile import StreamFileSpec
 
 from utinteractiveconsole.plugins.calibration.module import ModuleBase
 from utinteractiveconsole.plugins.calibration.controller import CalibrationController
-
-from utinteractiveconsole.playback import (loadData, DSC, interpolatePoseList,
-                                           interpolateVec3List, selectOnlyMatchingSamples,
-                                           selectNearestNeighbour)
 
 from utinteractiveconsole.plugins.calibration.algorithms.phantom_forward_kinematics import FWKinematicPhantom
 
@@ -44,7 +42,7 @@ from utinteractiveconsole.plugins.calibration.algorithms.offline_calibration2 im
     TooltipCalibrationProcessor, AbsoluteOrientationCalibrationProcessor,
     TooltipAbsolutePositionCalibrationProcessor, AbsoluteOrientationFWKBaseCalibrationProcessor,
     JointAngleCalibrationProcessor, ReferenceOrientationProcessor,
-    GimbalAngleCalibrationProcessor
+    GimbalAngleCalibrationProcessor, TimeDelayEstimationCalibrationProcessor
 )
 
 from utinteractiveconsole.plugins.calibration.algorithms.streamprocessors2 import (
@@ -145,6 +143,12 @@ class BackgroundCalculationThread(QtCore.QThread):
         self.processor.is_working = v
 
 
+class ProcesData(Atom):
+    dataset = Typed(DataSet)
+    attributes = Dict()
+    results = Dict()
+
+
 class OfflineCalibrationResults(Atom):
 
     has_result = Bool(False)
@@ -161,9 +165,13 @@ class OfflineCalibrationResults(Atom):
     jointangles_correction_result = Value(np.array(angle_null_correction))
     gimbalangles_correction_result = Value(np.array(angle_null_correction))
 
+    timedelay_estimation_result = Float(0.0)
+
     # results evaluation
     position_errors = List()
     orientation_errors = List()
+
+    process_data = Dict()
 
     def reset(self):
         self.has_result = False
@@ -179,8 +187,12 @@ class OfflineCalibrationResults(Atom):
         self.jointangles_correction_result = np.array(angle_null_correction)
         self.gimbalangles_correction_result = np.array(angle_null_correction)
 
+        self.timedelay_estimation_result = 0.0
+
         self.position_errors = []
         self.orientation_errors = []
+
+        self.process_data = {}
 
 
 class OfflineCalibrationParameters(Atom):
@@ -232,6 +244,10 @@ class OfflineCalibrationParameters(Atom):
     ga_minimal_angle_between_measurements = Float(0.1)
     ga_use_tooltip_offset = Bool(False)
 
+    # time-delay estimation
+    timedelay_estimation_enabled = Bool(False)
+    timedelay_estimation_datasource = Str()
+
     # haptic device
     joint_lengths = Value(np.array([0.13335, 0.13335]))
     origin_offset = Value(np.array([0.0, -0.11, -0.035]))
@@ -249,6 +265,8 @@ class OfflineCalibrationProcessor(Atom):
 
     parameters = Typed(OfflineCalibrationParameters)
     result = Typed(OfflineCalibrationResults)
+
+    datasources = Dict()
 
     # refinement vars
     ao_maxdistance_from_origin = Float(0.0)
@@ -285,6 +303,10 @@ class OfflineCalibrationProcessor(Atom):
         self.result.tooltip_calibration_result = tt_processor.run()
         log.info("Result for Tooltip Calibration: %s" % str(self.result.tooltip_calibration_result))
 
+        pd = self.result.process_data.setdefault('tooltip_calibration', [])
+        pd.append(ProcesData(dataset=ds,
+                             results=dict(tooltip_calibration=self.result.tooltip_calibration_result)))
+
         return True
 
     def do_fwkbase_position_calibration(self, tt_data):
@@ -301,6 +323,10 @@ class OfflineCalibrationProcessor(Atom):
 
         log.info("Result for FWKBase Position Calibration: %s" % str(self.result.fwkbase_position_calibration_result))
 
+        pd = self.result.process_data.setdefault('fwkbase_position', [])
+        pd.append(ProcesData(dataset=ds,
+                             results=dict(fwkbase_position=self.result.fwkbase_position_calibration_result)))
+
         return True
 
     def do_fwkbase_position2_calibration(self, tt_data):
@@ -316,6 +342,10 @@ class OfflineCalibrationProcessor(Atom):
         self.result.fwkbase_position2_calibration_result = tt_processor.run()
 
         log.info("Result for FWKBase Position2 Calibration: %s" % str(self.result.fwkbase_position2_calibration_result))
+
+        pd = self.result.process_data.setdefault('fwkbase_position2', [])
+        pd.append(ProcesData(dataset=ds,
+                             results=dict(fwkbase_position2=self.result.fwkbase_position2_calibration_result)))
 
         return True
 
@@ -373,6 +403,11 @@ class OfflineCalibrationProcessor(Atom):
 
         log.info("Result for Absolute Orientation: %s" % str(self.result.absolute_orientation_result))
 
+        pd = self.result.process_data.setdefault('absolute_orientation', [])
+        pd.append(ProcesData(dataset=ds,
+                             attributes=ao_processor_attributes,
+                             results=dict(absolute_orientation=self.result.absolute_orientation_result)))
+
         return True
 
     def do_jointangle_correction(self, ja_data):
@@ -399,15 +434,21 @@ class OfflineCalibrationProcessor(Atom):
                      stream_filters=[ja_selector1, ja_selector2],
                      )
 
+        ja_processor_attributes = dict(joint_lengths=self.parameters.joint_lengths,
+                                       origin_offset=self.parameters.origin_offset,)
         ja_processor = JointAngleCalibrationProcessor(dataset=ds,
-                                                      joint_lengths=self.parameters.joint_lengths,
-                                                      origin_offset=self.parameters.origin_offset,)
+                                                      **ja_processor_attributes)
 
         ja_processor.facade = self.facade
         self.result.jointangles_correction_result = ja_processor.run()
         ja_processor.facade = None
 
         log.info("Result for Joint-Angles Correction: %s" % str(self.result.jointangles_correction_result))
+
+        pd = self.result.process_data.setdefault('jointangles_correction', [])
+        pd.append(ProcesData(dataset=ds,
+                             attributes=ja_processor_attributes,
+                             results=dict(jointangles_correction=self.result.jointangles_correction_result)))
 
         return True
 
@@ -433,10 +474,11 @@ class OfflineCalibrationProcessor(Atom):
                      stream_filters=[ga_selector, ],
                      )
 
+        ga_processor_attributes = dict(data_joint_angle_correction=self.result.jointangles_correction_result,
+                                       joint_lengths=par.joint_lengths,
+                                       origin_offset=par.origin_offset,)
         ga_processor = GimbalAngleCalibrationProcessor(dataset=ds,
-                                                       data_joint_angle_correction=self.result.jointangles_correction_result,
-                                                       joint_lengths=par.joint_lengths,
-                                                       origin_offset=par.origin_offset,)
+                                                       **ga_processor_attributes)
 
         ga_processor.facade = self.facade
         gimbalangle_correction = ga_processor.run()
@@ -450,6 +492,11 @@ class OfflineCalibrationProcessor(Atom):
 
         ga_processor.facade = None
         log.info("Result for Gimbal-Angles Correction: %s" % str(self.result.gimbalangles_correction_result))
+
+        pd = self.result.process_data.setdefault('gimbalangles_correction', [])
+        pd.append(ProcesData(dataset=ds,
+                             attributes=ga_processor_attributes,
+                             results=dict(gimbalangles_correction=self.result.gimbalangles_correction_result)))
 
         return True
 
@@ -485,6 +532,50 @@ class OfflineCalibrationProcessor(Atom):
         ro_processor.facade = None
         log.info("Result for ReferenceOrientation: %s" % str(self.result.zaxis_reference_result))
         log.info("Result for Theta6-Correction: %s" % str(self.result.theta6_correction_result))
+
+        pd = self.result.process_data.setdefault('reference_orientation', [])
+        pd.append(ProcesData(dataset=ds,
+                             results=dict(zaxis_reference=self.result.zaxis_reference_result,
+                                          zaxis_points=self.result.zaxis_points_result,
+                                          theta6_correction=self.result.theta6_correction_result)))
+
+        return True
+
+    def do_timedelay_estimation(self, ja_data):
+        if ja_data is None:
+            log.warn("No data for time-delay estimation.")
+            return False
+
+        log.info("Time-Delay Estimation")
+
+        fwk = self.get_fwk(self.result.jointangles_correction_result, angle_null_correction)
+        ja_streamproc_attributes = dict(tooltip_offset=self.result.tooltip_calibration_result,
+                                        absolute_orientation=self.result.absolute_orientation_result,
+                                        forward_kinematics=fwk)
+
+        # XXX eventually filter time-slice with sufficient movement
+
+        ds = DataSet(name="timedelay_estimation_calibration_data",
+                     title="Time-Delay Estimation Calibration DataSet",
+                     recordsource=ja_data,
+                     processor_factory=JointAngleCalibrationStreamProcessor,
+                     attributes=ja_streamproc_attributes,
+                     )
+
+        tde_processor_attributes = dict()
+        tde_processor = TimeDelayEstimationCalibrationProcessor(dataset=ds,
+                                                                **tde_processor_attributes)
+
+        tde_processor.facade = self.facade
+        self.result.timedelay_estimation_result = tde_processor.run()
+        tde_processor.facade = None
+
+        log.info("Result for Time-Delay Estimation: %s" % str(self.result.timedelay_estimation_result))
+
+        pd = self.result.process_data.setdefault('timedelay_estimation', [])
+        pd.append(ProcesData(dataset=ds,
+                             attributes=tde_processor_attributes,
+                             results=dict(timedelay_estimation=self.result.timedelay_estimation_result)))
 
         return True
 
@@ -548,8 +639,7 @@ class OfflineCalibrationProcessor(Atom):
 
 
         log.info("Loading recorded streams for Offline Calibration")
-        datasources = self.load_datasources()
-
+        datasources = self.datasources
 
         if self.parameters.tooltip_enabled:
             # 1st step: Tooltip Calibration (uses step01 data)
@@ -584,6 +674,10 @@ class OfflineCalibrationProcessor(Atom):
         self.result.position_errors.append(self.compute_position_errors(datasources.get(self.parameters.joint_angle_calibration_datasource, None)))
 
         last_error = np.array([0.,])
+
+        # initial time-delay estimation
+        if self.parameters.timedelay_estimation_enabled:
+            self.do_timedelay_estimation(datasources.get(self.parameters.timedelay_estimation_datasource, None))
 
         # 3nd step: initial jointangle correction
         if self.parameters.joint_angle_calibration_enabled:
@@ -633,7 +727,6 @@ class OfflineCalibrationProcessor(Atom):
             self.result.zaxis_reference_result = reference_orientation_null_calibration
             self.result.zaxis_points_result = []
 
-
         self.result.orientation_errors.append(self.compute_orientation_errors(datasources.get(self.parameters.gimbal_angle_calibration_datasource, None)))
 
         # 5th step: gimbalangle correction
@@ -647,6 +740,10 @@ class OfflineCalibrationProcessor(Atom):
             self.result.gimbalangles_correction_result = angle_null_correction
 
         # do iterative refinement for orientation as well ?
+
+        # final time-delay estimation
+        if self.parameters.timedelay_estimation_enabled:
+            self.do_timedelay_estimation(datasources.get(self.parameters.timedelay_estimation_datasource, None))
 
         # finally store or send the results
         ts = measurement.now()
@@ -702,7 +799,7 @@ class OfflineCalibrationProcessor(Atom):
                                 datatype=datatype.lower(),
                                 is_array=is_array,
                                 )
-            f = FieldInterpolator(filespec=fs,
+            f = StreamInterpolator(filespec=fs,
                                   is_reference=bool(k == reference_column),
                                   selector=selector.lower(),
                                   latency=0.0)
@@ -710,10 +807,9 @@ class OfflineCalibrationProcessor(Atom):
 
         return RecordSource(name=datasource_sname,
                             title=datasource_sname,
-                            fieldspec=fields)
+                            fields=fields)
 
-
-    def load_datasources(self):
+    def _default_datasources(self):
         all_datasources = set()
         if self.parameters.tooltip_enabled:
             all_datasources.add(self.parameters.tooltip_datasource)
@@ -729,6 +825,8 @@ class OfflineCalibrationProcessor(Atom):
             all_datasources.add(self.parameters.reference_orientation_datasource)
         if self.parameters.gimbal_angle_calibration_enabled:
             all_datasources.add(self.parameters.gimbal_angle_calibration_datasource)
+        if self.parameters.timedelay_estimation_enabled:
+            all_datasources.add(self.parameters.timedelay_estimation_datasource)
 
         config = self.context.get("config")
         result = {}
@@ -746,6 +844,78 @@ class OfflineCalibrationProcessor(Atom):
                                   gimbalangle_calib,
                                   self.parameters.origin_offset,
                                   disable_theta6=disable_theta6)
+
+    def export_data(self, filename, metadata=None):
+        import pandas as pd
+        from utinteractiveconsole.persistence.pandas_converters import store_data, guess_type
+
+
+        log.info("Open HDF5Store for writing: %s" % filename)
+        store = pd.HDFStore(filename, mode='w')
+        root = store.root
+
+        # store metadata
+        if metadata is not None:
+            root._v_attrs.utic_metadata = metadata
+
+        # store parameters
+        log.info("Store calibration parameters.")
+        parameters = dict([(k, getattr(self.parameters, k)) for k in self.parameters.members()])
+        root._v_attrs.utic_parameters = parameters
+
+        # store results
+        log.info("Store calibration results.")
+        store_data(store, '/results/theta6_correction', self.result.theta6_correction_result, datatype=DataType.position3d)
+        store_data(store, '/results/zaxis_reference', self.result.zaxis_reference_result, datatype=DataType.position3d)
+        if self.result.zaxis_points_result:
+            store_data(store, '/results/zaxis_points', self.result.zaxis_points_result, datatype=DataType.position3d, is_array=True)
+
+        store_data(store, '/results/tooltip_calibration', self.result.tooltip_calibration_result, datatype=DataType.pose)
+        store_data(store, '/results/fwkbase_position', self.result.fwkbase_position_calibration_result, datatype=DataType.position3d)
+        store_data(store, '/results/fwkbase_position2', self.result.fwkbase_position2_calibration_result, datatype=DataType.position3d)
+
+        store_data(store, '/results/absolute_orientation', self.result.absolute_orientation_result, datatype=DataType.pose)
+        store_data(store, '/results/jointangles_correction', self.result.jointangles_correction_result, datatype=DataType.mat33)
+        store_data(store, '/results/gimbalangles_correction', self.result.gimbalangles_correction_result, datatype=DataType.mat33)
+
+        # store computed errors
+        log.info("Store computed errors.")
+        for i, poserr in enumerate(self.result.position_errors):
+            store_data(store, '/evaluation/position_errors/I%02d' % i, pd.Series(poserr))
+
+        for i, ornerr in enumerate(self.result.orientation_errors):
+            store_data(store, '/evaluation/orientation_errors/I%02d' % i, pd.Series(ornerr))
+
+        log.info("Store all process data.")
+        for processor_name, process_data_items in self.result.process_data.items():
+            for i, process_data in enumerate(process_data_items):
+                base_path = '/process_data/%s/I%02d' % (processor_name, i)
+                log.info("Store process data for %s iteration %d" % (processor_name, i))
+
+                # Store intermediate results
+                for key, value in process_data.results.items():
+                    try:
+                        datatype = guess_type(value)
+                    except TypeError:
+                        # XXX maybe log here
+                        continue
+                    store_data(store, '%s/results/%s' % (base_path, key), value, datatype=datatype)
+
+                # Store attributes
+                for key, value in process_data.attributes.items():
+                    try:
+                        datatype = guess_type(value)
+                    except TypeError:
+                        # XXX maybe log here
+                        continue
+                    store_data(store, '%s/attributes/%s' % (base_path, key), value, datatype=datatype)
+
+                process_data.dataset.export_data(store, '%s/dataset' % base_path)
+
+
+        log.info("Close HDF5Store.")
+        store.close()
+
 
 
 class OfflineCalibrationController(CalibrationController):
@@ -833,7 +1003,6 @@ class OfflineCalibrationController(CalibrationController):
                 elif ao_method == "fwkbase":
                     self.parameters.ao_negate_upvector = gbl_cfg.getboolean(parameters_sname, "ao_negate_upvector")
 
-
             self.parameters.joint_angle_calibration_enabled = gbl_cfg.getboolean(parameters_sname, "joint_angle_calibration_enabled")
             if self.parameters.joint_angle_calibration_enabled:
                 log.info("Joint-Angle Calibration Enabled")
@@ -856,6 +1025,12 @@ class OfflineCalibrationController(CalibrationController):
                 self.parameters.gimbal_angle_calibration_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "gimbal_angle_calibration_datasource")
                 self.parameters.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
                 self.parameters.ga_use_tooltip_offset = gbl_cfg.getboolean(parameters_sname, "ga_use_tooltip_offset")
+
+            if gbl_cfg.has_option(parameters_sname, "timedelay_estimation_enabled"):
+                self.parameters.timedelay_estimation_enabled = gbl_cfg.getboolean(parameters_sname, "timedelay_estimation_enabled")
+                if self.parameters.timedelay_estimation_enabled:
+                    log.info("Time-Delay Estimation Enabled")
+                    self.parameters.timedelay_estimation_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "timedelay_estimation_datasource")
 
         else:
             log.warn("No parameters found for offline calibration - using defaults. Define parameters in section: %s" % parameters_sname)
@@ -887,30 +1062,31 @@ class OfflineCalibrationController(CalibrationController):
         if change is not None:
             deferred_call(setattr, self, change['name'], change['value'])
 
-
     def do_visualize_results(self):
         # create figures
         from matplotlib.figure import Figure
 
         result = self.processor.result
+        state = self.wizard_state
 
         poserr = Figure()
         ax1 = poserr.add_subplot(111)
         ax1.boxplot(result.position_errors)
         ax1.set_title("Position Errors")
+        ax1.set_ylim(0, max(*[max(e) for e in result.position_errors]))
 
         ornerr = Figure()
         ax2 = ornerr.add_subplot(111)
         ax2.boxplot(result.orientation_errors)
         ax2.set_title("Orientation Errors")
+        ax2.set_ylim(0, max(*[max(e) for e in result.orientation_errors]))
 
         # create results panel
-        panel = OfflineCalibrationResultPanel(name="utic.ismar14.offline_calibration_result.%s" % time.time(),
+        panel = OfflineCalibrationResultPanel(name="utic.%s.visualize_result.%s" % (state.current_task, time.time()),
+                                              title="Offline Calibration Results: %s" % state.current_task,
                                               boxplot_position_errors=poserr,
                                               boxplot_orientation_errors=ornerr,
                                               )
-
-
         # add to layout
         wizard_controller = self.wizard_state.controller
         parent = wizard_controller.wizview.parent
@@ -918,6 +1094,25 @@ class OfflineCalibrationController(CalibrationController):
         # op = FloatItem(item=panel.name,)
         # parent.update_layout(op)
         panel.show()
+
+    def do_export_data(self):
+        filename = FileDialogEx.get_save_file_name()
+        if filename:
+            # collect some metadata in order to describe the data in the file
+            metadata = {}
+            state = self.wizard_state
+            metadata['current_task'] = state.current_task
+            metadata['domain_name'] = state.calibration_domain_name
+            metadata['setup_name'] = state.calibration_setup_name
+            metadata['user_name'] = state.calibration_user_name
+            metadata['platform_name'] = state.calibration_platform_name
+            metadata['comments'] = state.calibration_comments
+            metadata['datetime'] = state.calibration_datetime
+            metadata['module_namespace'] = state.controller.module_manager.modules_ns
+            metadata['config_namespace'] = state.controller.module_manager.config_ns
+
+            self.bgThread.processor.export_data(filename, metadata=metadata)
+
 
 
 class OfflineCalibrationModule(ModuleBase):

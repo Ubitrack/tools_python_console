@@ -12,6 +12,7 @@ from numpy.linalg import norm
 log = logging.getLogger(__name__)
 
 from utinteractiveconsole.persistence.recordsource import RecordSource
+from utinteractiveconsole.persistence.recordschema import RequiredField, Field, RecordSchema
 
 class BaseStreamProcessor(Atom):
 
@@ -19,10 +20,12 @@ class BaseStreamProcessor(Atom):
     # data and setup
     recordsource = Typed(RecordSource)
 
+    schema = Typed(RecordSchema)
+
     # static attributes, set by subclasses
     required_fields = None
+    additional_fields = None
     required_attributes = None
-    additional_attributes = None
 
 
     @property
@@ -32,30 +35,35 @@ class BaseStreamProcessor(Atom):
     @property
     def output_fieldnames(self):
         fieldnames = self.input_fieldnames
-        if self.additional_attributes is not None:
-            fieldnames += self.additional_attributes
+        if self.additional_fields is not None:
+            for field in self.additional_fields:
+                fieldnames.append(field.name)
         return fieldnames
+
+    def _default_schema(self):
+        return RecordSchema(fields=self.recordsource.schema.fields + (self.additional_fields or []))
 
     def make_record_class(self):
         rcls = self.recordsource.record_class
-        if not self.additional_attributes:
+        if not self.additional_fields:
             return rcls
         attrs = {}
-        for key in self.additional_attributes:
-            if key in attrs:
-                log.warn("Duplicate field: %s defined for recordsource: %s" % (key, self.name))
-            attrs[key] = Value()
+        for field in self.additional_fields:
+            if field.name in attrs:
+                log.warn("Duplicate field: %s defined for recordsource: %s" % (field.name, self.name))
+            # XXX could use Coerced with datatype here ...
+            attrs[field.name] = Value()
         return new.classobj('%s_%s' % (rcls.__name__, self.name), (rcls,), attrs)
-
 
     def check_input(self):
         input_ok = True
         if self.required_fields is not None:
+            # XXX could use schema here to do datatype checking
             fieldnames = self.input_fieldnames
             # check for required fields
-            for name in self.required_fields:
-                if name not in fieldnames:
-                    log.warn("Required field: %s not in input_stream" % name)
+            for field in self.required_fields:
+                if field.name not in fieldnames:
+                    log.warn("Required field: %s not in input_stream" % field.name)
                     input_ok = False
 
         if self.required_attributes is not None:
@@ -74,8 +82,9 @@ class NullStreamProcessor(BaseStreamProcessor):
 
     name = "Null"
     required_fields = []
+    additional_fields = []
+
     required_attributes = []
-    additional_attributes = []
 
     def __iter__(self):
         rcls = self.make_record_class()
@@ -91,17 +100,22 @@ class NullStreamProcessor(BaseStreamProcessor):
 class TooltipStreamProcessor(NullStreamProcessor):
 
     name = "Tooltip"
-    required_fields = ['externaltracker_pose',]
+    required_fields = [RequiredField(name='externaltracker_pose', datatype='pose'),]
+    additional_fields = []
+
     required_attributes = []
-    additional_attributes = []
 
 
 class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
 
     name = "AbsoluteOrientation"
-    required_fields = ['externaltracker_pose', 'jointangles', 'gimbalangles']
+    required_fields = [RequiredField(name='externaltracker_pose', datatype='pose'),
+                       RequiredField(name='jointangles', datatype='position3d'),
+                       RequiredField(name='gimbalangles', datatype='position3d')]
+    additional_fields = [Field(name='haptic_pose', datatype='pose', is_computed=True),
+                         Field(name='externaltracker_hip_position', datatype='position3d', is_computed=True)]
+
     required_attributes = ['tooltip_offset', 'forward_kinematics']
-    additional_attributes = ['haptic_pose', 'externaltracker_hip_position']
 
     tooltip_offset = Value()
     forward_kinematics = Value()
@@ -126,14 +140,17 @@ class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
 class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
     name = "JointAngleCalibration"
-    required_fields = ['externaltracker_pose', 'jointangles', 'gimbalangles']
+    required_fields = [RequiredField(name='externaltracker_pose', datatype='pose'),
+                       RequiredField(name='jointangles', datatype='position3d'),
+                       RequiredField(name='gimbalangles', datatype='position3d')]
+    additional_fields = [Field(name='haptic_pose', datatype='pose', is_computed=True),
+                         Field(name='hip_reference_pose', datatype='pose', is_computed=True)]
+
     required_attributes = ['tooltip_offset', 'absolute_orientation', 'forward_kinematics']
-    additional_attributes = ['haptic_pose', 'hip_reference_pose']
 
-
-    tooltip_offset       = Value()
+    tooltip_offset = Value()
     absolute_orientation = Value()
-    forward_kinematics   = Value()
+    forward_kinematics = Value()
 
     def __iter__(self):
 
@@ -156,15 +173,18 @@ class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
 class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
     name = "GimbalAngleCalibration"
-    required_fields = ['externaltracker_pose', 'jointangles', 'gimbalangles']
+    required_fields = [RequiredField(name='externaltracker_pose', datatype='pose'),
+                       RequiredField(name='jointangles', datatype='position3d'),
+                       RequiredField(name='gimbalangles', datatype='position3d')]
+    additional_fields = [Field(name='haptic_pose', datatype='pose', is_computed=True),
+                         Field(name='zrefaxis', datatype='position3d', is_computed=True)]
+
     required_attributes = ['tooltip_offset', 'zrefaxis_calib', 'absolute_orientation', 'forward_kinematics']
-    additional_attributes = ['haptic_pose', 'zrefaxis']
 
-
-    tooltip_offset       = Value()
+    tooltip_offset  = Value()
     absolute_orientation = Value()
-    zrefaxis_calib       = Value()
-    forward_kinematics   = Value()
+    zrefaxis_calib = Value()
+    forward_kinematics = Value()
 
     def __iter__(self):
 
@@ -195,15 +215,23 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
 
     name = "ReferenceOrientation"
-    required_fields = ['externaltracker_pose', 'externaltracker_markers', 'jointangles', 'gimbalangles']
+    required_fields = [RequiredField(name='externaltracker_pose', datatype='pose'),
+                       RequiredField(name='jointangles', datatype='position3d'),
+                       RequiredField(name='gimbalangles', datatype='position3d'),
+                       RequiredField(name='externaltracker_markers', datatype='position3d', is_array=True)]
+
+    additional_fields = [Field(name='haptic_pose', datatype='pose', is_computed=True),
+                         Field(name='mean_marker_error', datatype='distance', is_computed=True),
+                         Field(name='target_position', datatype='position3d', is_computed=True),
+                         Field(name='target_markers', datatype='position3d', is_array=True, is_computed=True),
+                         Field(name='device_to_stylus_5dof', datatype='pose', is_computed=True),
+                         Field(name='hiptarget_pose', datatype='pose', is_computed=True)]
+
     required_attributes = ['tooltip_offset', 'absolute_orientation', 'forward_kinematics', 'forward_kinematics_5dof']
-    additional_attributes = ['haptic_pose', 'mean_marker_error', 'target_position',
-                             'target_markers', 'device_to_stylus_5dof', 'hiptarget_pose']
 
-
-    tooltip_offset       = Value()
+    tooltip_offset = Value()
     absolute_orientation = Value()
-    forward_kinematics   = Value()
+    forward_kinematics = Value()
     forward_kinematics_5dof = Value()
 
     use_markers = Bool(True)

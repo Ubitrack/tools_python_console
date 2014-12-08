@@ -34,6 +34,8 @@ setup(name = "utinteractiveconsole",
         'numpy',
         'scipy',
         'pyyaml',
+        'pandas',
+        'matplotlib',
       ),
       zip_safe=False,
       long_description = """\

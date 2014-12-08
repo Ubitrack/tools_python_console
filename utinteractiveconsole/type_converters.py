@@ -11,3 +11,4 @@ def position3d_to_pose(pos):
 def vector_from_config(root_directory, context, value=None):
     if value is not None:
         return np.fromstring(value, sep=',')
+

@@ -580,7 +580,7 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
                     theta6_data = dict(points=target_markers[:, i, :], radius=m_center_info[2][2], residual=m_center_info[2][3],
                                        xc=m_circle_center[0], yc=m_circle_center[1])
 
-        zaxis = self.find_zaxis(zaxis_points)
+        # zaxis = self.find_zaxis(zaxis_points)
 
         # project zaxis back into OTtarget coordinates
         corrected_zaxis_points_ot = []
@@ -588,7 +588,7 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         for record in data:
             hiptarget_pose_inv = record.hiptarget_pose.invert()
             # un-project markers using the corrected stylus pose (5dof)
-            #corrected_zaxis_ot.append(hiptarget_pose_inv * (record.device_to_stylus_5dof * zaxis))
+            # corrected_zaxis_ot.append(hiptarget_pose_inv * (record.device_to_stylus_5dof * zaxis))
 
             # un-project the found centers for debugging
             otp = []
@@ -605,8 +605,49 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         zref = np.asarray(self.find_zaxis(corrected_zaxis_points_ot_mean))
         zref = zref / np.linalg.norm(zref)
 
-
         # compute corrections for theta6 here since data is all available
         theta6_correction = self.compute_theta6_correction(theta6_data, theta6_angles)
 
         return zref, corrected_zaxis_points_ot_mean, theta6_correction
+
+
+class TimeDelayEstimationCalibrationProcessor(CalibrationProcessor):
+
+    # data extracted from stream
+    data_tracker_hip_distance_to_origin = List()
+    data_haptic_device_distance_to_origin = List()
+
+    def run(self):
+        interval = self.dataset.interval
+
+        len_dataset = 0
+        start_time = 0.
+        for record in self.dataset:
+            self.data_tracker_hip_distance_to_origin.append(norm(record.hip_reference_pose.translation()))
+            self.data_haptic_device_distance_to_origin.append(norm(record.haptic_pose.translation()))
+            if len_dataset == 0:
+                start_time = record.timestamp
+            len_dataset += 1
+
+        stop_time = record.timestamp
+        nr_samples = int(len_dataset * interval)
+
+        x = np.linspace(0, len_dataset, num=len_dataset)
+
+        et_distance_interpolator = interpolate.interp1d(x, np.asarray(self.data_tracker_hip_distance_to_origin))
+        hd_distance_interpolator = interpolate.interp1d(x, np.asarray(self.data_haptic_device_distance_to_origin))
+
+        xs = np.linspace(0, len_dataset, num=nr_samples)
+
+        a, b, N = 0., float(stop_time-start_time), nr_samples
+        dt = np.arange(1-N, N)
+
+        log.info("Correlating dataset for timedelay estimation")
+        cross_correlation = correlate(et_distance_interpolator(xs),
+                                      hd_distance_interpolator(xs))
+        shift_calculated = (dt[cross_correlation.argmax()] * 1.0 * b / float(N)) / interval
+
+        log.info("Timedelay between external_tracker and haptic device: %f, interval: %f" % (shift_calculated, interval))
+
+        return shift_calculated
+

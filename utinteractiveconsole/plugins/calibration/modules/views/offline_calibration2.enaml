@@ -62,7 +62,7 @@ enamldef OfflineCalibrationPanel(WizardPanel):
 
     constraints = [
         vbox(hbox(forms_ct, results_ct),
-             hbox( spacer, do_reset_parameters, do_offline_calibration, do_visualize_results),
+             hbox( spacer, do_reset_parameters, do_offline_calibration, do_visualize_results, do_export_data),
         ),
     ]
 
@@ -217,6 +217,13 @@ enamldef OfflineCalibrationPanel(WizardPanel):
         clicked ::
             module_controller.do_visualize_results()
 
+    PushButton: do_export_data:
+        name = "btn_export_data"
+        text = "Export Data"
+        enabled << module_controller.has_result
+        clicked ::
+            module_controller.do_export_data()
+
 
 enamldef OfflineCalibrationResultPanel(MainWindow): wizard:
     title = "Offline Calibration Results"
@@ -227,8 +234,9 @@ enamldef OfflineCalibrationResultPanel(MainWindow): wizard:
         constraints = [
                 hbox(pos_errors, orn_errors)
             ]
-
         MPLCanvas: pos_errors:
+            toolbar_visible = True
             figure = boxplot_position_errors
         MPLCanvas: orn_errors:
+            toolbar_visible = True
             figure = boxplot_orientation_errors

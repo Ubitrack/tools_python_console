@@ -26,6 +26,8 @@ class DataSet(Atom):
 
     connector_class = Value()
 
+    cached_records = List()
+
     @property
     def output_fieldnames(self):
         return self.recordsource.output_fieldnames
@@ -69,8 +71,17 @@ class DataSet(Atom):
         attrs['__call__'] = update_data
         return new.classobj("DataConnector_%s_%s" % (self.name, self.processor.name), (Atom,), attrs)
 
+    def clear_cache(self, clear_recordsource=True):
+        if clear_recordsource:
+            self.recordsource.clear_cache()
+        self.cached_records = []
+
     def __iter__(self):
-        
+        if len(self.cached_records) > 0:
+            for cached_record in self.cached_records:
+                yield cached_record
+            return
+
         if self.processor is None:
             raise StopIteration()
 
@@ -80,4 +91,41 @@ class DataSet(Atom):
             producer = sfilter.process(producer)
 
         for record in producer:
+            self.cached_records.append(record)
             yield record
+
+    def export_data(self, store, base_path):
+        import pandas as pd
+        from utinteractiveconsole.persistence.pandas_converters import store_data, guess_type
+
+        store.put('%s/schema' % base_path, self.processor.schema.as_dataframe())
+
+        # Store attributes
+        for key, value in self.attributes.items():
+            try:
+                datatype = guess_type(value)
+            except TypeError:
+                # XXX maybe log here
+                continue
+            store_data(store, '%s/attributes/%s' % (base_path, key), value, datatype=datatype)
+
+        fieldnames = [f.name for f in self.processor.schema.fields]
+        data = dict([(k, []) for k in fieldnames])
+        timestamps = []
+        for record in self.cached_records:
+            timestamps.append(record.timestamp)
+            for fn in fieldnames:
+                data[fn].append(getattr(record, fn))
+
+        store_data(store, '%s/timestamps' % (base_path, ), pd.Series(timestamps))
+        for field in self.processor.schema.fields:
+            try:
+                element_count = 1
+                if field.is_array and len(data[field.name]) > 0:
+                    element_count = len(data[field.name][0])
+
+                store_data(store, '%s/fields/%s' % (base_path, field.name), data[field.name],
+                           datatype=field.datatype, is_array=True, element_count=element_count)
+            except Exception, e:
+                log.error("Error storing field %s from dataset %s" % (field.name, self.name))
+                log.exception(e)

@@ -12,7 +12,8 @@ log = logging.getLogger(__name__)
 class BaseStreamFilter(object):
 
     def process(self, stream):
-        return stream
+        for record in stream:
+            yield record
 
 
 

@@ -11,6 +11,7 @@ enamldef TrackerHandEyeCalibrationPanel(WizardPanel): tc_panel:
 
     constraints = [
         vbox( hbox(content, results_txt),
+              spacer,
               hbox(spacer, capture_pose_he,
               )
         ),

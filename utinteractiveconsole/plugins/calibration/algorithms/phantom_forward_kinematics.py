@@ -228,8 +228,6 @@ class FWKinematicPhantom2(object):
         return math.Pose(math.Quaternion.fromMatrix(rot).normalize(), trans)
 
 
-
-
 def from_config(root_directory, context,
                 gimbalangle_correction=None, origin_offset=None,
                 jointangle_correction=None, joint_length=None, disable_theta6=None,
