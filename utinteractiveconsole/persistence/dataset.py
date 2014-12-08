@@ -112,7 +112,9 @@ class DataSet(Atom):
         fieldnames = [f.name for f in self.processor.schema.fields]
         data = dict([(k, []) for k in fieldnames])
         timestamps = []
-        for record in self.cached_records:
+
+        records = self.cached_records if len(self.cached_records) > 0 else list(self)
+        for record in records:
             timestamps.append(record.timestamp)
             for fn in fieldnames:
                 data[fn].append(getattr(record, fn))

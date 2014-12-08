@@ -147,3 +147,30 @@ class RecordSource(Atom):
             self.cached_records.append(record)
             yield record
 
+    def export_data(self, store, base_path):
+        import pandas as pd
+        from utinteractiveconsole.persistence.pandas_converters import store_data
+
+        store.put('%s/schema' % base_path, self.schema.as_dataframe())
+
+        fieldnames = [f.name for f in self.schema.fields]
+        data = dict([(k, []) for k in fieldnames])
+        timestamps = []
+        records = self.cached_records if len(self.cached_records) > 0 else list(self)
+        for record in records:
+            timestamps.append(record.timestamp)
+            for fn in fieldnames:
+                data[fn].append(getattr(record, fn))
+
+        store_data(store, '%s/timestamps' % (base_path, ), pd.Series(timestamps))
+        for field in self.schema.fields:
+            try:
+                element_count = 1
+                if field.is_array and len(data[field.name]) > 0:
+                    element_count = len(data[field.name][0])
+
+                store_data(store, '%s/fields/%s' % (base_path, field.name), data[field.name],
+                           datatype=field.datatype, is_array=True, element_count=element_count)
+            except Exception, e:
+                log.error("Error storing field %s from recordsource %s" % (field.name, self.name))
+                log.exception(e)
