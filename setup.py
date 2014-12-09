@@ -93,6 +93,7 @@ This module controls my garden""",
             ],
             'vharcalibration.ismar14.module': [
                 'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
+                'tooltip_calibration = utinteractiveconsole.plugins.calibration.modules.tooltip_calibration:TooltipCalibrationModule',
                 'offline_datacollection = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
                 'offline_calibration = utinteractiveconsole.plugins.calibration.modules.offline_calibration2:OfflineCalibrationModule',
                 'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',

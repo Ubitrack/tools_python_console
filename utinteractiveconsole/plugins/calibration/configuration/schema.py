@@ -291,13 +291,14 @@ def from_ini_file(ini_cfg, global_config=None):
         for section_name in [sn for sn in ini_sections if sn.startswith(datasource_config_prefix)]:
             stream_files = []
             for k, v in [i for i in ini_cfg.items(section_name) if i[0].startswith('item.')]:
+                fname = k.replace('item.', '')
                 sfarray = False
                 sfname, sfdt, sfsel = [e.strip() for e in v.split(',')]
                 if sfdt.endswith('-list'):
                     sfarray = True
                     sfdt = sfdt.replace('-list', '')
                 sf = CalibrationWizardStreamFile(
-                    fieldname=k,
+                    fieldname=fname,
                     filename=sfname,
                     datatype=sfdt,
                     is_array=sfarray,

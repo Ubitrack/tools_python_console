@@ -72,6 +72,10 @@ class TooltipCalibrationProcessor(CalibrationProcessor):
             record_count += 1
         log.info("Offline Tooltip Calibration (%d records selected)" % (record_count,))
 
+        if record_count < 5:
+            log.error("Insufficient poses for tooltip calibration")
+            return None
+
         result = calibration.tipCalibrationPose(math.PoseList.fromList(self.data_tracker_poses))
         if self.use_tooltip_pose:
             self.result_tooltip_offset = result
@@ -1373,6 +1377,7 @@ class OfflineCalibrationProcessor(Atom):
         self.facade.stopDataflow()
         self.facade.clearDataflow()
 
+    # XXX Needs refactoring !!!
     def load_datasource(self, config, datasource_sname):
         log.info("Load Datasource: %s" % datasource_sname)
         ds_cfg = dict(config.items(datasource_sname))
@@ -1405,6 +1410,7 @@ class OfflineCalibrationProcessor(Atom):
                             title=datasource_sname,
                             fields=fields)
 
+    # XXX Needs refactoring !!!
     def _default_datasources(self):
         all_datasources = set()
         if self.parameters.tooltip_enabled:
