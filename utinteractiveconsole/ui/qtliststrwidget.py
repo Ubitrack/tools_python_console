@@ -113,6 +113,15 @@ class QtListStrWidget(RawWidget):
             for idx in reversed(xrange(nitems, count)):
                 widget.removeItem(idx)
 
+    def get_selected_items(self):
+        widget = self.get_widget()
+        items = []
+        for idx, item in enumerate(self.items):
+            itemWidget = widget.item(idx)
+            if itemWidget.checkState() == Qt.Checked:
+                items.append(item)
+        return items
+
     #--------------------------------------------------------------------------
     # Observers
     #--------------------------------------------------------------------------
@@ -124,7 +133,7 @@ class QtListStrWidget(RawWidget):
         """
         # The superclass handler implementation is sufficient.
         name = change['name']
-        if self.get_widget():
+        if self.get_widget() is not None:
             if name == 'items':
                 self.set_items(self.items)       
 

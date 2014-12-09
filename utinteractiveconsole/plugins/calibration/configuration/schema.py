@@ -31,6 +31,7 @@ class CalibrationWizards(Plugin):
 
 class CalibrationWizard(Atom):
     name = Str()
+    title = Str()
 
     # deprecated
     modules_namespace = Str()
@@ -206,7 +207,7 @@ def from_ini_file(ini_cfg, global_config=None):
 
             module_parameters_ns = '%s.parameters.%s' % (config_ns, module_name)
             if ini_cfg.has_section(module_parameters_ns):
-                if module_name.startswith('offline_calibration.'):
+                if module_name.startswith('offline_calibration'):
                     module_parameters = OfflineCalibrationParameters()
                     if ini_cfg.has_option(module_parameters_ns, 'tooltip_enabled'):
                         module_parameters.tooltip_enabled = ini_cfg.getboolean(module_parameters_ns, 'tooltip_enabled')
@@ -231,6 +232,19 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.absolute_orientation_enabled = ini_cfg.getboolean(module_parameters_ns, 'absolute_orientation_enabled')
                     if ini_cfg.has_option(module_parameters_ns, 'absolute_orientation_datasource'):
                         module_parameters.absolute_orientation_datasource = ini_cfg.get(module_parameters_ns, 'absolute_orientation_datasource')
+                    if ini_cfg.has_option(module_parameters_ns, 'ao_inital_maxdistance_from_origin'):
+                        module_parameters.ao_inital_maxdistance_from_origin = ini_cfg.getfloat(module_parameters_ns, 'ao_inital_maxdistance_from_origin')
+                    if ini_cfg.has_option(module_parameters_ns, 'ao_minimal_distance_between_measurements'):
+                        module_parameters.ao_minimal_distance_between_measurements = ini_cfg.getfloat(module_parameters_ns, 'ao_minimal_distance_between_measurements')
+                    if ini_cfg.has_option(module_parameters_ns, 'ao_refinement_expand_coverage'):
+                        module_parameters.ao_refinement_expand_coverage = ini_cfg.getfloat(module_parameters_ns, 'ao_refinement_expand_coverage')
+                    if ini_cfg.has_option(module_parameters_ns, 'ao_refinement_shrink_distance'):
+                        module_parameters.ao_refinement_shrink_distance = ini_cfg.getfloat(module_parameters_ns, 'ao_refinement_shrink_distance')
+
+                    if ini_cfg.has_option(module_parameters_ns, 'joint_angle_calibration_enabled'):
+                        module_parameters.joint_angle_calibration_enabled = ini_cfg.getboolean(module_parameters_ns, 'joint_angle_calibration_enabled')
+                    if ini_cfg.has_option(module_parameters_ns, 'joint_angle_calibration_datasource'):
+                        module_parameters.joint_angle_calibration_datasource = ini_cfg.get(module_parameters_ns, 'joint_angle_calibration_datasource')
                     if ini_cfg.has_option(module_parameters_ns, 'ja_minimal_distance_between_measurements'):
                         module_parameters.ja_minimal_distance_between_measurements = ini_cfg.getfloat(module_parameters_ns, 'ja_minimal_distance_between_measurements')
                     if ini_cfg.has_option(module_parameters_ns, 'ja_maximum_distance_to_reference'):
@@ -306,7 +320,8 @@ def from_ini_file(ini_cfg, global_config=None):
                 init_files[k] = v
 
         cw = CalibrationWizard(
-            name=ini_cfg.get(config_ns, 'name'),
+            name=aw,
+            title=ini_cfg.get(config_ns, 'name'),
             modules_namespace=module_ns,
             root_directory=ini_cfg.get(config_ns, 'rootdir'),
             calibration_directory=ini_cfg.get(config_ns, 'calibdir'),
