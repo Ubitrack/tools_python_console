@@ -74,7 +74,7 @@ class TooltipCalibrationProcessor(CalibrationProcessor):
 
         if record_count < 5:
             log.error("Insufficient poses for tooltip calibration")
-            return None
+            raise ValueError("Insufficient poses for tooltip calibration")
 
         result = calibration.tipCalibrationPose(math.PoseList.fromList(self.data_tracker_poses))
         if self.use_tooltip_pose:
@@ -127,7 +127,7 @@ class AbsoluteOrientationCalibrationProcessor(CalibrationProcessor):
 
         if record_count < 3:
             log.error("Invalid number of correspondences for absolute orientation: %d" % record_count)
-            return None
+            raise ValueError("Invalid number of correspondences for absolute orientation")
 
         acep = math.PositionList.fromList(self.data_tracker_hip_positions)
         acfp = math.PositionList.fromList(self.data_fwk_hip_positions)
@@ -170,7 +170,7 @@ class AbsoluteOrientationFWKBaseCalibrationProcessor(CalibrationProcessor):
 
         if record_count == 0:
             log.error("No Records selected for Absolute Orientation Calibration - please redo data-collection and provide valid data.")
-            return None
+            raise ValueError("Invalid number of correspondences for absolute orientation")
 
         # find a record that is closest to theta1 == 0
         # XXX this could be changed to use the center of the measured range for theta1

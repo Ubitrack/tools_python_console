@@ -348,5 +348,6 @@ def from_ini_file(ini_cfg, global_config=None):
 
     if global_config is not None:
         global_config.plugins['calibration_wizard'] = cws
+        global_config.devices = devices
 
     return cws
