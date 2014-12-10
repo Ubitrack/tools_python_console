@@ -107,6 +107,8 @@ class OfflineCalibrationParameters(Atom):
     # absolute orientation calibration
     absolute_orientation_enabled = Bool(True)
     absolute_orientation_datasource = Str()
+    ao_method = Enum('fwkpose', 'fwkbase')
+    ao_negate_upvector = Bool(False)
     ao_inital_maxdistance_from_origin = Float(0.1)
     ao_minimal_distance_between_measurements = Float(0.01)
     ao_refinement_expand_coverage = Float(1.5)
@@ -136,6 +138,8 @@ class OfflineCalibrationParameters(Atom):
     timedelay_estimation_enabled = Bool(False)
     timedelay_estimation_datasource = Str()
 
+    result_evaluation_enabled = Bool(False)
+    result_evaluation_datasource = Str()
 
 def from_ini_file(ini_cfg, global_config=None):
 
@@ -232,6 +236,10 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.absolute_orientation_enabled = ini_cfg.getboolean(module_parameters_ns, 'absolute_orientation_enabled')
                     if ini_cfg.has_option(module_parameters_ns, 'absolute_orientation_datasource'):
                         module_parameters.absolute_orientation_datasource = ini_cfg.get(module_parameters_ns, 'absolute_orientation_datasource')
+                    if ini_cfg.has_option(module_parameters_ns, 'ao_method'):
+                        module_parameters.ao_method = ini_cfg.get(module_parameters_ns, 'ao_method')
+                    if ini_cfg.has_option(module_parameters_ns, 'ao_negate_upvector'):
+                        module_parameters.ao_negate_upvector = ini_cfg.getboolean(module_parameters_ns, 'ao_negate_upvector')
                     if ini_cfg.has_option(module_parameters_ns, 'ao_inital_maxdistance_from_origin'):
                         module_parameters.ao_inital_maxdistance_from_origin = ini_cfg.getfloat(module_parameters_ns, 'ao_inital_maxdistance_from_origin')
                     if ini_cfg.has_option(module_parameters_ns, 'ao_minimal_distance_between_measurements'):
@@ -276,6 +284,11 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.timedelay_estimation_enabled = ini_cfg.getboolean(module_parameters_ns, 'timedelay_estimation_enabled')
                     if ini_cfg.has_option(module_parameters_ns, 'timedelay_estimation_datasource'):
                         module_parameters.timedelay_estimation_datasource = ini_cfg.get(module_parameters_ns, 'timedelay_estimation_datasource')
+
+                    if ini_cfg.has_option(module_parameters_ns, 'result_evaluation_enabled'):
+                        module_parameters.result_evaluation_enabled = ini_cfg.getboolean(module_parameters_ns, 'result_evaluation_enabled')
+                    if ini_cfg.has_option(module_parameters_ns, 'result_evaluation_datasource'):
+                        module_parameters.result_evaluation_datasource = ini_cfg.get(module_parameters_ns, 'result_evaluation_datasource')
 
                 else:
                     module_parameters = {}

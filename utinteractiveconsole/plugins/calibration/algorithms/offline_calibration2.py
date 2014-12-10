@@ -786,6 +786,11 @@ class OfflineCalibrationParameters(Atom):
     timedelay_estimation_enabled = Bool(False)
     timedelay_estimation_datasource = Str()
 
+    # result evaluation
+    result_evaluation_enabled = Bool(False)
+    result_evaluation_datasource = Str()
+
+
     # haptic device
     joint_lengths = Value(np.array([0.13335, 0.13335]))
     origin_offset = Value(np.array([0.0, -0.11, -0.035]))
@@ -1265,6 +1270,8 @@ class OfflineCalibrationProcessor(Atom):
 
         # 2nd step: initial absolute orientation (uses step03  data)
         if self.parameters.absolute_orientation_enabled:
+            if self.parameters.ao_method == 'fwkbase' and not (self.parameters.fwkbase_position_enabled and self.parameters.fwkbase_position2_enabled):
+                raise ValueError("FWKBase Position calibration must be enabled for Absolute Orientation fwkbas method.")
             if not self.do_absolute_orientation(datasources.get(self.parameters.absolute_orientation_datasource, None)):
                 return
         else:
@@ -1431,6 +1438,8 @@ class OfflineCalibrationProcessor(Atom):
             all_datasources.add(self.parameters.gimbal_angle_calibration_datasource)
         if self.parameters.timedelay_estimation_enabled:
             all_datasources.add(self.parameters.timedelay_estimation_datasource)
+        if self.parameters.result_evaluation_enabled:
+            all_datasources.add(self.parameters.result_evaluation_datasource)
 
         config = self.context.get("config")
         result = {}

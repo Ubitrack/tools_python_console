@@ -68,15 +68,14 @@ class StreamFileSpec(Atom):
         if not os.path.isfile(self.filename):
             raise ValueError("Invalid filename: %s" % self.filename)
 
-        fdesc = open(self.filename, "r")
         reader = get_streamreader_for_datatype(self.datatype, self.is_array)
-        return StreamFile(spec=self, fdesc=fdesc, reader=reader)
+        return StreamFile(spec=self, filename=self.filename, reader=reader)
 
 
 class StreamFile(Atom):
 
     spec = Typed(StreamFileSpec)
-    fdesc = Value()
+    filename = Str()
     reader = Value()
 
     raw_data = Value()
@@ -100,10 +99,13 @@ class StreamFile(Atom):
         return self.spec.is_array
 
     def _default_raw_data(self):
-        self.fdesc.seek(0)
-        buf = util.streambuf(self.fdesc, 1024)
+        fdesc = open(self.filename, "r")
+        fdesc.seek(0)
+        buf = util.streambuf(fdesc, 1024)
         log.info("Reading StreamFile: %s" % self.spec.filename)
-        return self.reader(buf).values()
+        data = self.reader(buf).values()
+        fdesc.close()
+        return data
 
     def _default_timestamps(self):
         timestamps = np.array([m.time() for m in self.raw_data])
