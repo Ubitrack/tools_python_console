@@ -122,6 +122,17 @@ class QtListStrWidget(RawWidget):
                 items.append(item)
         return items
 
+    def set_checkstate(self, item, state):
+        widget = self.get_widget()
+        idx = self.items.index(item)
+        itemWidget = widget.item(idx)
+        if state:
+            itemWidget.setCheckState(Qt.Checked)
+        else:
+            itemWidget.setCheckState(Qt.Unchecked)
+
+
+
     #--------------------------------------------------------------------------
     # Observers
     #--------------------------------------------------------------------------

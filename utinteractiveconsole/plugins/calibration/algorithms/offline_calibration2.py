@@ -861,6 +861,7 @@ class OfflineCalibrationProcessor(Atom):
     facade = Value()
     dfg_dir = Value()
     dfg_filename = Value()
+    publish_results = Bool(True)
 
     is_working = Bool(False)
 
@@ -1345,22 +1346,23 @@ class OfflineCalibrationProcessor(Atom):
         if self.parameters.timedelay_estimation_enabled:
             self.do_timedelay_estimation(datasources.get(self.parameters.timedelay_estimation_datasource, None))
 
-        # finally store or send the results
-        ts = measurement.now()
-        if self.source_tooltip_calibration_result is not None:
-            self.source_tooltip_calibration_result.send(measurement.Pose(ts, self.result.tooltip_calibration_result))
-        if self.source_absolute_orientation_result is not None:
-            self.source_absolute_orientation_result.send(measurement.Pose(ts, self.result.absolute_orientation_result))
-        if self.source_jointangles_correction_result is not None:
-            self.source_jointangles_correction_result.send(measurement.Matrix3x3(ts, self.result.jointangles_correction_result))
-        if self.source_gimbalangles_correction_result is not None:
-            self.source_gimbalangles_correction_result.send(measurement.Matrix3x3(ts, self.result.gimbalangles_correction_result))
+        if self.publish_results:
+            # finally store or send the results
+            ts = measurement.now()
+            if self.source_tooltip_calibration_result is not None:
+                self.source_tooltip_calibration_result.send(measurement.Pose(ts, self.result.tooltip_calibration_result))
+            if self.source_absolute_orientation_result is not None:
+                self.source_absolute_orientation_result.send(measurement.Pose(ts, self.result.absolute_orientation_result))
+            if self.source_jointangles_correction_result is not None:
+                self.source_jointangles_correction_result.send(measurement.Matrix3x3(ts, self.result.jointangles_correction_result))
+            if self.source_gimbalangles_correction_result is not None:
+                self.source_gimbalangles_correction_result.send(measurement.Matrix3x3(ts, self.result.gimbalangles_correction_result))
 
-        if len(self.result.zaxis_points_result) > 0 and self.source_zaxis_points_result is not None:
-            self.source_zaxis_points_result.send(measurement.PositionList(ts, math.PositionList.fromList(self.result.zaxis_points_result)))
+            if len(self.result.zaxis_points_result) > 0 and self.source_zaxis_points_result is not None:
+                self.source_zaxis_points_result.send(measurement.PositionList(ts, math.PositionList.fromList(self.result.zaxis_points_result)))
 
-        if self.source_zaxis_reference_result is not None:
-            self.source_zaxis_reference_result.send(measurement.Position(ts, self.result.zaxis_reference_result))
+            if self.source_zaxis_reference_result is not None:
+                self.source_zaxis_reference_result.send(measurement.Position(ts, self.result.zaxis_reference_result))
 
         # wait a bit before shutting down to allow ubitrack to process the data
         time.sleep(0.1)
