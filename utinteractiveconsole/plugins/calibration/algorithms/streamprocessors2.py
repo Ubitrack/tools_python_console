@@ -11,14 +11,14 @@ from numpy.linalg import norm
 
 log = logging.getLogger(__name__)
 
-from utinteractiveconsole.persistence.recordsource import RecordSource
+from utinteractiveconsole.persistence.recordsource import BaseRecordSource
 from utinteractiveconsole.persistence.recordschema import RequiredField, Field, RecordSchema
 
 class BaseStreamProcessor(Atom):
 
     name = None
     # data and setup
-    recordsource = Typed(RecordSource)
+    recordsource = Typed(BaseRecordSource)
 
     schema = Typed(RecordSchema)
 

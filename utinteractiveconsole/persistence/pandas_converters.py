@@ -1,12 +1,13 @@
 __author__ = 'jack'
 
-from atom.api import Atom, Bool, Int
+from atom.api import Atom, Bool, Int, Value, Dict
 
 import pandas as pd
 import numpy as np
 
 from ubitrack.core import math
-from .recordschema import DataType
+from .recordschema import DataType, Field, RecordSchema
+from .recordsource import BaseRecordSource
 
 # XXX use table format by default
 pd.set_option('io.hdf.default_format', 'table')
@@ -211,7 +212,7 @@ def store_data(store, path, value, datatype=None, is_array=False, element_count=
 def load_data(store, path):
     st = store.get_storer(path)
     datatype = st.attrs.utic_datatype
-    is_array = st.attrs.utic_is_array
+    is_array = bool(st.attrs.utic_is_array)
     element_count = st.attrs.utic_element_count
 
     data = store.get(path)
@@ -221,3 +222,76 @@ def load_data(store, path):
         data = converter.from_dataframe(data)
 
     return data
+
+
+def store_get_parameters(store):
+    return store.root._v_attrs.utic_parameters
+
+
+def store_get_metadata(store):
+    return store.root._v_attrs.utic_metadata
+
+
+def store_list_recordsources(store):
+    result = []
+    store_keys = store.keys()
+    for key in store_keys:
+        if key.endswith('/schema'):
+            result.append(key.replace('/schema', ''))
+
+    return result
+
+
+class StoreRecordSource(BaseRecordSource):
+
+    fields = Dict()
+
+    def _default_max_record_count(self):
+        return len(self.reference_timestamps)
+
+    # XXX missing reference_interval
+
+    def __iter__(self):
+        if len(self.cached_records) > 0:
+            for cached_record in self.cached_records:
+                yield cached_record
+            return
+
+        rcls = self.record_class
+        fields = self.fields
+        field_names = fields.keys()
+        for idx, ts in enumerate(self.reference_timestamps):
+            attrs = dict(timestamp=ts)
+            for field_name in field_names:
+                attrs[field_name] = fields[field_name][idx]
+
+            record = rcls(**attrs)
+            self.cached_records.append(record)
+            yield record
+
+
+def store_load_recordsource(store, path, name=None, title=None):
+    schema = store.get('%s/schema' % path)
+    timestamps = store.get('%s/timestamps' % path)
+
+    fields = {}
+    for idx, row in schema.iterrows():
+        field_path = '%s/fields/%s' % (path, row['name'])
+        fields[row['name']] = load_data(store, field_path)
+
+    record_schema = RecordSchema(fields=[Field(name=row['name'],
+                                               datatype=row['datatype'],
+                                               is_array=bool(row['is_array']),
+                                               selector=row['selector'],
+                                               is_computed=bool(row['is_computed']),
+                                               is_reference=bool(row['is_reference']),
+                                               latency=row['latency']) for k, row in schema.iterrows()])
+
+    return StoreRecordSource(
+        name=name or "store_recordsource",
+        title=title or "Store RecordSource",
+        schema=record_schema,
+        output_fieldnames=['timestamp'] + list(schema['name']),
+        reference_timestamps=list(timestamps),
+        fields=fields,
+    )
