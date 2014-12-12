@@ -17,6 +17,7 @@ class BaseStreamFilter(object):
 
 
 
+
 class StaticPointDistanceStreamFilter(BaseStreamFilter):
 
     def __init__(self, fieldname, point, min_distance=0, max_distance=sys.maxint):
@@ -37,7 +38,6 @@ class StaticPointDistanceStreamFilter(BaseStreamFilter):
             return True
         return False
 
-
     def process(self, stream):
         selector = self.check_item
         fieldname = self.fieldname
@@ -47,6 +47,39 @@ class StaticPointDistanceStreamFilter(BaseStreamFilter):
             if selector(item):
                 yield record
 
+
+class StaticLineDistanceStreamFilter(BaseStreamFilter):
+
+    def __init__(self, fieldname, point1, point2, min_distance=0, max_distance=sys.maxint):
+        log.info("StaticLineDistanceStreamFilter point1=%s, point2=%s, min_distance=%s, max_distance=%s" %
+                (point1, point2, min_distance, max_distance))
+        self.fieldname = fieldname
+        self.point1 = point1
+        self.point2 = point2
+        self.min_distance = min_distance
+        self.max_distance = max_distance
+
+    def check_item(self, item):
+        if isinstance(item, math.Pose):
+            item = item.translation()
+
+        # closed form solution for point-to-line distance
+        # http://stackoverflow.com/questions/19341904/shortest-distance-between-point-and-line-point-w-direction-vector-in-3d-using
+        d = norm(np.cross(self.point2-self.point1, self.point1-item))/norm(self.point2-self.point1)
+
+        if d >= self.min_distance and d <= self.max_distance:
+            return True
+        return False
+
+
+    def process(self, stream):
+        selector = self.check_item
+        fieldname = self.fieldname
+
+        for record in stream:
+            item = getattr(record, fieldname)
+            if selector(item):
+                yield record
 
 
 class RelativePointDistanceStreamFilter(BaseStreamFilter):
