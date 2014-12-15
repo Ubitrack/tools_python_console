@@ -42,7 +42,7 @@ from utinteractiveconsole.guilogging import Syslog
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 logging.captureWarnings(True)
-warnings.simplefilter("always")
+#warnings.simplefilter("always")
 
 
 def main():

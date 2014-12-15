@@ -101,25 +101,17 @@ class QtListStrWidget(RawWidget):
         """
         """
         widget = self.get_widget()
-        count = widget.count()
-        nitems = len(items)
-        for idx, item in enumerate(items[:count]):
-            itemWidget = widget.item(idx)
-            itemWidget.setText(item)
-        if nitems > count:
-            for item in items[count:]:
-                self.add_item(widget, item)
-        elif nitems < count:
-            for idx in reversed(xrange(nitems, count)):
-                widget.removeItem(idx)
+        widget.clear()
+        for item in items:
+            self.add_item(widget, item)
 
     def get_selected_items(self):
         widget = self.get_widget()
         items = []
-        for idx, item in enumerate(self.items):
+        for idx in range(widget.count()):
             itemWidget = widget.item(idx)
             if itemWidget.checkState() == Qt.Checked:
-                items.append(item)
+                items.append(itemWidget.text())
         return items
 
     def set_checkstate(self, item, state):
