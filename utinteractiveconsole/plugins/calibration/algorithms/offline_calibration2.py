@@ -199,7 +199,7 @@ class AbsoluteOrientationFWKBaseCalibrationProcessor(CalibrationProcessor):
         log.info("Calculated rotation ET2HD: %s" % (rotation_matrix,))
 
         # compute translation using fwkbasepos and joint-lengths
-        hd_origin = self.fwkbase_position + self.joint_lengths[0] * z_vector + self.joint_lengths[1] * (-1 * up_vector) + self.origin_offset
+        hd_origin = self.fwkbase_position + self.joint_lengths[0] * z_vector + self.joint_lengths[1] * (-1 * up_vector) - self.origin_offset
         log.info("Calculated translation ET2HD: %s" % (hd_origin,))
 
         self.result_absolute_orientation = math.Pose(math.Quaternion.fromMatrix(rotation_matrix), hd_origin)
