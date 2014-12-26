@@ -12,18 +12,18 @@ class AbstractResponseNode(AbstractNode):
     attributes = List()
 
 
-class ResponseInputNodeType(AbstractResponseNode):
+class ResponseInputNode(AbstractResponseNode):
     id = IDType()
 
 
-class ResolvedEdgeType(AbstractEdge):
+class ResolvedEdge(AbstractEdge):
     pattern_ref = IDRef()
     edge_ref = IDRef()
 
     attributes = List()
 
 
-class ResponseOutputNodeType(AbstractResponseNode):
+class ResponseOutputNode(AbstractResponseNode):
     id = IDType()
 
 

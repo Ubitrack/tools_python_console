@@ -6,8 +6,8 @@ import logging
 
 log = logging.getLogger(__name__)
 
-from .response_schema import (UTQLResponse, ResponsePattern, ResponseOutputNodeType, ResponseInputNodeType, ResolvedEdgeType)
-from .base_schema import (OutputEdgeType, DataflowConfiguration)
+from .response_schema import (UTQLResponse, ResponsePattern, ResponseOutputNode, ResponseInputNode, ResolvedEdge)
+from .base_schema import (OutputEdge, DataflowConfiguration)
 from .attribute_schema import ATTRIBUTE_TYPE_REGISTRY
 from .base_parser import (parse_description, parse_attributes, parse_gui_status,
                           FileResolver, UTQL_NAMESPACES)
@@ -44,7 +44,7 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
             for node in output.xpath("utql:Node", namespaces=namespaces):
                 node_name = node.get("name")
                 gui_status = parse_gui_status(node, namespaces)
-                nodes[node_name] = ResponseOutputNodeType(name=node.get("name"),
+                nodes[node_name] = ResponseOutputNode(name=node.get("name"),
                                                           displayName=node.get("displayName", ""),
                                                           description=parse_description(node, namespaces),
                                                           id=node.get("id"),
@@ -54,7 +54,7 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
 
             for edge in output.xpath("utql:Edge", namespaces=namespaces):
                 gui_status = parse_gui_status(edge, namespaces)
-                output_edges.append(OutputEdgeType(name=edge.get("name"),
+                output_edges.append(OutputEdge(name=edge.get("name"),
                                                    displayName=edge.get("displayName", ""),
                                                    description=parse_description(edge, namespaces),
                                                    source=edge.get("source"),
@@ -68,7 +68,7 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
             for node in input.xpath("utql:Node", namespaces=namespaces):
                 node_name = node.get("name")
                 gui_status = parse_gui_status(node, namespaces)
-                nodes[node_name] = ResponseInputNodeType(name=node_name,
+                nodes[node_name] = ResponseInputNode(name=node_name,
                                                          displayName=node.get("displayName", ""),
                                                          description=parse_description(node, namespaces),
                                                          id=node.get("id"),
@@ -78,7 +78,7 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
 
             for edge in input.xpath("utql:Edge", namespaces=namespaces):
                 gui_status = parse_gui_status(edge, namespaces)
-                input_edges.append(ResolvedEdgeType(name=edge.get("name"),
+                input_edges.append(ResolvedEdge(name=edge.get("name"),
                                                     displayName=edge.get("displayName", ""),
                                                     description=parse_description(edge, namespaces),
                                                     source=edge.get("source"),

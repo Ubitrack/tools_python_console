@@ -43,7 +43,7 @@ class AbstractEdge(UTQLSchemaEntity):
     gui_landmark = Value()
 
 
-class OutputEdgeType(AbstractEdge):
+class OutputEdge(AbstractEdge):
     attributes = List()
 
 

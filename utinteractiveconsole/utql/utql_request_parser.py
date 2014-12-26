@@ -7,7 +7,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from .request_schema import (UTQLRequest, RequestPattern, RequestQueryNode, RequestOutputNodeType, QueryEdgeType)
-from .base_schema import (OutputEdgeType, Correspondence, OnlyBestEdgeMatch, TriggerGroup, DataflowConfiguration)
+from .base_schema import (OutputEdge, Correspondence, OnlyBestEdgeMatch, TriggerGroup, DataflowConfiguration)
 from .attribute_schema import ATTRIBUTE_TYPE_REGISTRY
 from .base_parser import (parse_description, parse_attributes, parse_predicates, parse_gui_status,
                           FileResolver, UTQL_NAMESPACES)
@@ -55,7 +55,7 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
 
             for edge in output.xpath("utql:Edge", namespaces=namespaces):
                 gui_status = parse_gui_status(edge, namespaces)
-                output_edges.append(OutputEdgeType(name=edge.get("name"),
+                output_edges.append(OutputEdge(name=edge.get("name"),
                                                    displayName=edge.get("displayName", ""),
                                                    description=parse_description(edge, namespaces),
                                                    source=edge.get("source"),
