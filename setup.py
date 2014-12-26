@@ -36,6 +36,7 @@ setup(name = "utinteractiveconsole",
         'pyyaml',
         'pandas',
         'matplotlib',
+        'lxml'
       ),
       zip_safe=False,
       long_description = """\
