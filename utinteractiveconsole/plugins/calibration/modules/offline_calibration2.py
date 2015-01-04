@@ -73,6 +73,7 @@ class OfflineCalibrationController(CalibrationController):
         active_widgets[0].find("btn_stop_calibration").visible = False
         self.do_reset_parameters()
 
+    # XXX this should use the new configuration.schema implementation !!!
     def do_reset_parameters(self):
         wiz_cfg = self.wizard_state.config
         gbl_cfg = self.context.get("config")
@@ -96,6 +97,7 @@ class OfflineCalibrationController(CalibrationController):
 
         parameters_sname = "%s.parameters.%s" % (self.config_ns, self.module_name)
         datasource_sname_prefix = "%s.datasources." % self.config_ns
+        calibsource_sname_prefix = "%s.calibrations." % self.config_ns
 
         if gbl_cfg.has_section(parameters_sname):
             self.parameters.tooltip_enabled = gbl_cfg.getboolean(parameters_sname, "tooltip_enabled")
@@ -121,6 +123,9 @@ class OfflineCalibrationController(CalibrationController):
             if self.parameters.absolute_orientation_enabled:
                 log.info("Absolute Orientation Calibration Enabled")
                 self.parameters.absolute_orientation_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "absolute_orientation_datasource")
+
+                if gbl_cfg.has_option(parameters_sname, "ao_initialize_anglecorrection_calibsource"):
+                    self.parameters.ao_initialize_anglecorrection_calibsource = calibsource_sname_prefix + gbl_cfg.get(parameters_sname, "ao_initialize_anglecorrection_calibsource")
 
                 # experimental absolute orientation with multiple methods
                 ao_method = 'fwkpose'

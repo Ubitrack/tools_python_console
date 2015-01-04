@@ -22,6 +22,7 @@ from utinteractiveconsole.persistence.dataset import DataSet
 from utinteractiveconsole.persistence.recordschema import DataType
 from utinteractiveconsole.persistence.recordsource import RecordSource, StreamInterpolator
 from utinteractiveconsole.persistence.streamfile import StreamFileSpec
+from utinteractiveconsole.persistence.calibfile import read_calibfile
 
 
 from utinteractiveconsole.plugins.calibration.algorithms.phantom_forward_kinematics import FWKinematicPhantom
@@ -390,6 +391,11 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
 
 
 class ReferenceOrientationProcessor(CalibrationProcessor):
+
+    # XXX ISMAR14 debugging ...
+    #negate_zaxis = Bool(False)
+
+
     # simple line fitting
     def fit_line(self, v1, v2):
         slope, intercept, r_value, p_value, std_err = stats.linregress(v1, v2)
@@ -463,8 +469,8 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         # Now vv[0] contains the first principal component, i.e. the direction
         # vector of the 'best fit' line in the least squares sense.
         result = np.asarray(vv[0])
-        if result[2] > 0:
-            result *= -1.0
+        # if result[2] > 0:
+        #     result *= -1.0
 
         return result
 
@@ -631,8 +637,13 @@ class ReferenceOrientationProcessor(CalibrationProcessor):
         zref = np.asarray(self.find_zaxis(corrected_zaxis_points_ot_mean))
         zref = zref / np.linalg.norm(zref)
 
+        # XXX ismar14 debugging
+        #sign = -1. if self.negate_zaxis else 1.
+
+
         # compute corrections for theta6 here since data is all available
         theta6_correction = self.compute_theta6_correction(theta6_data, theta6_angles)
+
 
         return zref, corrected_zaxis_points_ot_mean, theta6_correction
 
@@ -756,6 +767,9 @@ class OfflineCalibrationParameters(Atom):
     # parameters for using externaltracker
     ao_negate_upvector = Bool(False)
 
+    # custom initialization for angle correction
+    ao_initialize_anglecorrection_calibsource = Value(None)
+
     # parameters for using fwkpose
     ao_inital_maxdistance_from_origin = Float(0.03)
     ao_minimal_distance_between_measurements = Float(0.01)
@@ -813,7 +827,8 @@ def compute_position_errors(stream,
     absolute_orientation_inv = absolute_orientation.invert()
     position_errors = []
     for record in stream:
-        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+        gimbalangles = getattr(record, 'gimbalangles', np.array([0., 0., 0.]))
+        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
         hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
         position_errors.append(norm(hip_reference_pose.translation() - haptic_pose.translation()))
 
@@ -874,6 +889,7 @@ class OfflineCalibrationProcessor(Atom):
     result = Typed(OfflineCalibrationResults)
 
     datasources = Dict()
+    calibsources = Dict()
 
     # refinement vars
     ao_maxdistance_from_origin = Float(0.0)
@@ -955,8 +971,7 @@ class OfflineCalibrationProcessor(Atom):
 
         return True
 
-    def do_absolute_orientation(self, ao_data):
-        ao_method = self.parameters.ao_method
+    def do_absolute_orientation(self, ao_data, ao_method='fwkpose'):
         log.info("Absolute Orientation: %s" % ao_method)
 
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
@@ -1225,22 +1240,23 @@ class OfflineCalibrationProcessor(Atom):
         self.facade.loadDataflow(fname)
         self.facade.startDataflow()
 
-        # connect result sources
-        if self.parameters.tooltip_enabled:
-            self.source_tooltip_calibration_result = self.facade.instance.getApplicationPushSourcePose("result_calib_tooltip")
+        if self.publish_results:
+            # connect result sources
+            if self.parameters.tooltip_enabled:
+                self.source_tooltip_calibration_result = self.facade.instance.getApplicationPushSourcePose("result_calib_tooltip")
 
-        if self.parameters.absolute_orientation_enabled:
-            self.source_absolute_orientation_result = self.facade.instance.getApplicationPushSourcePose("result_calib_absolute_orientation")
+            if self.parameters.absolute_orientation_enabled:
+                self.source_absolute_orientation_result = self.facade.instance.getApplicationPushSourcePose("result_calib_absolute_orientation")
 
-        if self.parameters.joint_angle_calibration_enabled:
-            self.source_jointangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_jointangle_correction")
+            if self.parameters.joint_angle_calibration_enabled:
+                self.source_jointangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_jointangle_correction")
 
-        if self.parameters.gimbal_angle_calibration_enabled:
-            self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_gimbalangle_correction")
+            if self.parameters.gimbal_angle_calibration_enabled:
+                self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_gimbalangle_correction")
 
-        if self.parameters.reference_orientation_enabled:
-            self.source_zaxis_points_result = self.facade.instance.getApplicationPushSourcePositionList("result_calib_zrefaxis_points")
-            self.source_zaxis_reference_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_zrefaxis_reference")
+            if self.parameters.reference_orientation_enabled:
+                self.source_zaxis_points_result = self.facade.instance.getApplicationPushSourcePositionList("result_calib_zrefaxis_points")
+                self.source_zaxis_reference_result = self.facade.instance.getApplicationPushSourcePosition("result_calib_zrefaxis_reference")
 
 
 
@@ -1271,8 +1287,16 @@ class OfflineCalibrationProcessor(Atom):
         # 2nd step: initial absolute orientation (uses step03  data)
         if self.parameters.absolute_orientation_enabled:
             if self.parameters.ao_method == 'fwkbase' and not (self.parameters.fwkbase_position_enabled and self.parameters.fwkbase_position2_enabled):
-                raise ValueError("FWKBase Position calibration must be enabled for Absolute Orientation fwkbas method.")
-            if not self.do_absolute_orientation(datasources.get(self.parameters.absolute_orientation_datasource, None)):
+                raise ValueError("FWKBase Position calibration must be enabled for Absolute Orientation fwkbase method.")
+            else:
+
+                print
+                # allow for custom initialization of joint/gimbal angles correction
+                if self.parameters.ao_initialize_anglecorrection_calibsource is not None:
+                    self.load_defaults_from_calibsource(self.parameters.ao_initialize_anglecorrection_calibsource)
+
+            if not self.do_absolute_orientation(datasources.get(self.parameters.absolute_orientation_datasource, None),
+                                                ao_method=self.parameters.ao_method):
                 return
         else:
             log.warn("Absolute Orientation Calibration is disabled - Are you sure this is correct ????")
@@ -1448,6 +1472,51 @@ class OfflineCalibrationProcessor(Atom):
             result[datasource_sname] = datasource
 
         return result
+
+    # XXX Needs refactoring !!!
+    def _default_calibsources(self):
+        config = self.context.get("config")
+        # calibsources = {}
+        # calibsource_config_prefix = '%s.calibsources.' % config_ns
+        # for section_name in [sn for sn in ini_sections if sn.startswith(calibsource_config_prefix)]:
+        #     calib_files = []
+        #     for k, v in [i for i in ini_cfg.items(section_name) if i[0].startswith('item.')]:
+        #         fname = k.replace('item.', '')
+        #         sfarray = False
+        #         sfname, sfdt = [e.strip() for e in v.split(',')]
+        #         if sfdt.endswith('-list'):
+        #             sfarray = True
+        #             sfdt = sfdt.replace('-list', '')
+        #         sf = CalibrationWizardCalibFile(
+        #             fieldname=fname,
+        #             filename=sfname,
+        #             datatype=sfdt,
+        #             is_array=sfarray,
+        #         )
+        #         calib_files.append(sf)
+        #
+        #     cs = CalibrationWizardCalibSource(
+        #         name=section_name.replace(datasource_config_prefix, ''),
+        #         calib_directory=ini_cfg.get(config_ns, 'calibdir'),
+        #         calib_files=calib_files,
+        #     )
+        #     calibsources[ds.name] = cs
+
+        log.error("Calibsources are not finally implemented for online calibration !!!!")
+        print config
+        return {}
+
+    def load_defaults_from_calibsource(self, calibsource_sname):
+        log.info("Load Datasource: %s" % calibsource_sname)
+        if calibsource_sname in self.calibsources:
+            cs_cfg = self.calibsources[calibsource_sname]
+            for k, v in cs_cfg.items():
+                print "XXX %s -> %s" % (k, v)
+        else:
+            log.warn("Missing calibsource: %s" % calibsource_sname)
+
+
+
 
     def get_fwk(self, jointangle_calib, gimbalangle_calib, disable_theta6=False):
         log.info("ForwardKinematics:\njoint_lengths=%s\norigin_offset=%s\njointangle_correction=%s\ngimbalangle_correction=%s" %

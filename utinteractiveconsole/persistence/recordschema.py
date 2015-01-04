@@ -14,10 +14,12 @@ class DataType(IntEnum):
     mat34 = 0x06
     mat44 = 0x07
 
+
 class SelectorType(IntEnum):
     matching = 0x00
     nearest = 0x01
     interpolate = 0x02
+    index = 0x03
 
 
 class Field(Atom):

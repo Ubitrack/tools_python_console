@@ -134,8 +134,13 @@ class StreamFile(Atom):
                 return math.linearInterpolatePose
         return None
 
-    def get(self, dts, selector=None):
+    def get(self, idx, dts, selector=None):
         src_ts = self.timestamps
+
+        if selector == 'index':
+            return self.values[idx]
+
+        # compute index from dts
         idx = (np.abs(src_ts-dts)).argmin()
 
         # None == select only matching

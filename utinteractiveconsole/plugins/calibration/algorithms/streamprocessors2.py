@@ -111,7 +111,8 @@ class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
     name = "AbsoluteOrientation"
     required_fields = [RequiredField(name='externaltracker_pose', datatype='pose'),
                        RequiredField(name='jointangles', datatype='position3d'),
-                       RequiredField(name='gimbalangles', datatype='position3d')]
+                       #RequiredField(name='gimbalangles', datatype='position3d'),
+                       ]
     additional_fields = [Field(name='haptic_pose', datatype='pose', is_computed=True),
                          Field(name='externaltracker_hip_position', datatype='position3d', is_computed=True)]
 
@@ -130,7 +131,8 @@ class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
 
         for record in self.recordsource:
             attrs = dict((k, getattr(record, k)) for k in parent_fields)
-            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+            gimbalangles = getattr(record, 'gimbalangles', np.array([0., 0., 0.]))
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
             attrs['externaltracker_hip_position'] = (record.externaltracker_pose * self.tooltip_offset).translation()
             
             yield rcls(**attrs)
@@ -142,7 +144,8 @@ class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
     name = "JointAngleCalibration"
     required_fields = [RequiredField(name='externaltracker_pose', datatype='pose'),
                        RequiredField(name='jointangles', datatype='position3d'),
-                       RequiredField(name='gimbalangles', datatype='position3d')]
+                       #RequiredField(name='gimbalangles', datatype='position3d'),
+                       ]
     additional_fields = [Field(name='haptic_pose', datatype='pose', is_computed=True),
                          Field(name='hip_reference_pose', datatype='pose', is_computed=True)]
 
@@ -164,7 +167,8 @@ class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
         for record in self.recordsource:
             attrs = dict((k, getattr(record, k)) for k in parent_fields)
-            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+            gimbalangles = getattr(record, 'gimbalangles', np.array([0., 0., 0.]))
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
             attrs['hip_reference_pose'] = (absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset)
             
             yield rcls(**attrs)
@@ -181,7 +185,7 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
     required_attributes = ['tooltip_offset', 'zrefaxis_calib', 'absolute_orientation', 'forward_kinematics']
 
-    tooltip_offset  = Value()
+    tooltip_offset = Value()
     absolute_orientation = Value()
     zrefaxis_calib = Value()
     forward_kinematics = Value()

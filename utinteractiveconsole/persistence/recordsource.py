@@ -9,9 +9,8 @@ import logging
 from .streamfile import StreamFile, StreamFileSpec
 from .recordschema import RecordSchema, Field
 
-RECORD_SELECTORS = ['matching', 'nearest', 'interpolate']
+RECORD_SELECTORS = ['matching', 'nearest', 'interpolate', 'index']
 log = logging.getLogger(__name__)
-
 
 
 class StreamInterpolator(Atom):
@@ -49,8 +48,8 @@ class StreamInterpolator(Atom):
     def _default_streamfile(self):
         return self.filespec.getStreamFile()
 
-    def get(self, dts):
-        return self.streamfile.get(dts - self.latency, self.selector)
+    def get(self, idx, dts):
+        return self.streamfile.get(idx, dts - self.latency, self.selector)
 
 
 class BaseRecordSource(Atom):
@@ -142,11 +141,11 @@ class RecordSource(BaseRecordSource):
         reference = self.reference_field
         iir = self.ignore_incomplete_records
 
-        for ts in reference.timestamps:
+        for idx, ts in enumerate(reference.timestamps):
             record_complete = True
             attrs = dict(timestamp=ts)
             for field in fields:
-                value = field.get(ts)
+                value = field.get(idx, ts)
                 if value is None:
                     record_complete = False
                 attrs[field.fieldname] = value

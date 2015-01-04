@@ -49,6 +49,9 @@ class CalibrationWizard(Atom):
 
     modules = List()
     datasources = Dict()
+    calibsources = Dict()
+
+    # could be implemented using calibsources ...
     calibration_init_files = Dict()
 
     # subclass needed ?
@@ -81,12 +84,27 @@ class CalibrationWizardStreamFile(Atom):
     selector = Enum(*RECORD_SELECTORS)
 
 
+class CalibrationWizardCalibFile(Atom):
+    fieldname = Str()
+
+    filename = Str()
+    datatype = Enum(*UBITRACK_DATATYPES)
+    is_array = Bool(False)
+
+
 class CalibrationWizardDataSource(Atom):
     name = Str()
 
     data_directory = Str()
     reference_field = Str()
     stream_files = List()
+
+
+class CalibrationWizardCalibSource(Atom):
+    name = Str()
+
+    # data_directory = Str()
+    calib_files = List()
 
 
 class OfflineCalibrationParameters(Atom):
@@ -113,6 +131,7 @@ class OfflineCalibrationParameters(Atom):
     ao_minimal_distance_between_measurements = Float(0.01)
     ao_refinement_expand_coverage = Float(1.5)
     ao_refinement_shrink_distance = Float(1.0)
+    ao_initialize_anglecorrection_calibsource = Str()
 
     # joint angles calibration
     joint_angle_calibration_enabled = Bool(True)
@@ -248,6 +267,8 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.ao_refinement_expand_coverage = ini_cfg.getfloat(module_parameters_ns, 'ao_refinement_expand_coverage')
                     if ini_cfg.has_option(module_parameters_ns, 'ao_refinement_shrink_distance'):
                         module_parameters.ao_refinement_shrink_distance = ini_cfg.getfloat(module_parameters_ns, 'ao_refinement_shrink_distance')
+                    if ini_cfg.has_option(module_parameters_ns, 'ao_initialize_anglecorrection_calibsource'):
+                        module_parameters.ao_initialize_anglecorrection_calibsource = ini_cfg.get(module_parameters_ns, 'ao_initialize_anglecorrection_calibsource')
 
                     if ini_cfg.has_option(module_parameters_ns, 'joint_angle_calibration_enabled'):
                         module_parameters.joint_angle_calibration_enabled = ini_cfg.getboolean(module_parameters_ns, 'joint_angle_calibration_enabled')
@@ -327,6 +348,32 @@ def from_ini_file(ini_cfg, global_config=None):
             )
             datasources[ds.name] = ds
 
+        calibsources = {}
+        calibsource_config_prefix = '%s.calibsources.' % config_ns
+        for section_name in [sn for sn in ini_sections if sn.startswith(calibsource_config_prefix)]:
+            calib_files = []
+            for k, v in [i for i in ini_cfg.items(section_name) if i[0].startswith('item.')]:
+                fname = k.replace('item.', '')
+                cfarray = False
+                cfname, cfdt = [e.strip() for e in v.split(',')]
+                if cfdt.endswith('-list'):
+                    cfarray = True
+                    cfdt = cfdt.replace('-list', '')
+                cf = CalibrationWizardCalibFile(
+                    fieldname=fname,
+                    filename=cfname,
+                    datatype=cfdt,
+                    is_array=cfarray,
+                )
+                calib_files.append(cf)
+
+            cs = CalibrationWizardCalibSource(
+                name=section_name.replace(datasource_config_prefix, ''),
+                # calib_directory=ini_cfg.get(config_ns, 'calibdir'),
+                calib_files=calib_files,
+            )
+            calibsources[ds.name] = cs
+
         init_files_ns = '%s.initialize_files' % config_ns
         init_files = {}
         if ini_cfg.has_section(init_files_ns):
@@ -343,6 +390,7 @@ def from_ini_file(ini_cfg, global_config=None):
             results_directory=ini_cfg.get(config_ns, 'resultsdir'),
             modules=calibration_wizard_modules,
             datasources=datasources,
+            calibsources=calibsources,
             calibration_init_files=init_files,
         )
         # optional attributes for calibration_wizard

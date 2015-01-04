@@ -4,7 +4,8 @@ from lxml import etree
 
 
 UTQL_NAMESPACES = {'utql': 'http://ar.in.tum.de/ubitrack/utql',
-                   'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
+                   'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+                   'xi': 'http://www.w3.org/2001/XInclude'}
 
 
 class FileResolver(etree.Resolver):
