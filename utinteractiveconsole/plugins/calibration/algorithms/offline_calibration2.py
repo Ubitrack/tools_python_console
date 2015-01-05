@@ -29,7 +29,8 @@ from utinteractiveconsole.plugins.calibration.algorithms.phantom_forward_kinemat
 
 from utinteractiveconsole.plugins.calibration.algorithms.streamfilters2 import (
     RelativeOrienationDistanceStreamFilter, StaticPointDistanceStreamFilter,
-    RelativePointDistanceStreamFilter, TwoPointDistanceStreamFilter
+    RelativePointDistanceStreamFilter, TwoPointDistanceStreamFilter,
+    NClustersPositionStreamFilter, ExcludeTimestampsStreamFilter
 )
 
 from utinteractiveconsole.plugins.calibration.algorithms.streamprocessors2 import (
@@ -775,6 +776,7 @@ class OfflineCalibrationParameters(Atom):
     ao_minimal_distance_between_measurements = Float(0.01)
     ao_refinement_expand_coverage = Float(1.2)
     ao_refinement_shrink_distance = Float(0.8)
+    ao_number_of_clusters = Int(0)
 
     # joint-angle correction
     joint_angle_calibration_enabled = Bool(False)
@@ -784,6 +786,7 @@ class OfflineCalibrationParameters(Atom):
     ja_refinement_min_difference = Float(0.00001)
     ja_refinement_max_iterations = Int(3)
     ja_refinement_shrink_distance = Float(0.8)
+    ja_number_of_clusters = Int(0)
 
     # reference orientation
     reference_orientation_enabled = Bool(False)
@@ -894,7 +897,10 @@ class OfflineCalibrationProcessor(Atom):
     # refinement vars
     ao_maxdistance_from_origin = Float(0.0)
     ao_minimal_distance_between_measurements = Float(0.0)
+    ao_number_of_clusters = Int(0)
+
     ja_minimal_distance_between_measurements = Float(0.0)
+    ja_number_of_clusters = Int(0)
 
     source_tooltip_calibration_result = Value()
     source_absolute_orientation_result = Value()
@@ -996,6 +1002,10 @@ class OfflineCalibrationProcessor(Atom):
                                                              min_distance=self.ao_minimal_distance_between_measurements)
             stream_filters.append(ao_selector2)
 
+            if self.ao_number_of_clusters > 0:
+                ao_selector3 = NClustersPositionStreamFilter('haptic_pose', self.ao_number_of_clusters)
+                stream_filters.append(ao_selector3)
+
         elif ao_method == "fwkbase":
             ao_processor_factory = AbsoluteOrientationFWKBaseCalibrationProcessor
 
@@ -1039,20 +1049,28 @@ class OfflineCalibrationProcessor(Atom):
                                         absolute_orientation=self.result.absolute_orientation_result,
                                         forward_kinematics=fwk)
 
+        stream_filters = []
         # simple way to avoid outliers from the external tracker: limit distance to reference ...
         ja_selector1 = TwoPointDistanceStreamFilter("hip_reference_pose", "haptic_pose",
                                                     max_distance=self.parameters.ja_maximum_distance_to_reference)
+        stream_filters.append(ja_selector1)
 
         # only use a subset of the dataset
         ja_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
                                                          min_distance=self.ja_minimal_distance_between_measurements)
+        stream_filters.append(ja_selector2)
+
+        if self.ja_number_of_clusters > 0:
+            ja_selector3 = NClustersPositionStreamFilter('haptic_pose', self.ja_number_of_clusters)
+            stream_filters.append(ja_selector3)
+
 
         ds = DataSet(name="joint_angles_calibration_data",
                      title="Joint Angles Calibration DataSet",
                      recordsource=ja_data,
                      processor_factory=JointAngleCalibrationStreamProcessor,
                      attributes=ja_streamproc_attributes,
-                     stream_filters=[ja_selector1, ja_selector2],
+                     stream_filters=stream_filters,
                      )
 
         ja_processor_attributes = dict(joint_lengths=self.parameters.joint_lengths,
@@ -1068,8 +1086,8 @@ class OfflineCalibrationProcessor(Atom):
 
         pd = self.result.process_data.setdefault('jointangles_correction', [])
         pd.append(ProcessData(dataset=ds,
-                             attributes=ja_processor_attributes,
-                             results=dict(jointangles_correction=self.result.jointangles_correction_result)))
+                              attributes=ja_processor_attributes,
+                              results=dict(jointangles_correction=self.result.jointangles_correction_result)))
 
         return True
 
@@ -1156,9 +1174,9 @@ class OfflineCalibrationProcessor(Atom):
 
         pd = self.result.process_data.setdefault('reference_orientation', [])
         pd.append(ProcessData(dataset=ds,
-                             results=dict(zaxis_reference=self.result.zaxis_reference_result,
-                                          zaxis_points=self.result.zaxis_points_result,
-                                          theta6_correction=self.result.theta6_correction_result)))
+                              results=dict(zaxis_reference=self.result.zaxis_reference_result,
+                                           zaxis_points=self.result.zaxis_points_result,
+                                           theta6_correction=self.result.theta6_correction_result)))
 
         return True
 
@@ -1195,13 +1213,21 @@ class OfflineCalibrationProcessor(Atom):
 
         pd = self.result.process_data.setdefault('timedelay_estimation', [])
         pd.append(ProcessData(dataset=ds,
-                             attributes=tde_processor_attributes,
-                             results=dict(timedelay_estimation=self.result.timedelay_estimation_result)))
+                              attributes=tde_processor_attributes,
+                              results=dict(timedelay_estimation=self.result.timedelay_estimation_result)))
 
         return True
 
-    def compute_position_errors(self, ja_data):
+    def compute_position_errors(self, ja_data, excluded_timestamps=None):
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
+        if excluded_timestamps is None:
+            ja_pds = self.result.process_data.get('jointangles_correction', [])
+            if ja_pds:
+                ja_pd = ja_pds[-1]
+                excluded_timestamps = [r.timestamp for r in ja_pd.dataset]
+
+        if excluded_timestamps is not None:
+            ja_data = ExcludeTimestampsStreamFilter(excluded_timestamps).process(ja_data)
         position_errors = compute_position_errors(ja_data,
                                                   tooltip_offset=self.result.tooltip_calibration_result,
                                                   absolute_orientation=self.result.absolute_orientation_result,
@@ -1209,13 +1235,21 @@ class OfflineCalibrationProcessor(Atom):
         log.info("Resulting position error: %s" % position_errors.mean())
         return position_errors
 
-    def compute_orientation_errors(self, ga_data):
+    def compute_orientation_errors(self, ga_data, excluded_timestamps=None):
         fwk = self.get_fwk(self.result.jointangles_correction_result, self.result.gimbalangles_correction_result)
+        if excluded_timestamps is None:
+            ga_pds = self.result.process_data.get('gimbalangles_correction', [])
+            if ga_pds:
+                ga_pd = ga_pds[-1]
+                excluded_timestamps = [r.timestamp for r in ga_pd.dataset]
+
+        if excluded_timestamps is not None:
+            ga_data = ExcludeTimestampsStreamFilter(excluded_timestamps).process(ga_data)
         orientation_errors = compute_orientation_errors(ga_data,
-                                                  tooltip_offset=self.result.tooltip_calibration_result,
-                                                  absolute_orientation=self.result.absolute_orientation_result,
-                                                  forward_kinematics=fwk,
-                                                  zref_axis=self.result.zaxis_reference_result)
+                                                        tooltip_offset=self.result.tooltip_calibration_result,
+                                                        absolute_orientation=self.result.absolute_orientation_result,
+                                                        forward_kinematics=fwk,
+                                                        zref_axis=self.result.zaxis_reference_result)
         log.info("Resulting orientation error: %s" % orientation_errors.mean())
         return orientation_errors
 
@@ -1227,10 +1261,10 @@ class OfflineCalibrationProcessor(Atom):
         self.ao_maxdistance_from_origin = self.parameters.ao_inital_maxdistance_from_origin
         self.ao_minimal_distance_between_measurements = self.parameters.ao_minimal_distance_between_measurements
         self.ja_minimal_distance_between_measurements = self.parameters.ja_minimal_distance_between_measurements
-
+        self.ao_number_of_clusters = self.parameters.ao_number_of_clusters
+        self.ja_number_of_clusters = self.parameters.ja_number_of_clusters
 
     def process(self):
-
         fname = os.path.join(self.dfg_dir, self.dfg_filename)
         if not os.path.isfile(fname):
             log.error("DFG file not found: %s" % fname)

@@ -127,6 +127,9 @@ class OfflineCalibrationController(CalibrationController):
                 if gbl_cfg.has_option(parameters_sname, "ao_initialize_anglecorrection_calibsource"):
                     self.parameters.ao_initialize_anglecorrection_calibsource = calibsource_sname_prefix + gbl_cfg.get(parameters_sname, "ao_initialize_anglecorrection_calibsource")
 
+                if gbl_cfg.has_option(parameters_sname, "ao_number_of_clusters"):
+                    self.parameters.ao_number_of_clusters = gbl_cfg.getint(parameters_sname, "ao_number_of_clusters")
+
                 # experimental absolute orientation with multiple methods
                 ao_method = 'fwkpose'
                 if gbl_cfg.has_option(parameters_sname, "ao_method"):
@@ -150,6 +153,9 @@ class OfflineCalibrationController(CalibrationController):
                 self.parameters.ja_refinement_min_difference = gbl_cfg.getfloat(parameters_sname, "ja_refinement_min_difference")
                 self.parameters.ja_refinement_max_iterations = gbl_cfg.getint(parameters_sname, "ja_refinement_max_iterations")
                 self.parameters.ja_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ja_refinement_shrink_distance")
+
+                if gbl_cfg.has_option(parameters_sname, "ja_number_of_clusters"):
+                    self.parameters.ja_number_of_clusters = gbl_cfg.getint(parameters_sname, "ja_number_of_clusters")
 
             self.parameters.reference_orientation_enabled = gbl_cfg.getboolean(parameters_sname, "reference_orientation_enabled")
             if self.parameters.reference_orientation_enabled:

@@ -5,6 +5,9 @@ from numpy.linalg import norm
 import sys
 import logging
 
+from scipy import cluster
+from scipy import spatial
+
 from ubitrack.core import math
 
 log = logging.getLogger(__name__)
@@ -179,7 +182,6 @@ class RelativeOrienationDistanceStreamFilter(BaseStreamFilter):
             return True
         return False
 
-
     def process(self, stream):
         selector = self.check_item
         fieldname = self.fieldname
@@ -187,4 +189,58 @@ class RelativeOrienationDistanceStreamFilter(BaseStreamFilter):
         for record in stream:
             item = getattr(record, fieldname)
             if selector(item):
+                yield record
+
+
+class NClustersPositionStreamFilter(BaseStreamFilter):
+
+    def __init__(self, fieldname, n_clusters):
+        log.info("NClustersPositionStreamFilter n=%s" % n_clusters)
+        self.fieldname = fieldname
+        self.n_clusters = n_clusters
+
+    def process(self, stream):
+        fieldname = self.fieldname
+
+        # needs preloading data
+        datastream = list(stream)
+
+        timestamps = []
+        measurements = []
+
+        for record in datastream:
+            timestamps.append(record.timestamp)
+            m = getattr(record, fieldname)
+            if isinstance(m, math.Pose):
+                m = m.translation()
+            measurements.append(m)
+
+        measurements = np.asarray(measurements)
+        timestamps = np.asarray(timestamps)
+
+        centroids, _ = cluster.vq.kmeans2(measurements, self.n_clusters, minit='points')
+        clusters, _ = cluster.vq.vq(measurements, centroids)
+        kdt = spatial.cKDTree(measurements)
+
+        selected_timestamps = []
+        for v in centroids:
+            dist, idx = kdt.query(v)
+            selected_timestamps.append(timestamps[idx])
+
+        for record in datastream:
+            if record.timestamp in selected_timestamps:
+                yield record
+
+
+class ExcludeTimestampsStreamFilter(BaseStreamFilter):
+
+    def __init__(self, timestamps):
+        log.info("ExcludeTimestampsStreamFilter l=%d" % len(timestamps))
+        self.timestamps = timestamps
+
+    def process(self, stream):
+        excluded_timestamps = self.timestamps
+
+        for record in stream:
+            if record.timestamp not in excluded_timestamps:
                 yield record

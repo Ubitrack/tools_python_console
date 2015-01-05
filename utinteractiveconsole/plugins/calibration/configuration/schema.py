@@ -132,6 +132,7 @@ class OfflineCalibrationParameters(Atom):
     ao_refinement_expand_coverage = Float(1.5)
     ao_refinement_shrink_distance = Float(1.0)
     ao_initialize_anglecorrection_calibsource = Str()
+    ao_number_of_clusters = Int(0)
 
     # joint angles calibration
     joint_angle_calibration_enabled = Bool(True)
@@ -141,6 +142,7 @@ class OfflineCalibrationParameters(Atom):
     ja_refinement_min_difference = Float(0.00001)
     ja_refinement_max_iterations = Int(5)
     ja_refinement_shrink_distance = Float(0.9)
+    ja_number_of_clusters = Int(0)
 
     # reference orientation
     reference_orientation_enabled = Bool(False)
@@ -269,6 +271,8 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.ao_refinement_shrink_distance = ini_cfg.getfloat(module_parameters_ns, 'ao_refinement_shrink_distance')
                     if ini_cfg.has_option(module_parameters_ns, 'ao_initialize_anglecorrection_calibsource'):
                         module_parameters.ao_initialize_anglecorrection_calibsource = ini_cfg.get(module_parameters_ns, 'ao_initialize_anglecorrection_calibsource')
+                    if ini_cfg.has_option(module_parameters_ns, 'ao_number_of_clusters'):
+                        module_parameters.ao_number_of_clusters = ini_cfg.getint(module_parameters_ns, 'ao_number_of_clusters')
 
                     if ini_cfg.has_option(module_parameters_ns, 'joint_angle_calibration_enabled'):
                         module_parameters.joint_angle_calibration_enabled = ini_cfg.getboolean(module_parameters_ns, 'joint_angle_calibration_enabled')
@@ -284,6 +288,8 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.ja_refinement_max_iterations = ini_cfg.getint(module_parameters_ns, 'ja_refinement_max_iterations')
                     if ini_cfg.has_option(module_parameters_ns, 'ja_refinement_shrink_distance'):
                         module_parameters.ja_refinement_shrink_distance = ini_cfg.getfloat(module_parameters_ns, 'ja_refinement_shrink_distance')
+                    if ini_cfg.has_option(module_parameters_ns, 'ja_number_of_clusters'):
+                        module_parameters.ja_number_of_clusters = ini_cfg.getint(module_parameters_ns, 'ja_number_of_clusters')
 
                     if ini_cfg.has_option(module_parameters_ns, 'reference_orientation_enabled'):
                         module_parameters.reference_orientation_enabled = ini_cfg.getboolean(module_parameters_ns, 'reference_orientation_enabled')
