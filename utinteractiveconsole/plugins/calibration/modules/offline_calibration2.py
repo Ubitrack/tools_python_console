@@ -170,6 +170,9 @@ class OfflineCalibrationController(CalibrationController):
                 self.parameters.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
                 self.parameters.ga_use_tooltip_offset = gbl_cfg.getboolean(parameters_sname, "ga_use_tooltip_offset")
 
+                if gbl_cfg.has_option(parameters_sname, "ga_number_of_clusters"):
+                    self.parameters.ga_number_of_clusters = gbl_cfg.getint(parameters_sname, "ga_number_of_clusters")
+
             if gbl_cfg.has_option(parameters_sname, "timedelay_estimation_enabled"):
                 self.parameters.timedelay_estimation_enabled = gbl_cfg.getboolean(parameters_sname, "timedelay_estimation_enabled")
                 if self.parameters.timedelay_estimation_enabled:

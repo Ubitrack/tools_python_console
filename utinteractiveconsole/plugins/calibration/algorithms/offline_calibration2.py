@@ -5,6 +5,7 @@ import os
 
 from math import sin, cos, acos, atan2, sqrt, fabs, radians, degrees
 import numpy as np
+import pandas as pd
 from numpy.linalg import norm
 
 from scipy import odr
@@ -30,7 +31,7 @@ from utinteractiveconsole.plugins.calibration.algorithms.phantom_forward_kinemat
 from utinteractiveconsole.plugins.calibration.algorithms.streamfilters2 import (
     RelativeOrienationDistanceStreamFilter, StaticPointDistanceStreamFilter,
     RelativePointDistanceStreamFilter, TwoPointDistanceStreamFilter,
-    NClustersPositionStreamFilter, ExcludeTimestampsStreamFilter
+    NClustersPositionStreamFilter, NClustersOrientationStreamFilter, ExcludeTimestampsStreamFilter
 )
 
 from utinteractiveconsole.plugins.calibration.algorithms.streamprocessors2 import (
@@ -798,6 +799,7 @@ class OfflineCalibrationParameters(Atom):
     gimbal_angle_calibration_datasource = Str()
     ga_minimal_angle_between_measurements = Float(0.1)
     ga_use_tooltip_offset = Bool(False)
+    ga_number_of_clusters = Int(0)
 
     # time-delay estimation
     timedelay_estimation_enabled = Bool(False)
@@ -829,13 +831,15 @@ def compute_position_errors(stream,
 
     absolute_orientation_inv = absolute_orientation.invert()
     position_errors = []
+    timestamps = []
     for record in stream:
+        timestamps.append(record.timestamp)
         gimbalangles = getattr(record, 'gimbalangles', np.array([0., 0., 0.]))
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
         hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
         position_errors.append(norm(hip_reference_pose.translation() - haptic_pose.translation()))
 
-    return np.array(position_errors)
+    return pd.Series(np.array(position_errors), index=timestamps)
 
 
 def compute_orientation_errors(stream,
@@ -861,7 +865,9 @@ def compute_orientation_errors(stream,
     absolute_orientation_inv = absolute_orientation.invert()
     orientation_errors = []
 
+    timestamps = []
     for record in stream:
+        timestamps.append(record.timestamp)
         haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
         hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
 
@@ -874,7 +880,7 @@ def compute_orientation_errors(stream,
 
         orientation_errors.append(degrees(acos(z_ref.dot(z_fwk))))
 
-    return np.array(orientation_errors)
+    return pd.Series(np.array(orientation_errors), index=timestamps)
 
 
 class OfflineCalibrationProcessor(Atom):
@@ -902,6 +908,8 @@ class OfflineCalibrationProcessor(Atom):
     ja_minimal_distance_between_measurements = Float(0.0)
     ja_number_of_clusters = Int(0)
 
+    ga_number_of_clusters = Int(0)
+
     source_tooltip_calibration_result = Value()
     source_absolute_orientation_result = Value()
     source_jointangles_correction_result = Value()
@@ -916,14 +924,17 @@ class OfflineCalibrationProcessor(Atom):
     def do_tooltip_calibration(self, tt_data):
         log.info("Tooltip Calibration")
 
-        tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
-                                                             min_distance=self.parameters.tt_minimal_angle_between_measurements)
+        stream_filters = []
+        if self.parameters.tt_minimal_angle_between_measurements > 0:
+            tt_selector = RelativeOrienationDistanceStreamFilter("externaltracker_pose",
+                                                                 min_distance=self.parameters.tt_minimal_angle_between_measurements)
+            stream_filters.append(tt_selector)
 
         ds = DataSet(name="tooltip_calibration_data",
                      title="Tooltip Calibration DataSet",
                      recordsource=tt_data,
                      processor_factory=TooltipStreamProcessor,
-                     stream_filters=[tt_selector, ],
+                     stream_filters=stream_filters,
                      )
 
         tt_processor = TooltipCalibrationProcessor(dataset=ds,
@@ -993,14 +1004,14 @@ class OfflineCalibrationProcessor(Atom):
             ao_processor_factory = AbsoluteOrientationCalibrationProcessor
 
             # no attributes
-
-            ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
-                                                           max_distance=self.ao_maxdistance_from_origin)
-            stream_filters.append(ao_selector1)
-
-            ao_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
-                                                             min_distance=self.ao_minimal_distance_between_measurements)
-            stream_filters.append(ao_selector2)
+            if self.ao_maxdistance_from_origin > 0:
+                ao_selector1 = StaticPointDistanceStreamFilter("haptic_pose", np.array([0, 0, 0]),
+                                                               max_distance=self.ao_maxdistance_from_origin)
+                stream_filters.append(ao_selector1)
+            if self.ao_minimal_distance_between_measurements > 0:
+                ao_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
+                                                                 min_distance=self.ao_minimal_distance_between_measurements)
+                stream_filters.append(ao_selector2)
 
             if self.ao_number_of_clusters > 0:
                 ao_selector3 = NClustersPositionStreamFilter('haptic_pose', self.ao_number_of_clusters)
@@ -1050,20 +1061,21 @@ class OfflineCalibrationProcessor(Atom):
                                         forward_kinematics=fwk)
 
         stream_filters = []
-        # simple way to avoid outliers from the external tracker: limit distance to reference ...
-        ja_selector1 = TwoPointDistanceStreamFilter("hip_reference_pose", "haptic_pose",
-                                                    max_distance=self.parameters.ja_maximum_distance_to_reference)
-        stream_filters.append(ja_selector1)
+        if self.parameters.ja_maximum_distance_to_reference > 0:
+            # simple way to avoid outliers from the external tracker: limit distance to reference ...
+            ja_selector1 = TwoPointDistanceStreamFilter("hip_reference_pose", "haptic_pose",
+                                                        max_distance=self.parameters.ja_maximum_distance_to_reference)
+            stream_filters.append(ja_selector1)
 
-        # only use a subset of the dataset
-        ja_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
-                                                         min_distance=self.ja_minimal_distance_between_measurements)
-        stream_filters.append(ja_selector2)
+        if self.ja_minimal_distance_between_measurements > 0:
+            # only use a subset of the dataset
+            ja_selector2 = RelativePointDistanceStreamFilter("haptic_pose",
+                                                             min_distance=self.ja_minimal_distance_between_measurements)
+            stream_filters.append(ja_selector2)
 
         if self.ja_number_of_clusters > 0:
             ja_selector3 = NClustersPositionStreamFilter('haptic_pose', self.ja_number_of_clusters)
             stream_filters.append(ja_selector3)
-
 
         ds = DataSet(name="joint_angles_calibration_data",
                      title="Joint Angles Calibration DataSet",
@@ -1102,15 +1114,23 @@ class OfflineCalibrationProcessor(Atom):
                                         forward_kinematics=fwk,
                                         zrefaxis_calib=self.result.zaxis_reference_result)
 
-        ga_selector = RelativeOrienationDistanceStreamFilter("haptic_pose",
-                                                             min_distance=par.ga_minimal_angle_between_measurements)
+        stream_filters = []
+        if par.ga_minimal_angle_between_measurements > 0:
+            ga_selector1 = RelativeOrienationDistanceStreamFilter("haptic_pose",
+                                                                  min_distance=par.ga_minimal_angle_between_measurements)
+
+            stream_filters.append(ga_selector1)
+
+        if self.ga_number_of_clusters > 0:
+            ga_selector2 = NClustersOrientationStreamFilter('haptic_pose', self.ga_number_of_clusters)
+            stream_filters.append(ga_selector2)
 
         ds = DataSet(name="gimbal_angles_calibration_data",
                      title="Gimbal Angles Calibration DataSet",
                      recordsource=ga_data,
                      processor_factory=GimbalAngleCalibrationStreamProcessor,
                      attributes=ga_streamproc_attributes,
-                     stream_filters=[ga_selector, ],
+                     stream_filters=stream_filters,
                      )
 
         ga_processor_attributes = dict(data_joint_angle_correction=self.result.jointangles_correction_result,
@@ -1263,6 +1283,7 @@ class OfflineCalibrationProcessor(Atom):
         self.ja_minimal_distance_between_measurements = self.parameters.ja_minimal_distance_between_measurements
         self.ao_number_of_clusters = self.parameters.ao_number_of_clusters
         self.ja_number_of_clusters = self.parameters.ja_number_of_clusters
+        self.ga_number_of_clusters = self.parameters.ga_number_of_clusters
 
     def process(self):
         fname = os.path.join(self.dfg_dir, self.dfg_filename)
@@ -1339,7 +1360,7 @@ class OfflineCalibrationProcessor(Atom):
         # compute initial errors
         self.result.position_errors.append(self.compute_position_errors(datasources.get(self.parameters.joint_angle_calibration_datasource, None)))
 
-        last_error = np.array([0.,])
+        last_error = pd.Series(np.array([0., ]))
 
         # initial time-delay estimation
         if self.parameters.timedelay_estimation_enabled:
@@ -1597,10 +1618,10 @@ class OfflineCalibrationProcessor(Atom):
         # store computed errors
         log.info("Store computed errors.")
         for i, poserr in enumerate(self.result.position_errors):
-            store_data(store, '/evaluation/position_errors/I%02d' % i, pd.Series(poserr))
+            store_data(store, '/evaluation/position_errors/I%02d' % i, poserr)
 
         for i, ornerr in enumerate(self.result.orientation_errors):
-            store_data(store, '/evaluation/orientation_errors/I%02d' % i, pd.Series(ornerr))
+            store_data(store, '/evaluation/orientation_errors/I%02d' % i, ornerr)
 
         log.info("Store all datasources.")
         for key, datasource in self.datasources.items():

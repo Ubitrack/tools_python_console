@@ -154,6 +154,7 @@ class OfflineCalibrationParameters(Atom):
     gimbal_angle_calibration_datasource = Str()
     ga_minimal_angle_between_measurements = Float(0.1)
     ga_use_tooltip_offset = Bool(False)
+    ga_number_of_clusters = Int(0)
 
     # time-delay estimation
     timedelay_estimation_enabled = Bool(False)
@@ -306,6 +307,8 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.ga_minimal_angle_between_measurements = ini_cfg.getfloat(module_parameters_ns, 'ga_minimal_angle_between_measurements')
                     if ini_cfg.has_option(module_parameters_ns, 'ga_use_tooltip_offset'):
                         module_parameters.ga_use_tooltip_offset = ini_cfg.getboolean(module_parameters_ns, 'ga_use_tooltip_offset')
+                    if ini_cfg.has_option(module_parameters_ns, 'ga_number_of_clusters'):
+                        module_parameters.ga_number_of_clusters = ini_cfg.getint(module_parameters_ns, 'ga_number_of_clusters')
 
                     if ini_cfg.has_option(module_parameters_ns, 'timedelay_estimation_enabled'):
                         module_parameters.timedelay_estimation_enabled = ini_cfg.getboolean(module_parameters_ns, 'timedelay_estimation_enabled')

@@ -9,6 +9,7 @@ from scipy import cluster
 from scipy import spatial
 
 from ubitrack.core import math
+from .coordinate_transforms import cartesian_to_spherical, rad_norm
 
 log = logging.getLogger(__name__)
 
@@ -222,10 +223,52 @@ class NClustersPositionStreamFilter(BaseStreamFilter):
         clusters, _ = cluster.vq.vq(measurements, centroids)
         kdt = spatial.cKDTree(measurements)
 
-        selected_timestamps = []
+        selected_timestamps = set()
         for v in centroids:
             dist, idx = kdt.query(v)
-            selected_timestamps.append(timestamps[idx])
+            selected_timestamps.add(timestamps[idx])
+
+        for record in datastream:
+            if record.timestamp in selected_timestamps:
+                yield record
+
+
+class NClustersOrientationStreamFilter(BaseStreamFilter):
+
+    def __init__(self, fieldname, n_clusters):
+        log.info("NClustersOrientationStreamFilter n=%s" % n_clusters)
+        self.fieldname = fieldname
+        self.n_clusters = n_clusters
+
+    def process(self, stream):
+        fieldname = self.fieldname
+
+        # needs preloading data
+        datastream = list(stream)
+
+        timestamps = []
+        measurements = []
+
+        for record in datastream:
+            timestamps.append(record.timestamp)
+            m = getattr(record, fieldname)
+            if isinstance(m, math.Pose):
+                # zaxis vector
+                m = m.rotation().transformVector(np.array([0., 0., 1.]))
+            # storing spherical coordinates theta and phi only
+            measurements.append(cartesian_to_spherical(m)[1:])
+
+        measurements = np.asarray(measurements)
+        timestamps = np.asarray(timestamps)
+
+        centroids, _ = cluster.vq.kmeans2(measurements, self.n_clusters, minit='points')
+        clusters, _ = cluster.vq.vq(measurements, centroids)
+        kdt = spatial.cKDTree(measurements)
+
+        selected_timestamps = set()
+        for v in centroids:
+            dist, idx = kdt.query(v)
+            selected_timestamps.add(timestamps[idx])
 
         for record in datastream:
             if record.timestamp in selected_timestamps:
