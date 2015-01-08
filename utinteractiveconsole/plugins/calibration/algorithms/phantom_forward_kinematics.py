@@ -9,6 +9,15 @@ from ubitrack.core import math
 
 log = logging.getLogger(__name__)
 
+# try:
+#     from numba import autojit
+#     have_numba = True
+#     log.info("Using numba for Forward-Kinematics")
+# except ImportError:
+have_numba = False
+
+
+
 angle_null_correction = np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
 
 class FWKinematicPhantom(object):
@@ -23,7 +32,6 @@ class FWKinematicPhantom(object):
             self.gimbalangle_correction_factors[2, 2] = 0.0
         self.origin_calib = origin_calib if origin_calib is not None \
             else np.array([0., 0., 0.])
-
 
     def calculate_position(self, joint_angles):
         jacf = self.jointangle_correction_factors
@@ -53,7 +61,6 @@ class FWKinematicPhantom(object):
         )
 
         return trans
-
 
     def calculate_pose(self, joint_angles, gimbal_angles):
         jacf = self.jointangle_correction_factors
@@ -106,13 +113,18 @@ class FWKinematicPhantom(object):
         return math.Pose(math.Quaternion.fromMatrix(rot).normalize(), trans)
 
 
+    if have_numba:
+        calculate_position = autojit()(calculate_position)
+        calculate_pose = autojit()(calculate_pose)
+
+
 
 class FWKinematicPhantom2(object):
 
     def __init__(self, joint_lengths, jointangle_correction, gimbalangle_correction, origin_calib=None, disable_theta6=False):
         self.joint_lengths = joint_lengths
-        self.jointangle_correction_factors = jointangle_correction
-        self.gimbalangle_correction_factors = gimbalangle_correction
+        self.jointangle_correction_factors = np.array(jointangle_correction)
+        self.gimbalangle_correction_factors = np.array(gimbalangle_correction)
         if disable_theta6:
             self.gimbalangle_correction_factors[2, 0] = 0.0
             self.gimbalangle_correction_factors[2, 1] = 0.0
@@ -226,6 +238,10 @@ class FWKinematicPhantom2(object):
                          cO6*(-cO1*cO5*sO3 + sO5*(-cO1*cO3*cO4 - sO1*sO4)) + sO6*(-cO1*cO3*sO4 + cO4*sO1),
                          -cO1*sO3*sO5 + cO5*(cO1*cO3*cO4 + sO1*sO4)]])
         return math.Pose(math.Quaternion.fromMatrix(rot).normalize(), trans)
+
+    if have_numba:
+        calculate_position = autojit()(calculate_position)
+        calculate_pose = autojit()(calculate_pose)
 
 
 def from_config(root_directory, context,

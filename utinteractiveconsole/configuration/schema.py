@@ -15,6 +15,7 @@ class GlobalConfig(Atom):
 
     components_path = Str()
     logging_config = Str()
+    py_logging_config = Str()
 
     plugins = Dict()
     devices = Dict()

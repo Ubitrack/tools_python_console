@@ -10,6 +10,7 @@ from scipy import spatial
 
 from ubitrack.core import math
 from .coordinate_transforms import cartesian_to_spherical, rad_norm
+MS_DIVIDER = 1000000.0
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +20,22 @@ class BaseStreamFilter(object):
         for record in stream:
             yield record
 
+
+class SkipFrontStreamFilter(BaseStreamFilter):
+
+    def __init__(self, seconds):
+        log.info("SkipFrontStreamFilter seconds=%s" % seconds)
+        self.seconds = seconds
+
+    def process(self, stream):
+        first_timestamp = None
+        for record in stream:
+            if first_timestamp is None:
+                first_timestamp = record.timestamp + self.seconds * MS_DIVIDER
+            if record.timestamp < first_timestamp:
+                continue
+
+            yield record
 
 
 
@@ -195,10 +212,10 @@ class RelativeOrienationDistanceStreamFilter(BaseStreamFilter):
 
 class NClustersPositionStreamFilter(BaseStreamFilter):
 
-    def __init__(self, fieldname, n_clusters):
-        log.info("NClustersPositionStreamFilter n=%s" % n_clusters)
+    def __init__(self, fieldname, n_clusters, _iter=50):
         self.fieldname = fieldname
         self.n_clusters = n_clusters
+        self._iter = _iter
 
     def process(self, stream):
         fieldname = self.fieldname
@@ -219,7 +236,7 @@ class NClustersPositionStreamFilter(BaseStreamFilter):
         measurements = np.asarray(measurements)
         timestamps = np.asarray(timestamps)
 
-        centroids, _ = cluster.vq.kmeans2(measurements, self.n_clusters, minit='points')
+        centroids, _ = cluster.vq.kmeans2(measurements, self.n_clusters, minit='points', iter=self._iter)
         clusters, _ = cluster.vq.vq(measurements, centroids)
         kdt = spatial.cKDTree(measurements)
 
@@ -228,6 +245,7 @@ class NClustersPositionStreamFilter(BaseStreamFilter):
             dist, idx = kdt.query(v)
             selected_timestamps.add(timestamps[idx])
 
+        log.info("NClustersPositionStreamFilter  n=%s selected %d out of %d records." % (self.n_clusters, len(selected_timestamps), len(datastream)))
         for record in datastream:
             if record.timestamp in selected_timestamps:
                 yield record
@@ -235,10 +253,10 @@ class NClustersPositionStreamFilter(BaseStreamFilter):
 
 class NClustersOrientationStreamFilter(BaseStreamFilter):
 
-    def __init__(self, fieldname, n_clusters):
-        log.info("NClustersOrientationStreamFilter n=%s" % n_clusters)
+    def __init__(self, fieldname, n_clusters, _iter=50):
         self.fieldname = fieldname
         self.n_clusters = n_clusters
+        self._iter = _iter
 
     def process(self, stream):
         fieldname = self.fieldname
@@ -261,7 +279,7 @@ class NClustersOrientationStreamFilter(BaseStreamFilter):
         measurements = np.asarray(measurements)
         timestamps = np.asarray(timestamps)
 
-        centroids, _ = cluster.vq.kmeans2(measurements, self.n_clusters, minit='points')
+        centroids, _ = cluster.vq.kmeans2(measurements, self.n_clusters, minit='points', iter=self._iter)
         clusters, _ = cluster.vq.vq(measurements, centroids)
         kdt = spatial.cKDTree(measurements)
 
@@ -270,6 +288,7 @@ class NClustersOrientationStreamFilter(BaseStreamFilter):
             dist, idx = kdt.query(v)
             selected_timestamps.add(timestamps[idx])
 
+        log.info("NClustersOrientationStreamFilter n=%s selected %d out of %d records." % (self.n_clusters, len(selected_timestamps), len(datastream)))
         for record in datastream:
             if record.timestamp in selected_timestamps:
                 yield record

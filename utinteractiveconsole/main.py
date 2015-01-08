@@ -44,6 +44,8 @@ logging.basicConfig(level=logging.INFO)
 logging.captureWarnings(True)
 #warnings.simplefilter("always")
 
+import logging.config
+
 
 def main():
 
@@ -52,6 +54,10 @@ def main():
     parser.add_option("-l", "--logconfig",
                   action="store", dest="logconfig", default="/etc/mvl/log4cpp.conf",
                   help="log4cpp config file")
+
+    parser.add_option("--py-logconfig",
+                  action="store", dest="py_logconfig", default="",
+                  help="python logging config file")
 
     # parser.add_option("-w", "--workspace",
     #               action="store", dest="autostart_workspace", default=None,
@@ -77,6 +83,11 @@ def main():
     appstate.context['extensions'] = extensions
 
     (options, args) = parser.parse_args()
+
+    if options.py_logconfig != "" and os.path.isfile(options.py_logconfig):
+        log.info("Reloading logging config from: %s" % options.py_logconfig)
+        logging.config.fileConfig(options.py_logconfig, disable_existing_loggers=False)
+        log.info("Done reloading config.")
 
     if options.show_logwindow:
         logger = logging.getLogger()

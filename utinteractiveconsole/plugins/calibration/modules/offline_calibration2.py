@@ -100,6 +100,10 @@ class OfflineCalibrationController(CalibrationController):
         calibsource_sname_prefix = "%s.calibrations." % self.config_ns
 
         if gbl_cfg.has_section(parameters_sname):
+
+            if gbl_cfg.has_option(parameters_sname, "stream_skip_first_nseconds"):
+                self.parameters.stream_skip_first_nseconds = gbl_cfg.getfloat(parameters_sname, "stream_skip_first_nseconds")
+
             self.parameters.tooltip_enabled = gbl_cfg.getboolean(parameters_sname, "tooltip_enabled")
             if self.parameters.tooltip_enabled:
                 log.info("Tooltip Calibration Enabled")
@@ -154,6 +158,9 @@ class OfflineCalibrationController(CalibrationController):
                 self.parameters.ja_refinement_max_iterations = gbl_cfg.getint(parameters_sname, "ja_refinement_max_iterations")
                 self.parameters.ja_refinement_shrink_distance = gbl_cfg.getfloat(parameters_sname, "ja_refinement_shrink_distance")
 
+                if gbl_cfg.has_option(parameters_sname, "ja_use_2nd_order"):
+                    self.parameters.ja_use_2nd_order = gbl_cfg.getboolean(parameters_sname, "ja_use_2nd_order")
+
                 if gbl_cfg.has_option(parameters_sname, "ja_number_of_clusters"):
                     self.parameters.ja_number_of_clusters = gbl_cfg.getint(parameters_sname, "ja_number_of_clusters")
 
@@ -169,6 +176,9 @@ class OfflineCalibrationController(CalibrationController):
                 self.parameters.gimbal_angle_calibration_datasource = datasource_sname_prefix + gbl_cfg.get(parameters_sname, "gimbal_angle_calibration_datasource")
                 self.parameters.ga_minimal_angle_between_measurements = gbl_cfg.getfloat(parameters_sname, "ga_minimal_angle_between_measurements")
                 self.parameters.ga_use_tooltip_offset = gbl_cfg.getboolean(parameters_sname, "ga_use_tooltip_offset")
+
+                if gbl_cfg.has_option(parameters_sname, "ga_use_2nd_order"):
+                    self.parameters.ga_use_2nd_order = gbl_cfg.getboolean(parameters_sname, "ga_use_2nd_order")
 
                 if gbl_cfg.has_option(parameters_sname, "ga_number_of_clusters"):
                     self.parameters.ga_number_of_clusters = gbl_cfg.getint(parameters_sname, "ga_number_of_clusters")

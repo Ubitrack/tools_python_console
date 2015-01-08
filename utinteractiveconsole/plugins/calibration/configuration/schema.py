@@ -108,6 +108,9 @@ class CalibrationWizardCalibSource(Atom):
 
 
 class OfflineCalibrationParameters(Atom):
+    # global
+    stream_skip_first_nseconds = Float(0.0)
+
     # tooltip calibration
     tooltip_enabled = Bool(True)
     tooltip_datasource = Str()
@@ -143,6 +146,7 @@ class OfflineCalibrationParameters(Atom):
     ja_refinement_max_iterations = Int(5)
     ja_refinement_shrink_distance = Float(0.9)
     ja_number_of_clusters = Int(0)
+    ja_use_2nd_order = Bool(False)
 
     # reference orientation
     reference_orientation_enabled = Bool(False)
@@ -155,6 +159,7 @@ class OfflineCalibrationParameters(Atom):
     ga_minimal_angle_between_measurements = Float(0.1)
     ga_use_tooltip_offset = Bool(False)
     ga_number_of_clusters = Int(0)
+    ga_use_2nd_order = Bool(False)
 
     # time-delay estimation
     timedelay_estimation_enabled = Bool(False)
@@ -235,6 +240,10 @@ def from_ini_file(ini_cfg, global_config=None):
             if ini_cfg.has_section(module_parameters_ns):
                 if module_name.startswith('offline_calibration'):
                     module_parameters = OfflineCalibrationParameters()
+
+                    if ini_cfg.has_option(module_parameters_ns, 'stream_skip_first_nseconds'):
+                        module_parameters.stream_skip_first_nseconds = ini_cfg.getfloat(module_parameters_ns, 'stream_skip_first_nseconds')
+
                     if ini_cfg.has_option(module_parameters_ns, 'tooltip_enabled'):
                         module_parameters.tooltip_enabled = ini_cfg.getboolean(module_parameters_ns, 'tooltip_enabled')
                     if ini_cfg.has_option(module_parameters_ns, 'tooltip_datasource'):
@@ -291,6 +300,8 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.ja_refinement_shrink_distance = ini_cfg.getfloat(module_parameters_ns, 'ja_refinement_shrink_distance')
                     if ini_cfg.has_option(module_parameters_ns, 'ja_number_of_clusters'):
                         module_parameters.ja_number_of_clusters = ini_cfg.getint(module_parameters_ns, 'ja_number_of_clusters')
+                    if ini_cfg.has_option(module_parameters_ns, 'ja_use_2nd_order'):
+                        module_parameters.ja_use_2nd_order = ini_cfg.getboolean(module_parameters_ns, 'ja_use_2nd_order')
 
                     if ini_cfg.has_option(module_parameters_ns, 'reference_orientation_enabled'):
                         module_parameters.reference_orientation_enabled = ini_cfg.getboolean(module_parameters_ns, 'reference_orientation_enabled')
@@ -309,6 +320,8 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.ga_use_tooltip_offset = ini_cfg.getboolean(module_parameters_ns, 'ga_use_tooltip_offset')
                     if ini_cfg.has_option(module_parameters_ns, 'ga_number_of_clusters'):
                         module_parameters.ga_number_of_clusters = ini_cfg.getint(module_parameters_ns, 'ga_number_of_clusters')
+                    if ini_cfg.has_option(module_parameters_ns, 'ga_use_2nd_order'):
+                        module_parameters.ga_use_2nd_order = ini_cfg.getboolean(module_parameters_ns, 'ga_use_2nd_order')
 
                     if ini_cfg.has_option(module_parameters_ns, 'timedelay_estimation_enabled'):
                         module_parameters.timedelay_estimation_enabled = ini_cfg.getboolean(module_parameters_ns, 'timedelay_estimation_enabled')
