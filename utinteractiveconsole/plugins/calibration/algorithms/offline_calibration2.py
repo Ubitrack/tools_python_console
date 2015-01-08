@@ -1461,11 +1461,11 @@ class OfflineCalibrationProcessor(Atom):
 
                 # recalculate the error
                 error = self.compute_position_errors(datasources.get(self.parameters.joint_angle_calibration_datasource, None))
-                self.result.position_errors.append(error)
 
                 position_error_diff = (last_error.mean() - error.mean())
                 if position_error_diff < self.parameters.ja_refinement_min_difference:
                     if position_error_diff >= 0:
+                        self.result.position_errors.append(error)
                         break
                     else:
                         log.warn("Optimization yielded bad result - retrying again ..")
@@ -1481,6 +1481,7 @@ class OfflineCalibrationProcessor(Atom):
                             retry_count += 1
 
                 else:
+                    self.result.position_errors.append(error)
                     last_error = error
                     retry_count = 0
 
