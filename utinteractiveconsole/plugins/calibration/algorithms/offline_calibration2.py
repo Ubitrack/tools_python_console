@@ -794,6 +794,7 @@ class OfflineCalibrationParameters(Atom):
     ja_refinement_shrink_distance = Float(0.8)
     ja_number_of_clusters = Int(0)
     ja_use_2nd_order = Bool(False)
+    ja_exclude_calibration_samples_from_evaluation = Bool(True)
 
     # reference orientation
     reference_orientation_enabled = Bool(False)
@@ -807,6 +808,7 @@ class OfflineCalibrationParameters(Atom):
     ga_use_tooltip_offset = Bool(False)
     ga_number_of_clusters = Int(0)
     ga_use_2nd_order = Bool(False)
+    ga_exclude_calibration_samples_from_evaluation = Bool(True)
 
     # time-delay estimation
     timedelay_estimation_enabled = Bool(False)
@@ -1309,7 +1311,7 @@ class OfflineCalibrationProcessor(Atom):
                 ja_pd = ja_pds[-1]
                 excluded_timestamps = [r.timestamp for r in ja_pd.dataset]
 
-        if excluded_timestamps is not None:
+        if excluded_timestamps is not None and self.parameters.ja_exclude_calibration_samples_from_evaluation:
             ja_data = ExcludeTimestampsStreamFilter(excluded_timestamps).process(ja_data)
 
         position_errors = compute_position_errors(ja_data,
@@ -1332,7 +1334,7 @@ class OfflineCalibrationProcessor(Atom):
                 ga_pd = ga_pds[-1]
                 excluded_timestamps = [r.timestamp for r in ga_pd.dataset]
 
-        if excluded_timestamps is not None:
+        if excluded_timestamps is not None and self.parameters.ga_exclude_calibration_samples_from_evaluation:
             ga_data = ExcludeTimestampsStreamFilter(excluded_timestamps).process(ga_data)
         orientation_errors = compute_orientation_errors(ga_data,
                                                         tooltip_offset=self.result.tooltip_calibration_result,

@@ -164,6 +164,9 @@ class OfflineCalibrationController(CalibrationController):
                 if gbl_cfg.has_option(parameters_sname, "ja_number_of_clusters"):
                     self.parameters.ja_number_of_clusters = gbl_cfg.getint(parameters_sname, "ja_number_of_clusters")
 
+                if gbl_cfg.has_option(parameters_sname, "ja_exclude_calibration_samples_from_evaluation"):
+                    self.parameters.ja_exclude_calibration_samples_from_evaluation = gbl_cfg.getboolean(parameters_sname, "ja_exclude_calibration_samples_from_evaluation")
+
             self.parameters.reference_orientation_enabled = gbl_cfg.getboolean(parameters_sname, "reference_orientation_enabled")
             if self.parameters.reference_orientation_enabled:
                 log.info("Reference Orientation Calibration Enabled")
@@ -182,6 +185,9 @@ class OfflineCalibrationController(CalibrationController):
 
                 if gbl_cfg.has_option(parameters_sname, "ga_number_of_clusters"):
                     self.parameters.ga_number_of_clusters = gbl_cfg.getint(parameters_sname, "ga_number_of_clusters")
+
+                if gbl_cfg.has_option(parameters_sname, "ga_exclude_calibration_samples_from_evaluation"):
+                    self.parameters.ga_exclude_calibration_samples_from_evaluation = gbl_cfg.getboolean(parameters_sname, "ga_exclude_calibration_samples_from_evaluation")
 
             if gbl_cfg.has_option(parameters_sname, "timedelay_estimation_enabled"):
                 self.parameters.timedelay_estimation_enabled = gbl_cfg.getboolean(parameters_sname, "timedelay_estimation_enabled")

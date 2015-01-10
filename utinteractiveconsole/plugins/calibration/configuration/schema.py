@@ -147,6 +147,7 @@ class OfflineCalibrationParameters(Atom):
     ja_refinement_shrink_distance = Float(0.9)
     ja_number_of_clusters = Int(0)
     ja_use_2nd_order = Bool(False)
+    ja_exclude_calibration_samples_from_evaluation = Bool(True)
 
     # reference orientation
     reference_orientation_enabled = Bool(False)
@@ -160,6 +161,7 @@ class OfflineCalibrationParameters(Atom):
     ga_use_tooltip_offset = Bool(False)
     ga_number_of_clusters = Int(0)
     ga_use_2nd_order = Bool(False)
+    ga_exclude_calibration_samples_from_evaluation = Bool(True)
 
     # time-delay estimation
     timedelay_estimation_enabled = Bool(False)
@@ -302,6 +304,8 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.ja_number_of_clusters = ini_cfg.getint(module_parameters_ns, 'ja_number_of_clusters')
                     if ini_cfg.has_option(module_parameters_ns, 'ja_use_2nd_order'):
                         module_parameters.ja_use_2nd_order = ini_cfg.getboolean(module_parameters_ns, 'ja_use_2nd_order')
+                    if ini_cfg.has_option(module_parameters_ns, 'ja_exclude_calibration_samples_from_evaluation'):
+                        module_parameters.ja_exclude_calibration_samples_from_evaluation = ini_cfg.getboolean(module_parameters_ns, 'ja_exclude_calibration_samples_from_evaluation')
 
                     if ini_cfg.has_option(module_parameters_ns, 'reference_orientation_enabled'):
                         module_parameters.reference_orientation_enabled = ini_cfg.getboolean(module_parameters_ns, 'reference_orientation_enabled')
@@ -322,6 +326,8 @@ def from_ini_file(ini_cfg, global_config=None):
                         module_parameters.ga_number_of_clusters = ini_cfg.getint(module_parameters_ns, 'ga_number_of_clusters')
                     if ini_cfg.has_option(module_parameters_ns, 'ga_use_2nd_order'):
                         module_parameters.ga_use_2nd_order = ini_cfg.getboolean(module_parameters_ns, 'ga_use_2nd_order')
+                    if ini_cfg.has_option(module_parameters_ns, 'ga_exclude_calibration_samples_from_evaluation'):
+                        module_parameters.ga_exclude_calibration_samples_from_evaluation = ini_cfg.getboolean(module_parameters_ns, 'ga_exclude_calibration_samples_from_evaluation')
 
                     if ini_cfg.has_option(module_parameters_ns, 'timedelay_estimation_enabled'):
                         module_parameters.timedelay_estimation_enabled = ini_cfg.getboolean(module_parameters_ns, 'timedelay_estimation_enabled')

@@ -68,7 +68,7 @@ def main():
                   help="Show logging window in gui")
 
     parser.add_option("-C", "--configfile",
-                  action="store", dest="configfile", default="~/utic.conf",
+                  action="append", dest="configfile", default=["~/utic.conf", ],
                   help="Interactive console config file")
 
 
@@ -100,13 +100,19 @@ def main():
     appstate.context['args'] = args
     appstate.context['options'] = options
 
+    log.info("Invocation args: %s" % " ".join(sys.argv))
+
     # XXX care about windows default paths here
     cfgfiles = []
-    if (os.path.isfile(os.environ.get("UTIC_CONFIG_FILE", "/etc/mvl/utic.conf"))):
-        cfgfiles.append(os.environ["UTIC_CONFIG_FILE"])
+    for cfgname in os.environ.get("UTIC_CONFIG_FILE", "/etc/mvl/utic.conf").split(os.pathsep):
+        if os.path.isfile(cfgname):
+            cfgfiles.append(cfgname)
 
-    if (os.path.isfile(options.configfile)):
-        cfgfiles.append(options.configfile)
+    for cfgfname in options.configfile:
+        if os.path.isfile(cfgfname):
+            cfgfiles.append(cfgfname)
+        else:
+            log.warn("Skipping non-existant config file: %s" % cfgfname)
 
     config = ConfigParser.ConfigParser()
     try:
