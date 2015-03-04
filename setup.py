@@ -114,6 +114,11 @@ This module controls my garden""",
                 'offline_datacollection = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
                 'offline_calibration = utinteractiveconsole.plugins.calibration.modules.offline_calibration2:OfflineCalibrationModule',
                 'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
-            ]
+            ],
+            'vharcalibration.basic_workspace.module': [
+                'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
+                'absolute_orientation_refpoints_calibration = utinteractiveconsole.plugins.calibration.modules.absolute_orientation_refpoints:AbsoluteOrientationRefPointsCalibrationModule',
+                'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
+            ],
         },
       )

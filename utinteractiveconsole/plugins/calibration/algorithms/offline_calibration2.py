@@ -1728,8 +1728,9 @@ class OfflineCalibrationProcessor(Atom):
                 for key, value in process_data.results.items():
                     try:
                         datatype = guess_type(value)
-                    except TypeError:
-                        # XXX maybe log here
+                    except TypeError, e:
+                        log.warn("Unable to store process data: %s - skipping" % key)
+                        log.exception(e)
                         continue
                     store_data(store, '%s/results/%s' % (base_path, key), value, datatype=datatype)
 
