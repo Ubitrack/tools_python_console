@@ -1,0 +1,35 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, PushButton, MultilineField, ComboBox
+)
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
+
+
+enamldef AbsoluteOrientationRefPointsCalibrationPanel(WizardPanel): ao_panel:
+
+    constraints = [
+        vbox( hbox(content, results_txt),
+              spacer,
+              hbox(spacer, capture_position,
+              )
+        ),
+        content.width == results_txt.width,
+    ]
+
+    Html: content:
+        source = """
+        <h1>%s</h1>
+        <p>Please move the tip to the reference points in correct order and capture position.</p>
+        """ % module.get_name()
+
+    MultilineField: results_txt:
+        limit_height = 'strong'
+        name = 'results_txt'
+        text = """No results."""
+
+    PushButton: capture_position:
+        text = "Absolute Orientation (RefPoints"
+        clicked :: module_controller.capturePosition()
+        enabled := module_controller.is_ready
