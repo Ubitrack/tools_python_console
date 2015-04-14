@@ -1,6 +1,6 @@
 __author__ = 'jack'
 
-from atom.api import Atom, Value, Dict, List, Str, Int, Typed
+from atom.api import Atom, Value, Dict, List, Str, Float, Typed
 
 import logging
 import new
@@ -22,7 +22,7 @@ class DataSet(Atom):
 
     processor = Value()
     reference_timestamps = List()
-    interval = Int()
+    interval = Float()
 
     connector_class = Value()
 

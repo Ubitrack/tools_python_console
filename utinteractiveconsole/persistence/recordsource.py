@@ -109,7 +109,8 @@ class RecordSource(BaseRecordSource):
     def _default_reference_interval(self):
         if self.reference_field is not None:
             return self.reference_field.interval
-        return 1.0
+        log.warn("no reference field for recordsource: %s" % self.name)
+        return 1
 
     def _default_schema(self):
         schema_fields = []

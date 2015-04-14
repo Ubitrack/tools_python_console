@@ -9,7 +9,7 @@ import sys
 import numpy as np
 
 from ubitrack.core import util, measurement, math
-from utinteractiveconsole.extension import CustomEntryPoint
+from utinteractiveconsole.util import CustomEntryPoint
 
 from .dataset import DataSet
 from .recordsource import RecordSource, StreamInterpolator
@@ -116,8 +116,9 @@ class DataSourceLoader(Atom):
                 if spec['type'] == 'calibfile':
                     reader = self.calibreaders.get(spec['reader'])
                     if reader is not None:
-                        log.info("Load calibfile from: %s for key: %s" % (spec['filename'], key))
-                        cf_value = reader(os.path.join(calib_directory, spec['filename']).encode(sys.getfilesystemencoding()))
+                        fname = os.path.join(calib_directory, spec['filename']).encode(sys.getfilesystemencoding())
+                        log.info("Load calibfile from: %s for key: %s" % (fname, key))
+                        cf_value = reader(fname)
                         converter = spec.get('converter', None)
                         if converter is not None and converter in self.converters.keys():
                             cf_value = self.converters[converter](cf_value)
@@ -132,7 +133,7 @@ class DataSourceLoader(Atom):
                         log.info("create instance for key: %s (args=%s, kwargs=%s)" % (key, args, kwargs))
                         attributes[key] = loader(self.working_directory, ds_cfg, *args, **kwargs)
             except Exception, e:
-                log.error("Error while computing attributes for dataset: %s" % dataset_sname)
+                log.error("Error while computing attributes for dataset: %s (%s: %s)" % (dataset_sname, key, spec))
                 log.exception(e)
 
         return DataSet(name=dataset_sname, title=title, recordsource=recordsource,

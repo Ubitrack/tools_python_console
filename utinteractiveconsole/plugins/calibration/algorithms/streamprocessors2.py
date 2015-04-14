@@ -322,3 +322,34 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
                 attrs['target_markers'] = None
 
             yield rcls(**attrs)
+
+
+class RawPoseErrorMeasurementStreamProcessor(BaseStreamProcessor):
+
+    name = "RawPoseErrorMeasurements"
+    required_fields = [RequiredField(name='externaltracker_pose', datatype='pose'),
+                       RequiredField(name='haptic_pose', datatype='pose'),
+                       ]
+    additional_fields = [Field(name='hip_reference_pose', datatype='pose', is_computed=True)]
+
+    required_attributes = ['tooltip_offset', 'absolute_orientation']
+
+    tooltip_offset = Value()
+    absolute_orientation = Value()
+
+    def __iter__(self):
+
+        if not self.check_input():
+            raise StopIteration()
+
+        rcls = self.make_record_class()
+        parent_fields = self.input_fieldnames
+
+        absolute_orientation_inv = self.absolute_orientation.invert()
+
+        for record in self.recordsource:
+            attrs = dict((k, getattr(record, k)) for k in parent_fields)
+            attrs['hip_reference_pose'] = (absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset)
+
+            yield rcls(**attrs)
+
