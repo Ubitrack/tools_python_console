@@ -138,7 +138,6 @@ class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
             yield rcls(**attrs)
 
 
-
 class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
     name = "JointAngleCalibration"
