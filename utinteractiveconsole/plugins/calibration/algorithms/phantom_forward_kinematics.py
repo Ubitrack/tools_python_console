@@ -33,7 +33,7 @@ class FWKinematicPhantom(object):
         self.origin_calib = origin_calib if origin_calib is not None \
             else np.array([0., 0., 0.])
 
-    def calculate_position(self, joint_angles):
+    def calculate_position(self, joint_angles, record=None):
         jacf = self.jointangle_correction_factors
         l1 = self.joint_lengths[0]
         l2 = self.joint_lengths[1]
@@ -62,7 +62,7 @@ class FWKinematicPhantom(object):
 
         return trans
 
-    def calculate_pose(self, joint_angles, gimbal_angles):
+    def calculate_pose(self, joint_angles, gimbal_angles, record=None):
         jacf = self.jointangle_correction_factors
         gacf = self.gimbalangle_correction_factors
 
@@ -132,7 +132,7 @@ class FWKinematicPhantom2(object):
         self.origin_calib = origin_calib if origin_calib is not None \
             else np.array([0., 0., 0.])
 
-    def calculate_position(self, joint_angles):
+    def calculate_position(self, joint_angles, record=None):
         jacf = self.jointangle_correction_factors
         l1 = self.joint_lengths[0]
         l2 = self.joint_lengths[1]
@@ -170,7 +170,7 @@ class FWKinematicPhantom2(object):
              cO1*(cO2*l1 + l2*sO3) + calz - l1]
         )
 
-    def calculate_pose(self, joint_angles, gimbal_angles):
+    def calculate_pose(self, joint_angles, gimbal_angles, record=None):
         jacf = self.jointangle_correction_factors
         gacf = self.gimbalangle_correction_factors
         l1 = self.joint_lengths[0]

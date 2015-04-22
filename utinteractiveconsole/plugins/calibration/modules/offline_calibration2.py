@@ -81,6 +81,8 @@ class OfflineCalibrationController(CalibrationController):
         # load all parameters from the configuration file
         try:
             haptidevice_name = wiz_cfg.get("haptic_device").strip()
+            self.parameters.haptidevice_name = haptidevice_name
+z
             hd_cfg = dict(gbl_cfg.items("ubitrack.devices.%s" % haptidevice_name))
             self.parameters.joint_lengths = np.array([float(hd_cfg["joint_length1"]),
                                            float(hd_cfg["joint_length2"]), ])

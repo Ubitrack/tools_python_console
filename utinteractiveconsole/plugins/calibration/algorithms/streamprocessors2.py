@@ -132,7 +132,7 @@ class AbsoluteOrientationStreamProcessor(BaseStreamProcessor):
         for record in self.recordsource:
             attrs = dict((k, getattr(record, k)) for k in parent_fields)
             gimbalangles = getattr(record, 'gimbalangles', np.array([0., 0., 0.]))
-            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, gimbalangles, record=record)
             attrs['externaltracker_hip_position'] = (record.externaltracker_pose * self.tooltip_offset).translation()
             
             yield rcls(**attrs)
@@ -167,7 +167,7 @@ class JointAngleCalibrationStreamProcessor(BaseStreamProcessor):
         for record in self.recordsource:
             attrs = dict((k, getattr(record, k)) for k in parent_fields)
             gimbalangles = getattr(record, 'gimbalangles', np.array([0., 0., 0.]))
-            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, gimbalangles, record=record)
             attrs['hip_reference_pose'] = (absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset)
             
             yield rcls(**attrs)
@@ -201,7 +201,7 @@ class GimbalAngleCalibrationStreamProcessor(BaseStreamProcessor):
 
         for record in self.recordsource:
             attrs = dict((k, getattr(record, k)) for k in parent_fields)
-            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles, record=record)
 
             # HIP target pose in HDorigin
             hiptarget_rotation = math.Quaternion((absolute_orientation_inv * record.externaltracker_pose * self.tooltip_offset).rotation())
@@ -267,7 +267,7 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
                 continue
                 
             # fwk pose in HDorigin
-            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+            attrs['haptic_pose'] = self.forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles, record=record)
 
             # HIP target pose in HDorigin
             attrs['hiptarget_pose'] = hiptarget_pose = absolute_orientation_inv * record.externaltracker_pose
@@ -308,7 +308,7 @@ class ReferenceOrientationStreamProcessor(BaseStreamProcessor):
 
             # calculate the stylus pose (5DOF) based on the calibrated correction_factors and the measured angles
             attrs['device_to_stylus_5dof'] = device_to_stylus_5dof = \
-                self.forward_kinematics_5dof.calculate_pose(record.jointangles, record.gimbalangles)
+                self.forward_kinematics_5dof.calculate_pose(record.jointangles, record.gimbalangles, record=record)
             device_to_stylus_5dof_inv = device_to_stylus_5dof.invert()
 
             # multiply the inverse of the externaltracker to stylus transform with the externaltracker to stylus target

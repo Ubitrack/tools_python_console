@@ -28,6 +28,10 @@ from utinteractiveconsole.plugins.calibration.algorithms.phantom_forward_kinemat
     FWKinematicPhantom,
     FWKinematicPhantom2
 )
+from utinteractiveconsole.plugins.calibration.algorithms.scale_forward_kinematics import (
+    FWKinematicVirtuose,
+    FWKinematicScale
+)
 
 from utinteractiveconsole.plugins.calibration.algorithms.streamfilters2 import (
     RelativeOrienationDistanceStreamFilter, StaticPointDistanceStreamFilter,
@@ -750,6 +754,7 @@ class OfflineCalibrationResults(Atom):
 class OfflineCalibrationParameters(Atom):
     # global
     stream_skip_first_nseconds = Float(0.0)
+    haptidevice_name = Str()
 
     # tooltip
     tooltip_enabled = Bool(False)
@@ -818,7 +823,6 @@ class OfflineCalibrationParameters(Atom):
     result_evaluation_enabled = Bool(False)
     result_evaluation_datasource = Str()
 
-
     # haptic device
     joint_lengths = Value(np.array([0.13335, 0.13335]))
     origin_offset = Value(np.array([0.0, -0.11, -0.035]))
@@ -844,7 +848,7 @@ def compute_position_errors(stream,
     for record in stream:
         timestamps.append(record.timestamp)
         gimbalangles = getattr(record, 'gimbalangles', np.array([0., 0., 0.]))
-        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, gimbalangles)
+        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, gimbalangles, record=record)
         hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
         position_errors.append(norm(hip_reference_pose.translation() - haptic_pose.translation()))
 
@@ -877,7 +881,7 @@ def compute_orientation_errors(stream,
     timestamps = []
     for record in stream:
         timestamps.append(record.timestamp)
-        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles)
+        haptic_pose = forward_kinematics.calculate_pose(record.jointangles, record.gimbalangles, record=record)
         hip_reference_pose = (absolute_orientation_inv * record.externaltracker_pose * tooltip_offset)
 
         z_fwk = math.Quaternion(haptic_pose.rotation()).transformVector(zaxis)
@@ -927,8 +931,34 @@ class OfflineCalibrationProcessor(Atom):
     source_zaxis_points_result = Value()
     source_zaxis_reference_result = Value()
 
+    #helpers
+    fwk_classes = Value()
+
     def _default_result(self):
         return OfflineCalibrationResults()
+
+    def _default_fwk_classes(self):
+        config = self.context.get("config")
+        section = "ubitrack.devices.%s" % self.parameters.hapticdevice_name
+        if config.has_section(section):
+            hd_cfg = config.items(section)
+            model_family = hd_cfg.get("model_family", "phantom")
+            model_type = hd_cfg.get("model_type", "omni")
+
+            if model_family == 'phantom':
+                return FWKinematicPhantom, FWKinematicPhantom2
+            elif model_family == 'virtuose':
+                # XXX no second order models yet (are they needed ??)
+                if model_type == 'virtuose':
+                    return FWKinematicVirtuose, None
+                elif model_type == 'scale1':
+                    return FWKinematicScale, None
+                else:
+                    raise ValueError("Invalid model_type %s for virtuose familiy" % model_type)
+            else:
+                raise ValueError("Invalid model_family: %s" % model_family)
+        raise ValueError("Missing Configuration for Haptic Device.")
+
 
     def do_tooltip_calibration(self, tt_data):
         log.info("Tooltip Calibration")
@@ -1659,13 +1689,14 @@ class OfflineCalibrationProcessor(Atom):
         else:
             log.warn("Missing calibsource: %s" % calibsource_sname)
 
-
-
-
     def get_fwk(self, jointangle_calib, gimbalangle_calib, disable_theta6=False, enable_2ndorder=False):
         log.info("ForwardKinematics:\njoint_lengths=%s\norigin_offset=%s\njointangle_correction=%s\ngimbalangle_correction=%s" %
                  (self.parameters.joint_lengths, self.parameters.origin_offset, jointangle_calib, gimbalangle_calib))
-        cls = FWKinematicPhantom2 if enable_2ndorder else FWKinematicPhantom
+
+        cls = self.fwk_classes[1] if enable_2ndorder else self.fwk_classes[0]
+        if cls is None:
+            log.error("Missing implementation for ForwardKinematics.")
+            raise ValueError("Missing implementation for ForwardKinematics.")
 
         return cls(self.parameters.joint_lengths,
                    jointangle_calib,

@@ -107,11 +107,17 @@ This module controls my garden""",
                 'timedelay_estimation_calibration_3way = utinteractiveconsole.plugins.calibration.modules.timedelay_estimation_3way:TimeDelayEstimationModule',
                 'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
             ],
-            'vharcalibration.hapticroom_calibration.module': [
+            'vharcalibration.hapticroom_calibration_initial.module': [
                 'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
                 'tooltip_calibration = utinteractiveconsole.plugins.calibration.modules.tooltip_calibration:TooltipCalibrationModule',
                 'absolute_orientation_calibration = utinteractiveconsole.plugins.calibration.modules.absolute_orientation_calibration:AbsoluteOrientationCalibrationModule',
                 'offline_datacollection = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
+                'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
+            ],
+            'vharcalibration.hapticroom_calibration_complete.module': [
+                'calibration_start = utinteractiveconsole.plugins.calibration.modules.calibration_start:CalibrationStartModule',
+                'offline_datacollection = utinteractiveconsole.plugins.calibration.modules.offline_datacollection:OfflineDataCollectionModule',
+                'offline_calibration = utinteractiveconsole.plugins.calibration.modules.offline_calibration2:OfflineCalibrationModule',
                 'calibration_result = utinteractiveconsole.plugins.calibration.modules.calibration_result:CalibrationResultModule',
             ],
             'vharcalibration.workspace_calibration_3way.module': [

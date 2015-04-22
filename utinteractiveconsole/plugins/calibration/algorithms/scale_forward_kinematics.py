@@ -13,9 +13,8 @@ angle_null_correction = np.array([[0.0, 1.0, 0.0, ], [0.0, 1.0, 0.0], [0.0, 1.0,
 
 class FWKinematicScale(object):
 
-    def __init__(self, joint_lengths, platformsensor_correction, jointangle_correction, gimbalangle_correction, disable_theta6=False):
+    def __init__(self, joint_lengths, jointangle_correction, gimbalangle_correction, origin_calib=None, disable_theta6=False):
         self.joint_lengths = joint_lengths
-        self.platformsensor_correction_factors = np.array(platformsensor_correction)
         self.jointangle_correction_factors = np.array(jointangle_correction)
         self.gimbalangle_correction_factors = np.array(gimbalangle_correction)
         if disable_theta6:
@@ -23,17 +22,18 @@ class FWKinematicScale(object):
             self.gimbalangle_correction_factors[2, 1] = 0.0
             self.gimbalangle_correction_factors[2, 2] = 0.0
 
-    def calculate_position(self, platform_sensors, joint_angles):
-        pscf = self.platformsensor_correction_factors
+    def calculate_position(self, joint_angles, record=None):
         jacf = self.jointangle_correction_factors
 
-        S1 = platform_sensors[0]
-        S2 = platform_sensors[1]
-
-        h1 = pscf[0, 1]
-        j1 = pscf[0, 2]
-        h2 = pscf[1, 1]
-        j2 = pscf[1, 2]
+        # current infrastructure only allows pre-calibrated platform sensors
+        # XXXX bad design !!!!
+        S1_ = 0.0
+        S2_ = 0.0
+        if hasattr(record, "scale_platform_sensors"):
+            S1_ = record.scale_platform_sensors[0]
+            S2_ = record.scale_platform_sensors[1]
+        else:
+            log.warn("Missing attributes 'scale_platform_sensors' on datasource.")
 
         O1 = joint_angles[0]
         O2 = joint_angles[1]
@@ -45,9 +45,6 @@ class FWKinematicScale(object):
         m2 = jacf[1, 2]
         k3 = jacf[2, 1]
         m3 = jacf[2, 2]
-
-        S1_ = S1 * h1 + j1
-        S2_ = S2 * h2 + j2
 
         O1_ = O1 * k1 + m1
         O2_ = O2 * k2 + m2
@@ -65,18 +62,19 @@ class FWKinematicScale(object):
 
         return trans
 
-    def calculate_pose(self, platform_sensors, joint_angles, gimbal_angles):
-        pscf = self.platformsensor_correction_factors
+    def calculate_pose(self, joint_angles, gimbal_angles, record=None):
         jacf = self.jointangle_correction_factors
         gacf = self.gimbalangle_correction_factors
 
-        S1 = platform_sensors[0]
-        S2 = platform_sensors[1]
-
-        h1 = pscf[0, 1]
-        j1 = pscf[0, 2]
-        h2 = pscf[1, 1]
-        j2 = pscf[1, 2]
+        # current infrastructure only allows pre-calibrated platform sensors
+        # XXXX bad design !!!!
+        S1_ = 0.0
+        S2_ = 0.0
+        if hasattr(record, "scale_platform_sensors"):
+            S1_ = record.scale_platform_sensors[0]
+            S2_ = record.scale_platform_sensors[1]
+        else:
+            log.warn("Missing attributes 'scale_platform_sensors' on datasource.")
 
         l1 = self.joint_lengths[0]
         l2 = self.joint_lengths[1]
@@ -100,9 +98,6 @@ class FWKinematicScale(object):
         m5 = gacf[1, 2]
         k6 = gacf[2, 1]
         m6 = gacf[2, 2]
-
-        S1_ = S1 * h1 + j1
-        S2_ = S2 * h2 + j2
 
         O1_ = O1 * k1 + m1
         O2_ = O2 * k2 + m2
@@ -134,7 +129,7 @@ class FWKinematicScale(object):
 
 class FWKinematicVirtuose(object):
 
-    def __init__(self, joint_lengths, jointangle_correction, gimbalangle_correction, disable_theta6=False):
+    def __init__(self, joint_lengths, jointangle_correction, gimbalangle_correction, origin_calib=None, disable_theta6=False):
         self.joint_lengths = joint_lengths
         self.jointangle_correction_factors = np.array(jointangle_correction)
         self.gimbalangle_correction_factors = np.array(gimbalangle_correction)
@@ -143,7 +138,7 @@ class FWKinematicVirtuose(object):
             self.gimbalangle_correction_factors[2, 1] = 0.0
             self.gimbalangle_correction_factors[2, 2] = 0.0
 
-    def calculate_position(self, joint_angles):
+    def calculate_position(self, joint_angles, record=None):
         jacf = self.jointangle_correction_factors
 
         O1 = joint_angles[0]
@@ -176,7 +171,7 @@ class FWKinematicVirtuose(object):
 
         return trans
 
-    def calculate_pose(self, joint_angles, gimbal_angles):
+    def calculate_pose(self, joint_angles, gimbal_angles, record=None):
         jacf = self.jointangle_correction_factors
         gacf = self.gimbalangle_correction_factors
 
@@ -234,6 +229,7 @@ class FWKinematicVirtuose(object):
 def from_config(root_directory, context,
                 gimbalangle_correction=None,
                 jointangle_correction=None, joint_length=None, disable_theta6=None,
+                model_type="virtuose",
                 *args, **kwargs):
     from ubitrack.core import util
 
@@ -248,5 +244,8 @@ def from_config(root_directory, context,
         d_theta6 = d_theta6.strip().lower() == 'true'
 
     if j_length is not None and ja_correction is not None and ga_correction is not None:
-        return FWKinematicVirtuose(j_length, ja_correction, ga_correction, disable_theta6=d_theta6)
+        if model_type == "scale1":
+            return FWKinematicScale(j_length, ja_correction, ga_correction, disable_theta6=d_theta6)
+        elif model_type == "virtuose":
+            return FWKinematicVirtuose(j_length, ja_correction, ga_correction, disable_theta6=d_theta6)
     raise ValueError("Invalid configuration for FWKinematicPhantom")
