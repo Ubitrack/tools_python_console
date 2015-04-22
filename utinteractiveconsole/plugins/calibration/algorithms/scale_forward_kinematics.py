@@ -229,7 +229,7 @@ class FWKinematicVirtuose(object):
 def from_config(root_directory, context,
                 gimbalangle_correction=None,
                 jointangle_correction=None, joint_length=None, disable_theta6=None,
-                model_type="virtuose",
+                model_type="scale1",
                 *args, **kwargs):
     from ubitrack.core import util
 
@@ -244,8 +244,8 @@ def from_config(root_directory, context,
         d_theta6 = d_theta6.strip().lower() == 'true'
 
     if j_length is not None and ja_correction is not None and ga_correction is not None:
-        if model_type == "scale1":
+        if model_type.strip() == "scale1":
             return FWKinematicScale(j_length, ja_correction, ga_correction, disable_theta6=d_theta6)
-        elif model_type == "virtuose":
+        elif model_type.strip() == "virtuose":
             return FWKinematicVirtuose(j_length, ja_correction, ga_correction, disable_theta6=d_theta6)
-    raise ValueError("Invalid configuration for FWKinematicPhantom")
+    raise ValueError("Invalid configuration for FWKinematicPhantom [scale1,virtuose]")
