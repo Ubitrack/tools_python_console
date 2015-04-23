@@ -29,9 +29,11 @@ class FWKinematicScale(object):
         # XXXX bad design !!!!
         S1_ = 0.0
         S2_ = 0.0
+        S3_ = 0.0
         if hasattr(record, "scale_platform_sensors"):
             S1_ = record.scale_platform_sensors[0]
             S2_ = record.scale_platform_sensors[1]
+            S3_ = record.scale_platform_sensors[2]
         else:
             log.warn("Missing attributes 'scale_platform_sensors' on datasource.")
 
@@ -55,9 +57,9 @@ class FWKinematicScale(object):
 
         # calculate translation
         trans = np.array(
-            [S1_ + l1*cos(O1_)*cos(O2_) + l2*cos(O1_)*cos(O2_ + O3_),
-             S2_ + l1*sin(O1_)*cos(O2_) + l2*sin(O1_)*cos(O2_ + O3_),
-             -l1*sin(O2_) - l2*sin(O2_ + O3_)]
+            [-S2_ + l1*cos(O1_)*cos(O2_) + l2*cos(O1_)*cos(O2_ + O3_),
+             S3_ + l1*sin(O1_)*cos(O2_) + l2*sin(O1_)*cos(O2_ + O3_),
+             -S1_ + (-l1*sin(O2_) - l2*sin(O2_ + O3_))]
         )
 
         return trans
@@ -70,9 +72,11 @@ class FWKinematicScale(object):
         # XXXX bad design !!!!
         S1_ = 0.0
         S2_ = 0.0
+        S3_ = 0.0
         if hasattr(record, "scale_platform_sensors"):
             S1_ = record.scale_platform_sensors[0]
             S2_ = record.scale_platform_sensors[1]
+            S3_ = record.scale_platform_sensors[2]
         else:
             log.warn("Missing attributes 'scale_platform_sensors' on datasource.")
 
@@ -108,9 +112,9 @@ class FWKinematicScale(object):
 
         # calculate translation
         trans = np.array(
-            [S1_ + l1*cos(O1_)*cos(O2_) + l2*cos(O1_)*cos(O2_ + O3_),
-             S2_ + l1*sin(O1_)*cos(O2_) + l2*sin(O1_)*cos(O2_ + O3_),
-             -l1*sin(O2_) - l2*sin(O2_ + O3_)]
+            [-S2_ + l1*cos(O1_)*cos(O2_) + l2*cos(O1_)*cos(O2_ + O3_),
+             S3_ + l1*sin(O1_)*cos(O2_) + l2*sin(O1_)*cos(O2_ + O3_),
+             -S1_ + (-l1*sin(O2_) - l2*sin(O2_ + O3_))]
         )
 
         # calculate rotation of arm
