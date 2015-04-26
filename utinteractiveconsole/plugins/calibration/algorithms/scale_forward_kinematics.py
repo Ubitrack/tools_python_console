@@ -127,7 +127,7 @@ class FWKinematicScale(object):
                         [(sin(O5_)*cos(O2_ + O3_) + sin(O2_ + O3_)*cos(O4_)*cos(O5_))*cos(O1_) + sin(O1_)*sin(O4_)*cos(O5_),
                          (sin(O5_)*cos(O2_ + O3_) + sin(O2_ + O3_)*cos(O4_)*cos(O5_))*sin(O1_) - sin(O4_)*cos(O1_)*cos(O5_),
                          -sin(O5_)*sin(O2_ + O3_) + cos(O4_)*cos(O5_)*cos(O2_ + O3_)]])
-        return math.Pose(math.Quaternion.fromMatrix(rot).normalize(), trans)
+        return math.Pose(math.Quaternion.fromMatrix(rot.T).normalize(), trans)
 
 
 
@@ -170,7 +170,7 @@ class FWKinematicVirtuose(object):
         trans = np.array(
             [l1*cos(O1_)*cos(O2_) + l2*cos(O1_)*cos(O2_ + O3_),
              l1*sin(O1_)*cos(O2_) + l2*sin(O1_)*cos(O2_ + O3_),
-             -l1*sin(O2_) - l2*sin(O2_ + O3_)]
+             l1*sin(O2_) - l2*sin(O2_ + O3_)]
         )
 
         return trans
@@ -213,7 +213,7 @@ class FWKinematicVirtuose(object):
         trans = np.array(
             [l1*cos(O1_)*cos(O2_) + l2*cos(O1_)*cos(O2_ + O3_),
              l1*sin(O1_)*cos(O2_) + l2*sin(O1_)*cos(O2_ + O3_),
-             -l1*sin(O2_) - l2*sin(O2_ + O3_)]
+             l1*sin(O2_) - l2*sin(O2_ + O3_)]
         )
 
         # calculate rotation of arm
@@ -226,7 +226,7 @@ class FWKinematicVirtuose(object):
                         [(sin(O5_)*cos(O2_ + O3_) + sin(O2_ + O3_)*cos(O4_)*cos(O5_))*cos(O1_) + sin(O1_)*sin(O4_)*cos(O5_),
                          (sin(O5_)*cos(O2_ + O3_) + sin(O2_ + O3_)*cos(O4_)*cos(O5_))*sin(O1_) - sin(O4_)*cos(O1_)*cos(O5_),
                          -sin(O5_)*sin(O2_ + O3_) + cos(O4_)*cos(O5_)*cos(O2_ + O3_)]])
-        return math.Pose(math.Quaternion.fromMatrix(rot).normalize(), trans)
+        return math.Pose(math.Quaternion.fromMatrix(rot.T).normalize(), trans)
 
 
 
