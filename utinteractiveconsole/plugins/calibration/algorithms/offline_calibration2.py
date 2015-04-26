@@ -217,9 +217,12 @@ class AbsoluteOrientationFWKBaseCalibrationProcessor(CalibrationProcessor):
 
 class JointAngleCalibrationProcessor(CalibrationProcessor):
 
+    use_platform_sensors = Bool(False)
+
     # data extracted from stream
     data_tracker_hip_positions = List()
     data_joint_angles = List()
+    data_platform_sensors = List()
 
     # configuration
     optimizationStepSize = Float(1.0)
@@ -243,6 +246,7 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
     sink_result_jointangle_correction = Value()
     source_tracker_hip_positions = Value()
     source_joint_angles = Value()
+    source_platform_sensors = Value()
 
     @observe("facade")
     def handle_facade_change(self, change):
@@ -255,6 +259,9 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
             if self.source_joint_angles is not None:
                 self.source_joint_angles.setCallback(None)
             self.source_joint_angles = None
+            if self.source_platform_sensors is not None:
+                self.source_platform_sensors.setCallback(None)
+            self.source_platform_sensors = None
         else:
             self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_jointangle_correction_out")
 
@@ -264,6 +271,10 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
             self.source_joint_angles = facade.instance.getApplicationPullSourcePositionList("ja_calib_jointangles")
             self.source_joint_angles.setCallback(self.handler_input_joint_angles)
 
+            if self.use_platform_sensors:
+                self.source_platform_sensors = facade.instance.getApplicationPullSourcePositionList("ja_calib_platformsensors")
+                self.source_platform_sensors.setCallback(self.handler_input_platform_sensors)
+
     def handler_input_hip_positions(self, ts):
         pl = math.PositionList.fromList(self.data_tracker_hip_positions)
         return measurement.PositionList(ts, pl)
@@ -272,16 +283,25 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
         pl = math.PositionList.fromList(self.data_joint_angles)
         return measurement.PositionList(ts, pl)
 
+    def handler_input_platform_sensors(self, ts):
+        pl = math.PositionList.fromList(self.data_platform_sensors)
+        return measurement.PositionList(ts, pl)
+
     def run(self):
         ts = measurement.now()
 
         self.data_tracker_hip_positions = []
         self.data_joint_angles = []
+        self.data_platform_sensors = []
 
         record_count = 0
         for record in self.dataset:
             self.data_tracker_hip_positions.append(record.hip_reference_pose.translation())
             self.data_joint_angles.append(record.jointangles)
+            if self.use_platform_sensors:
+                # XXXX check if record has attribute at least once ...
+                self.data_platform_sensors.append(record.scale_platform_sensors)
+
             record_count += 1
 
         log.info("Joint-Angles Calibration (%d records selected)" % (record_count,))
@@ -292,10 +312,12 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
 class GimbalAngleCalibrationProcessor(CalibrationProcessor):
 
     # input data will be set from the controller
+    use_platform_sensors = Bool(False)
     data_joint_angle_correction = Value()
 
     # data extracted from stream
     data_zrefaxis = List()
+    data_platform_sensors = List()
     data_joint_angles = List()
     data_gimbal_angles = List()
 
@@ -329,6 +351,7 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
     sink_result_gimbalangle_correction = Value()
     source_joint_angle_correction = Value()
     source_zrefaxis = Value()
+    source_platform_sensors = Value()
     source_joint_angles = Value()
     source_gimbal_angles = Value()
 
@@ -349,6 +372,9 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
             if self.source_gimbal_angles is not None:
                 self.source_gimbal_angles.setCallback(None)
             self.source_gimbal_angles = None
+            if self.source_platform_sensors is not None:
+                self.source_platform_sensors.setCallback(None)
+            self.source_platform_sensors = None
         else:
             self.sink_result_gimbalangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_gimbalangle_correction_out")
 
@@ -364,11 +390,19 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
             self.source_gimbal_angles = facade.instance.getApplicationPullSourcePositionList("ga_calib_gimbalangles")
             self.source_gimbal_angles.setCallback(self.handler_input_gimbal_angles)
 
+            if self.use_platform_sensors:
+                self.source_platform_sensors = facade.instance.getApplicationPullSourcePositionList("ja_calib_platformsensors")
+                self.source_platform_sensors.setCallback(self.handler_input_platform_sensors)
+
     def handler_input_joint_angle_correction(self, ts):
         return measurement.Matrix3x3(ts, self.data_joint_angle_correction)
 
     def handler_input_zrefaxis(self, ts):
         pl = math.PositionList.fromList(self.data_zrefaxis)
+        return measurement.PositionList(ts, pl)
+
+    def handler_input_platform_sensors(self, ts):
+        pl = math.PositionList.fromList(self.data_platform_sensors)
         return measurement.PositionList(ts, pl)
 
     def handler_input_joint_angles(self, ts):
@@ -383,6 +417,7 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
         ts = measurement.now()
 
         self.data_zrefaxis = []
+        self.data_platform_sensors = []
         self.data_joint_angles = []
         self.data_gimbal_angles = []
 
@@ -391,6 +426,10 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
             self.data_zrefaxis.append(record.zrefaxis)
             self.data_joint_angles.append(record.jointangles)
             self.data_gimbal_angles.append(record.gimbalangles)
+            if self.use_platform_sensors:
+                # XXXX check if record has attribute at least once ...
+                self.data_platform_sensors.append(record.scale_platform_sensors)
+
             record_count += 1
 
         log.info("Gimbal-Angles Calibration (%d records selected)" % (record_count,))
