@@ -972,17 +972,33 @@ class OfflineCalibrationProcessor(Atom):
 
     #helpers
     fwk_classes = Value()
+    haptic_device_config = Value()
+    use_platform_sensors = Bool()
+
 
     def _default_result(self):
         return OfflineCalibrationResults()
 
-    def _default_fwk_classes(self):
+    def _default_haptic_device_config(self):
         config = self.context.get("config")
         section = "ubitrack.devices.%s" % self.parameters.hapticdevice_name
         if config.has_section(section):
             hd_cfg = config.items(section)
-            model_family = hd_cfg.get("model_family", "phantom")
-            model_type = hd_cfg.get("model_type", "omni")
+            return hd_cfg
+        raise KeyError("Missing haptic device section: %s" % section)
+
+    def _default_use_platform_sensors(self):
+        if self.haptic_device_config is not None:
+            model_family = self.haptic_device_config.get("model_family", "phantom")
+            model_type = self.haptic_device_config.get("model_type", "omni")
+            if model_family.strip() == 'virtuose' and model_type.strip() == 'scale1':
+                return True
+        return False
+
+    def _default_fwk_classes(self):
+        if self.haptic_device_config is not None:
+            model_family = self.haptic_device_config.get("model_family", "phantom")
+            model_type = self.haptic_device_config.get("model_type", "omni")
 
             if model_family == 'phantom':
                 return FWKinematicPhantom, FWKinematicPhantom2
@@ -1161,7 +1177,8 @@ class OfflineCalibrationProcessor(Atom):
                            enable_2ndorder=self.parameters.ja_use_2nd_order)
         ja_streamproc_attributes = dict(tooltip_offset=self.result.tooltip_calibration_result,
                                         absolute_orientation=self.result.absolute_orientation_result,
-                                        forward_kinematics=fwk)
+                                        forward_kinematics=fwk,
+                                        use_platform_sensors=self.use_platform_sensors)
 
         stream_filters = []
 
@@ -1221,7 +1238,8 @@ class OfflineCalibrationProcessor(Atom):
         ga_streamproc_attributes = dict(absolute_orientation=self.result.absolute_orientation_result,
                                         tooltip_offset=self.result.tooltip_calibration_result if par.ga_use_tooltip_offset else tooltip_null_calibration,
                                         forward_kinematics=fwk,
-                                        zrefaxis_calib=self.result.zaxis_reference_result)
+                                        zrefaxis_calib=self.result.zaxis_reference_result,
+                                        use_platform_sensors=self.use_platform_sensors)
 
         stream_filters = []
 
