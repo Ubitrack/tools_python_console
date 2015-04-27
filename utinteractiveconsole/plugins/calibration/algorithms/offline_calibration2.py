@@ -250,6 +250,7 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
 
     @observe("facade")
     def handle_facade_change(self, change):
+
         facade = change['value']
         if facade is None:
             self.sink_result_jointangle_correction = None
@@ -263,7 +264,7 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
                 self.source_platform_sensors.setCallback(None)
             self.source_platform_sensors = None
         else:
-            self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_jointangle_correction_out")
+            self.sink_result_jointangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_jointangle_correction_out")
 
             self.source_tracker_hip_positions = facade.instance.getApplicationPullSourcePositionList("ja_calib_hip_positions")
             self.source_tracker_hip_positions.setCallback(self.handler_input_hip_positions)
@@ -272,6 +273,7 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
             self.source_joint_angles.setCallback(self.handler_input_joint_angles)
 
             if self.use_platform_sensors:
+                log.info("Use platformsensors for jointangles calibration.")
                 self.source_platform_sensors = facade.instance.getApplicationPullSourcePositionList("ja_calib_platformsensors")
                 self.source_platform_sensors.setCallback(self.handler_input_platform_sensors)
 
@@ -284,6 +286,7 @@ class JointAngleCalibrationProcessor(CalibrationProcessor):
         return measurement.PositionList(ts, pl)
 
     def handler_input_platform_sensors(self, ts):
+        print "XXXX get ja_calib_platformsensors ", len(self.data_platform_sensors)
         pl = math.PositionList.fromList(self.data_platform_sensors)
         return measurement.PositionList(ts, pl)
 
@@ -376,7 +379,7 @@ class GimbalAngleCalibrationProcessor(CalibrationProcessor):
                 self.source_platform_sensors.setCallback(None)
             self.source_platform_sensors = None
         else:
-            self.sink_result_gimbalangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_phantom_gimbalangle_correction_out")
+            self.sink_result_gimbalangle_correction = facade.instance.getApplicationPullSinkMatrix3x3("calib_gimbalangle_correction_out")
 
             self.source_joint_angle_correction = facade.instance.getApplicationPullSourceMatrix3x3("ga_calib_jointangle_correction")
             self.source_joint_angle_correction.setCallback(self.handler_input_joint_angle_correction)
@@ -793,7 +796,7 @@ class OfflineCalibrationResults(Atom):
 class OfflineCalibrationParameters(Atom):
     # global
     stream_skip_first_nseconds = Float(0.0)
-    haptidevice_name = Str()
+    hapticdevice_name = Str()
 
     # tooltip
     tooltip_enabled = Bool(False)
@@ -972,7 +975,7 @@ class OfflineCalibrationProcessor(Atom):
 
     #helpers
     fwk_classes = Value()
-    haptic_device_config = Value()
+    haptic_device_config = Dict()
     use_platform_sensors = Bool()
 
 
@@ -983,7 +986,7 @@ class OfflineCalibrationProcessor(Atom):
         config = self.context.get("config")
         section = "ubitrack.devices.%s" % self.parameters.hapticdevice_name
         if config.has_section(section):
-            hd_cfg = config.items(section)
+            hd_cfg = dict(config.items(section))
             return hd_cfg
         raise KeyError("Missing haptic device section: %s" % section)
 
@@ -992,6 +995,7 @@ class OfflineCalibrationProcessor(Atom):
             model_family = self.haptic_device_config.get("model_family", "phantom")
             model_type = self.haptic_device_config.get("model_type", "omni")
             if model_family.strip() == 'virtuose' and model_type.strip() == 'scale1':
+                log.info("Enabled Platformsensors for Scale Device.")
                 return True
         return False
 
@@ -1177,8 +1181,7 @@ class OfflineCalibrationProcessor(Atom):
                            enable_2ndorder=self.parameters.ja_use_2nd_order)
         ja_streamproc_attributes = dict(tooltip_offset=self.result.tooltip_calibration_result,
                                         absolute_orientation=self.result.absolute_orientation_result,
-                                        forward_kinematics=fwk,
-                                        use_platform_sensors=self.use_platform_sensors)
+                                        forward_kinematics=fwk)
 
         stream_filters = []
 
@@ -1213,6 +1216,7 @@ class OfflineCalibrationProcessor(Atom):
         ja_processor_attributes = dict(joint_lengths=self.parameters.joint_lengths,
                                        origin_offset=self.parameters.origin_offset,)
         ja_processor = JointAngleCalibrationProcessor(dataset=ds,
+                                                      use_platform_sensors=self.use_platform_sensors,
                                                       **ja_processor_attributes)
 
         ja_processor.facade = self.facade
@@ -1238,8 +1242,7 @@ class OfflineCalibrationProcessor(Atom):
         ga_streamproc_attributes = dict(absolute_orientation=self.result.absolute_orientation_result,
                                         tooltip_offset=self.result.tooltip_calibration_result if par.ga_use_tooltip_offset else tooltip_null_calibration,
                                         forward_kinematics=fwk,
-                                        zrefaxis_calib=self.result.zaxis_reference_result,
-                                        use_platform_sensors=self.use_platform_sensors)
+                                        zrefaxis_calib=self.result.zaxis_reference_result)
 
         stream_filters = []
 
@@ -1269,6 +1272,7 @@ class OfflineCalibrationProcessor(Atom):
                                        joint_lengths=par.joint_lengths,
                                        origin_offset=par.origin_offset,)
         ga_processor = GimbalAngleCalibrationProcessor(dataset=ds,
+                                                       use_platform_sensors=self.use_platform_sensors,
                                                        **ga_processor_attributes)
 
         ga_processor.facade = self.facade
@@ -1461,10 +1465,10 @@ class OfflineCalibrationProcessor(Atom):
                 self.source_absolute_orientation_result = self.facade.instance.getApplicationPushSourcePose("result_calib_absolute_orientation")
 
             if self.parameters.joint_angle_calibration_enabled:
-                self.source_jointangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_jointangle_correction")
+                self.source_jointangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_jointangle_correction")
 
             if self.parameters.gimbal_angle_calibration_enabled:
-                self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_phantom_gimbalangle_correction")
+                self.source_gimbalangles_correction_result = self.facade.instance.getApplicationPushSourceMatrix3x3("result_calib_gimbalangle_correction")
 
             if self.parameters.reference_orientation_enabled:
                 self.source_zaxis_points_result = self.facade.instance.getApplicationPushSourcePositionList("result_calib_zrefaxis_points")
@@ -1590,10 +1594,9 @@ class OfflineCalibrationProcessor(Atom):
             self.result.zaxis_reference_result = reference_orientation_null_calibration
             self.result.zaxis_points_result = []
 
-        self.result.orientation_errors.append(self.compute_orientation_errors(datasources.get(self.parameters.gimbal_angle_calibration_datasource, None)))
-
         # 5th step: gimbalangle correction
         if self.parameters.gimbal_angle_calibration_enabled:
+            self.result.orientation_errors.append(self.compute_orientation_errors(datasources.get(self.parameters.gimbal_angle_calibration_datasource, None)))
             self.do_gimbalangle_correction(datasources.get(self.parameters.gimbal_angle_calibration_datasource, None))
 
             # compute errors after calibration

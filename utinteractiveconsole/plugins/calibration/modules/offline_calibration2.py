@@ -80,10 +80,10 @@ class OfflineCalibrationController(CalibrationController):
 
         # load all parameters from the configuration file
         try:
-            haptidevice_name = wiz_cfg.get("haptic_device").strip()
-            self.parameters.haptidevice_name = haptidevice_name
-z
-            hd_cfg = dict(gbl_cfg.items("ubitrack.devices.%s" % haptidevice_name))
+            hapticdevice_name = wiz_cfg.get("haptic_device").strip()
+            self.parameters.hapticdevice_name = hapticdevice_name
+
+            hd_cfg = dict(gbl_cfg.items("ubitrack.devices.%s" % hapticdevice_name))
             self.parameters.joint_lengths = np.array([float(hd_cfg["joint_length1"]),
                                            float(hd_cfg["joint_length2"]), ])
 
@@ -236,15 +236,17 @@ z
 
         poserr = Figure()
         ax1 = poserr.add_subplot(111)
-        ax1.boxplot(result.position_errors)
-        ax1.set_title("Position Errors")
-        ax1.set_ylim(0, max(*[max(e) for e in result.position_errors]))
+        if result.position_errors:
+            ax1.boxplot(result.position_errors)
+            ax1.set_title("Position Errors")
+            ax1.set_ylim(0, max(*[max(e) for e in result.position_errors]))
 
         ornerr = Figure()
         ax2 = ornerr.add_subplot(111)
-        ax2.boxplot(result.orientation_errors)
-        ax2.set_title("Orientation Errors")
-        ax2.set_ylim(0, max(*[max(e) for e in result.orientation_errors]))
+        if result.orientation_errors:
+            ax2.boxplot(result.orientation_errors)
+            ax2.set_title("Orientation Errors")
+            ax2.set_ylim(0, max(*[max(e) for e in result.orientation_errors]))
 
         # create results panel
         panel = OfflineCalibrationResultPanel(name="utic.%s.visualize_result.%s" % (state.current_task, time.time()),
