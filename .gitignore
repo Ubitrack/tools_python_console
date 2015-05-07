@@ -3,3 +3,4 @@ build/
 *.pyc
 *.enamlc
 *.egg
+.idea/
