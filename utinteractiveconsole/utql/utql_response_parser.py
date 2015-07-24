@@ -47,7 +47,7 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
                 nodes[node_name] = ResponseOutputNode(name=node.get("name"),
                                                           displayName=node.get("displayName", ""),
                                                           description=parse_description(node, namespaces),
-                                                          id=node.get("id"),
+                                                          id=node.get("id", ""),
                                                           attributes=parse_attributes(node, namespaces, type_registry),
                                                           gui_pos=gui_status.get('gui_pos'),
                                                           group='output')

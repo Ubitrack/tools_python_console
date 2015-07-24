@@ -45,7 +45,7 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
             for node in output.xpath("utql:Node", namespaces=namespaces):
                 node_name = node.get("name")
                 gui_status = parse_gui_status(node, namespaces)
-                nodes[node_name] = RequestOutputNodeType(id=node.get("id"),
+                nodes[node_name] = RequestOutputNodeType(id=node.get("id", ""),
                                                          name=node.get("name"),
                                                          displayName=node.get("displayName", ""),
                                                          description=parse_description(node, namespaces),
