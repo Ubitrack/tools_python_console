@@ -175,7 +175,6 @@ class DataSourceLoader(Atom):
 
         return result
 
-
     def _default_recordsource_names(self):
         return sorted(self.recordsources.keys())
 

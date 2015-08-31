@@ -45,23 +45,23 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
                 node_name = node.get("name")
                 gui_status = parse_gui_status(node, namespaces)
                 nodes[node_name] = ResponseOutputNode(name=node.get("name"),
-                                                          displayName=node.get("displayName", ""),
-                                                          description=parse_description(node, namespaces),
-                                                          id=node.get("id", ""),
-                                                          attributes=parse_attributes(node, namespaces, type_registry),
-                                                          gui_pos=gui_status.get('gui_pos'),
-                                                          group='output')
+                                                      displayName=node.get("displayName", ""),
+                                                      description=parse_description(node, namespaces),
+                                                      id=node.get("id", ""),
+                                                      attributes=parse_attributes(node, namespaces, type_registry),
+                                                      gui_pos=gui_status.get('gui_pos'),
+                                                      group='output')
 
             for edge in output.xpath("utql:Edge", namespaces=namespaces):
                 gui_status = parse_gui_status(edge, namespaces)
                 output_edges.append(OutputEdge(name=edge.get("name"),
-                                                   displayName=edge.get("displayName", ""),
-                                                   description=parse_description(edge, namespaces),
-                                                   source=edge.get("source"),
-                                                   destination=edge.get("destination"),
-                                                   gui_label_pos=gui_status.get('gui_label_pos'),
-                                                   gui_landmark=gui_status.get('gui_landmark'),
-                                                   attributes=parse_attributes(edge, namespaces, type_registry)))
+                                               displayName=edge.get("displayName", ""),
+                                               description=parse_description(edge, namespaces),
+                                               source=edge.get("source"),
+                                               destination=edge.get("destination"),
+                                               gui_label_pos=gui_status.get('gui_label_pos'),
+                                               gui_landmark=gui_status.get('gui_landmark'),
+                                               attributes=parse_attributes(edge, namespaces, type_registry)))
 
         input = pattern.find("utql:Input", namespaces=namespaces)
         if input is not None:
@@ -69,25 +69,25 @@ def parse(fname, namespaces=UTQL_NAMESPACES):
                 node_name = node.get("name")
                 gui_status = parse_gui_status(node, namespaces)
                 nodes[node_name] = ResponseInputNode(name=node_name,
-                                                         displayName=node.get("displayName", ""),
-                                                         description=parse_description(node, namespaces),
-                                                         id=node.get("id"),
-                                                         gui_pos=gui_status.get('gui_pos'),
-                                                         attributes=parse_attributes(node, namespaces, type_registry),
-                                                         group='input')
+                                                     displayName=node.get("displayName", ""),
+                                                     description=parse_description(node, namespaces),
+                                                     id=node.get("id"),
+                                                     gui_pos=gui_status.get('gui_pos'),
+                                                     attributes=parse_attributes(node, namespaces, type_registry),
+                                                     group='input')
 
             for edge in input.xpath("utql:Edge", namespaces=namespaces):
                 gui_status = parse_gui_status(edge, namespaces)
                 input_edges.append(ResolvedEdge(name=edge.get("name"),
-                                                    displayName=edge.get("displayName", ""),
-                                                    description=parse_description(edge, namespaces),
-                                                    source=edge.get("source"),
-                                                    destination=edge.get("destination"),
-                                                    pattern_ref=edge.get("pattern-ref"),
-                                                    edge_ref=edge.get("edge-ref"),
-                                                    gui_label_pos=gui_status.get('gui_label_pos'),
-                                                    gui_landmark=gui_status.get('gui_landmark'),
-                                                    attributes=parse_attributes(edge, namespaces, type_registry)))
+                                                displayName=edge.get("displayName", ""),
+                                                description=parse_description(edge, namespaces),
+                                                source=edge.get("source"),
+                                                destination=edge.get("destination"),
+                                                pattern_ref=edge.get("pattern-ref"),
+                                                edge_ref=edge.get("edge-ref"),
+                                                gui_label_pos=gui_status.get('gui_label_pos'),
+                                                gui_landmark=gui_status.get('gui_landmark'),
+                                                attributes=parse_attributes(edge, namespaces, type_registry)))
 
         dataflowconfig = pattern.find("utql:DataflowConfiguration", namespaces=namespaces)
         if dataflowconfig is not None:

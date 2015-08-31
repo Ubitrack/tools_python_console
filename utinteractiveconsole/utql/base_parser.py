@@ -87,7 +87,7 @@ def parse_attributes(node, namespaces, type_registry, references=None):
         attr_cls = type_registry.get(tname)
         if attr_cls is None:
             raise TypeError("Missing AttributeType: %s" % tname)
-        attrs.append(attr_cls.xml_read(e, namespaces, references=references))
+        attrs.append(attr_cls.xml_read(e, namespaces, type_registry, references=references))
 
     return attrs
 

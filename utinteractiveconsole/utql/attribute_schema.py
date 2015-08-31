@@ -28,17 +28,17 @@ class AttributeDeclarationTypeBase(Atom):
     description = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         pass
 
     @classmethod
-    def xml_read(cls, node, namespaces, references=None):
+    def xml_read(cls, node, namespaces, type_registry, references=None):
         attrs = dict(
             name=node.get('name'),
             displayName=node.get('displayName', ''),
         )
 
-        cls.xml_get_attributes(node, attrs)
+        cls.xml_get_attributes(node, attrs, namespaces, type_registry)
         return cls(**attrs)
 
 
@@ -59,7 +59,7 @@ class StringAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = node.get('default', '')
         attrs['value'] = node.get('value', '')
 
@@ -69,7 +69,7 @@ class ExtendedStringAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = node.get('default', '')
         attrs['value'] = node.get('value', '')
 
@@ -79,7 +79,7 @@ class HexAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = Int()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = int(node.get('default', 0), 16)
         attrs['value'] = int(node.get('value', 0), 16)
 
@@ -89,7 +89,7 @@ class PathAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = node.get('default', '')
         attrs['value'] = node.get('value', '')
 
@@ -100,7 +100,7 @@ class EnumAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = node.get('default', '')
         #attrs['value'] = node.get('value', '')
          # XXX Missing enum values
@@ -113,7 +113,7 @@ class IntAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = Int()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = int(node.get('default', 0))
         attrs['value'] = int(node.get('value', 0))
 
@@ -125,7 +125,7 @@ class DoubleAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = Float()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = float(node.get('default', 0))
         attrs['value'] = float(node.get('value', 0))
 
@@ -135,7 +135,7 @@ class IntArrayAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = List()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = []
         # XXX TBD
 
@@ -145,7 +145,7 @@ class DoubleArrayAttributeDeclarationType(AttributeDeclarationTypeBase):
     default = List()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['default'] = []
         # XXX TBD
 
@@ -158,11 +158,11 @@ class AttributeReferenceTypeBase(Atom):
     refersTo = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         pass
 
     @classmethod
-    def xml_read(cls, node, namespaces, references=None):
+    def xml_read(cls, node, namespaces, type_registry, references=None):
         if references is None:
             references = {}
 
@@ -179,7 +179,7 @@ class AttributeReferenceTypeBase(Atom):
         if obj is not None:
             attrs['object'] = obj
 
-        cls.xml_get_attributes(node, attrs)
+        cls.xml_get_attributes(node, attrs, namespaces, type_registry)
         return cls(**attrs)
 
 
@@ -192,11 +192,11 @@ class ListAttributeReferenceType(AttributeReferenceTypeBase):
 
 
 class StringAttributeReferenceType(AttributeReferenceTypeBase):
-    value = Typed(StringAttributeDeclarationType)
+    # value = Typed(StringAttributeDeclarationType)
     value = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['value'] = node.get('value', '')
 
 
@@ -209,70 +209,72 @@ class ExtendedStringAttributeReferenceType(AttributeReferenceTypeBase):
 
 
 class HexAttributeReferenceType(AttributeReferenceTypeBase):
-    value = Typed(HexAttributeDeclarationType)
+    # value = Typed(HexAttributeDeclarationType)
     value = Int()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['value'] = int(node.get('value', 0), 16)
 
 
 class PathAttributeReferenceType(AttributeReferenceTypeBase):
-    value = Typed(PathAttributeDeclarationType)
+    # value = Typed(PathAttributeDeclarationType)
     value = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['value'] = node.get('value', '')
 
 
 class EnumAttributeReferenceType(AttributeReferenceTypeBase):
-    value = Typed(EnumAttributeDeclarationType)
+    # value = Typed(EnumAttributeDeclarationType)
     value = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['value'] = node.get('value', '')
         # XXX ???
 
 
 class IntAttributeReferenceType(AttributeReferenceTypeBase):
-    value = Typed(IntAttributeDeclarationType)
+    # value = Typed(IntAttributeDeclarationType)
     value = Int()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['value'] = int(node.get('value', 0))
 
 
 class DoubleAttributeReferenceType(AttributeReferenceTypeBase):
-    value = Typed(DoubleAttributeDeclarationType)
+    # value = Typed(DoubleAttributeDeclarationType)
     value = Float()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['value'] = float(node.get('value', 0))
 
 
 class IntArrayAttributeReferenceType(AttributeReferenceTypeBase):
-    value = Typed(IntArrayAttributeDeclarationType)
+    # value = Typed(IntArrayAttributeDeclarationType)
     value = List()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         #attrs['value'] = node.get('value', '')
         # XXX TBD
+        print "XXX", node, attrs
         pass
 
 
 class DoubleArrayAttributeReferenceType(AttributeReferenceTypeBase):
-    value = Typed(DoubleArrayAttributeDeclarationType)
+    # value = Typed(DoubleArrayAttributeDeclarationType)
     value = List()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         #attrs['value'] = node.get('value', '')
         # XXX TBD
+        print "XXX", node, attrs
         pass
 
 
@@ -280,17 +282,17 @@ class AttributeTypeBase(Atom):
     name = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         pass
 
     @classmethod
-    def xml_read(cls, node, namespaces, references=None):
+    def xml_read(cls, node, namespaces, type_registry, references=None):
         attr_name = node.get('name')
 
         attrs = dict(
             name=attr_name,
         )
-        cls.xml_get_attributes(node, attrs)
+        cls.xml_get_attributes(node, attrs, namespaces, type_registry)
         return cls(**attrs)
 
 
@@ -298,8 +300,21 @@ class PrimitiveAttributeType(AttributeTypeBase):
     value = Str()
 
     @classmethod
-    def xml_get_attributes(cls, node, attrs):
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
         attrs['value'] = node.get('value', '')
+
+
+class ListAttributeType(AttributeTypeBase):
+    value = List()
+
+    @classmethod
+    def xml_get_attributes(cls, node, attrs, namespaces, type_registry):
+        value = []
+        for c in node.getchildren():
+            for e in c.xpath("utql:Attribute", namespaces=namespaces):
+                value.append(e.get('value'))
+        attrs['value'] = value
+
 
 
 ATTRIBUTE_TYPE_DECLARATION_REGISTRY = {c.__name__: c for c in globals().values() if inspect.isclass(c) and

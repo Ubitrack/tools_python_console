@@ -94,7 +94,7 @@ class DataSet(Atom):
             self.cached_records.append(record)
             yield record
 
-    def export_data(self, store, base_path):
+    def export_data(self, store, base_path, skip_fields=None):
         import pandas as pd
         from utinteractiveconsole.persistence.pandas_converters import store_data, guess_type
 
@@ -113,14 +113,20 @@ class DataSet(Atom):
         data = dict([(k, []) for k in fieldnames])
         timestamps = []
 
+        skip_fields = skip_fields or []
+
         records = self.cached_records if len(self.cached_records) > 0 else list(self)
         for record in records:
             timestamps.append(record.timestamp)
             for fn in fieldnames:
+                if fn in skip_fields:
+                    continue
                 data[fn].append(getattr(record, fn))
 
         store_data(store, '%s/timestamps' % (base_path, ), pd.Series(timestamps))
         for field in self.processor.schema.fields:
+            if field.name in skip_fields:
+                continue
             try:
                 element_count = 1
                 if field.is_array and len(data[field.name]) > 0:
