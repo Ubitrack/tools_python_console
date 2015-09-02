@@ -94,9 +94,10 @@ class DataSet(Atom):
             self.cached_records.append(record)
             yield record
 
-    def export_data(self, store, base_path, skip_fields=None):
+    def export_data(self, store, base_path, skip_fields=None, stream_filters=None):
         import pandas as pd
         from utinteractiveconsole.persistence.pandas_converters import store_data, guess_type
+        skip_fields = skip_fields or []
 
         store.put('%s/schema' % base_path, self.processor.schema.as_dataframe())
 
@@ -104,23 +105,24 @@ class DataSet(Atom):
         for key, value in self.attributes.items():
             try:
                 datatype = guess_type(value)
-            except TypeError:
-                # XXX maybe log here
+            except TypeError, e:
+                log.exception(e)
                 continue
             store_data(store, '%s/attributes/%s' % (base_path, key), value, datatype=datatype)
 
-        fieldnames = [f.name for f in self.processor.schema.fields]
+        fieldnames = [f.name for f in self.processor.schema.fields if f.name not in skip_fields]
         data = dict([(k, []) for k in fieldnames])
         timestamps = []
 
-        skip_fields = skip_fields or []
+        stream_filters = stream_filters or []
 
         records = self.cached_records if len(self.cached_records) > 0 else list(self)
+        for sfilter in stream_filters:
+            records = sfilter.process(records)
+
         for record in records:
             timestamps.append(record.timestamp)
             for fn in fieldnames:
-                if fn in skip_fields:
-                    continue
                 data[fn].append(getattr(record, fn))
 
         store_data(store, '%s/timestamps' % (base_path, ), pd.Series(timestamps))

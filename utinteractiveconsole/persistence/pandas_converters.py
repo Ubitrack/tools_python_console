@@ -5,9 +5,13 @@ from atom.api import Atom, Bool, Int, Value, Dict
 import pandas as pd
 import numpy as np
 
+
 from ubitrack.core import math
 from .recordschema import DataType, Field, RecordSchema
 from .recordsource import BaseRecordSource
+
+import logging
+log = logging.getLogger(__name__)
 
 # XXX use table format by default
 pd.set_option('io.hdf.default_format', 'table')
@@ -196,24 +200,42 @@ def guess_type(value):
 def store_data(store, path, value, datatype=None, is_array=False, element_count=1):
     if datatype is not None:
         converter = get_typeconverter(datatype, is_array=is_array, element_count=element_count)
-        data = converter.to_dataframe(value)
+        try:
+            data = converter.to_dataframe(value)
+        except ValueError, e:
+            log.exception(e)
+            log.error('cannot convert datatype %s for %s: %s' % (path, str(datatype), value))
+            data = None
     else:
         if not isinstance(value, (pd.DataFrame, pd.Panel, pd.Series)):
             data = pd.DataFrame(value)
         else:
             data = value
-    store.put(path, data)
-    st = store.get_storer(path)
-    st.attrs.utic_datatype = datatype
-    st.attrs.utic_is_array = is_array
-    st.attrs.utic_element_count = element_count
+
+    if data is not None:
+        store.put(path, data)
+        store.flush()
+        st = store.get_storer(path)
+        if st is not None:
+            st.attrs.utic_datatype = datatype
+            st.attrs.utic_is_array = is_array
+            st.attrs.utic_element_count = element_count
+        else:
+            log.warn('no storer found for: %s' % path)
 
 
 def load_data(store, path):
     st = store.get_storer(path)
-    datatype = st.attrs.utic_datatype
-    is_array = bool(st.attrs.utic_is_array)
-    element_count = st.attrs.utic_element_count
+    if st is not None:
+        datatype = st.attrs.utic_datatype
+        is_array = bool(st.attrs.utic_is_array)
+        element_count = st.attrs.utic_element_count
+    else:
+        log.warn('no storer found for: %s' % path)
+        # XXX not really a brilliant solution ..
+        datatype = DataType.distance
+        is_array = False
+        element_count = 1
 
     data = store.get(path)
 

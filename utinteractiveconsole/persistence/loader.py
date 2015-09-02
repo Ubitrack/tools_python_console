@@ -93,9 +93,9 @@ class DataSourceLoader(Atom):
                                 is_array=is_array,
                                 )
             f = StreamInterpolator(filespec=fs,
-                                  is_reference=bool(k == reference_column),
-                                  selector=v.get('selector', 'matching').strip().lower(),
-                                  latency=float(v.get('latency', 0.0)))
+                                   is_reference=bool(k == reference_column),
+                                   selector=v.get('selector', 'matching').strip().lower(),
+                                   latency=float(v.get('latency', 0.0)))
             fields.append(f)
 
         return RecordSource(name=recordsource_sname,
