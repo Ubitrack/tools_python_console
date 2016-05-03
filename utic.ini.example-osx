@@ -1,0 +1,678 @@
+[DEFAULT]
+domain_name: net-labs.au
+setup_name: semaphore
+user_name: jack_macbook
+platform_name: osx
+config_directory: /Users/jack/mywork/phd/vhar_calibration
+data_directory: /Users/jack/mywork/phd/vhar_calibration/vharcalibration_vhardata_mvl
+record_directory: /tmp
+module_namespace: vharcalibration.plugin.modules
+
+[ubitrack]
+components_path = /usr/local/lib/ubitrack
+
+;
+; Phantom Omni Defaults
+;
+[ubitrack.devices.phantom_omni]
+joint_length1: 0.13335
+joint_length2: 0.13335
+origin_offset_x: 0.0
+origin_offset_y: -0.11
+origin_offset_z: -0.035
+
+;
+; Phantom Premium 1.5 Defaults
+; (needs verification)
+[ubitrack.devices.phantom_premium15]
+joint_length1: 0.20955
+joint_length2: 0.20955
+origin_offset_x: 0.0
+origin_offset_y: 0.0
+origin_offset_z: 0.0
+
+;
+; Phantom Premium 3.0 Defaults
+; (needs verification)
+[ubitrack.devices.phantom_premium30]
+joint_length1: 0.457202
+joint_length2: 0.457202
+origin_offset_x: 0.0
+origin_offset_y: 0.0
+origin_offset_z: 0.0
+
+; not yet working
+;[extensions]
+;autostart: calibration_wizard
+
+;
+;
+; Calibration Wizard Configuration
+;
+;
+[calibration_wizard]
+wizards: default_camera,rgbd_camera,basic_workspace
+config_version: 2
+
+domain: %(domain_name)s
+setup: %(setup_name)s
+user: %(user_name)s
+platform: %(platform_name)s
+home: %(home_directory)s
+
+[calibration_wizard.default_camera]
+name: Default Camera
+config_namespace: vc.default_camera
+
+[calibration_wizard.rgbd_camera]
+name: RGB-D Camera
+config_namespace: vc.rgbd_camera
+
+[calibration_wizard.basic_workspace]
+name: Basic Workspace
+config_namespace: vc.basic_workspace
+
+; [calibration_wizard.vuzix_hmd]
+; name: Vuzix HMD
+; config_namespace: vc.vuzix_hmd
+
+; [calibration_wizard.time_delay_estimation]
+; name: Time-Delay Estimation
+; config_namespace: vc.time_delay_estimation
+
+; [calibration_wizard.phantom_colocation]
+; name: Phantom Co-Location
+; config_namespace: vc.phantom_colocation
+
+; [calibration_wizard.ismar14]
+; name: ISMAR 2014 Demo
+; config_namespace: vc.ismar14
+
+;
+;
+; Default Camera Calibration Wizard
+;
+;
+[vc.default_camera]
+name: Default Camera Calibration
+facade_handler: inprocess
+rootdir: %(config_directory)s/vharcalibration
+calibdir: %(rootdir)s/calib/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s
+dfgdir: %(rootdir)s/dfgs/default_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+resultsdir: %(data_directory)s/default_camera/%(setup_name)s/%(user_name)s
+
+[vc.default_camera.modules.calibration_start]
+enabled: True
+name: Start Default Camera Calibration
+
+[vc.default_camera.modules.camera_intrinsics]
+enabled: True
+dfg_filename: camera_intrinsics_qtkit.dfg
+name: Camera Intrinsics
+dependencies: calibration_start
+calib_files: macbook_intrinsics.calib,macbook_distortion.calib
+
+; [vc.default_camera.modules.camera_handeye]
+; enabled: True
+; dfg_filename: camera_handeye_calibration_flea2.dfg
+; name: Camera Hand-Eye
+; dependencies: camera_intrinsics
+; calib_files: flea2_hand_eye_calibration.calib,tracker_marker_transform.calib
+
+[vc.default_camera.modules.calibration_result]
+enabled: True
+;dfg_filename: vhar_calibration_verification.dfg
+name: Camera Calibration Result
+; dependencies: camera_intrinsics,camera_handeye
+dependencies: camera_intrinsics
+report_filename: calibration_report.yaml
+
+
+
+;
+;
+; RGB-D Camera Calibration Wizard
+;
+;
+[vc.rgbd_camera]
+name: RGB-D Camera Calibration
+facade_handler: inprocess
+rootdir: %(config_directory)s/vharcalibration
+calibdir: %(rootdir)s/calib/rgbd_camera/%(domain_name)s/%(setup_name)s/%(user_name)s
+dfgdir: %(rootdir)s/dfgs/rgbd_camera/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+resultsdir: %(data_directory)s/rgbd_camera/%(setup_name)s/%(user_name)s
+
+[vc.rgbd_camera.modules.calibration_start]
+enabled: True
+name: Start RGB-D Camera Calibration
+
+[vc.rgbd_camera.modules.camera_intrinsics.depth]
+enabled: True
+dfg_filename: camera_intrinsics_depth.dfg
+name: Camera Intrinsics Depth
+dependencies: calibration_start
+calib_files: camera_depth_intrinsics.calib,camera_depth_distortion.calib
+
+[vc.rgbd_camera.modules.camera_intrinsics.rgb]
+enabled: True
+dfg_filename: camera_intrinsics_rgb.dfg
+name: Camera Intrinsics RGB
+dependencies: calibration_start
+calib_files: camera_rgb_intrinsics.calib,camera_rgb_distortion.calib
+
+; [vc.rgbd_camera.modules.camera_intrinsics.depth]
+; enabled: True
+; dfg_filename: camera_depth_intrinsics_new.dfg
+; name: Camera Intrinsics Depth
+; dependencies: calibration_start
+; calib_files: camera_depth_calibration.calib
+
+; [vc.rgbd_camera.modules.camera_intrinsics.rgb]
+; enabled: True
+; dfg_filename: camera_rgb_intrinsics_new.dfg
+; name: Camera Intrinsics RGB
+; dependencies: calibration_start
+; calib_files: camera_rgb_intrinsics.calib,camera_rgb_distortion.calib
+
+; [vc.rgbd_camera.modules.camera_handeye]
+; enabled: True
+; dfg_filename: camera_handeye_calibration_flea2.dfg
+; name: Camera Hand-Eye
+; dependencies: camera_intrinsics
+; calib_files: flea2_hand_eye_calibration.calib,tracker_marker_transform.calib
+
+[vc.rgbd_camera.modules.calibration_result]
+enabled: True
+;dfg_filename: vhar_calibration_verification.dfg
+name: Camera Calibration Result
+; dependencies: camera_intrinsics,camera_handeye
+dependencies: camera_intrinsics.depth,camera_intrinsics.rgb
+report_filename: calibration_report.yaml
+
+
+
+
+;
+;
+; Basic Workspace Calibration Wizard
+;
+;
+[vc.basic_workspace]
+name: Basic Workspace Calibration
+facade_handler: inprocess
+rootdir: %(config_directory)s/vharcalibration
+calibdir: %(rootdir)s/calib/basic_workspace/%(domain_name)s/%(setup_name)s/%(user_name)s
+dfgdir: %(rootdir)s/dfgs/basic_workspace/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+resultsdir: %(data_directory)s/basic_workspace/%(setup_name)s/%(user_name)s
+
+[vc.basic_workspace.modules.calibration_start]
+enabled: True
+name: Start Basic Workspace Calibration
+
+[vc.basic_workspace.modules.absolute_orientation_refpoints_calibration]
+enabled: True
+dfg_filename: calibration_absolute_orientation.dfg
+name: Absolute Orientation Ref-Points
+dependencies: calibration_start
+calib_files: absolute_orientation_calibration.calib
+
+[vc.basic_workspace.modules.calibration_result]
+enabled: True
+;dfg_filename: vhar_calibration_verification.dfg
+name: Basic Workspace Calibration Result
+; dependencies: camera_intrinsics,camera_handeye
+dependencies: absolute_orientation_refpoints_calibration
+report_filename: calibration_report.yaml
+
+;
+;
+; VUZIX HMD Calibration
+;
+;
+; [vc.vuzix_hmd]
+; name: Vuzix HMD Calibration
+; facade_handler: inprocess
+; rootdir: %(config_directory)s/vharcalibration
+; calibdir: %(rootdir)s/calib/vuzix_hmd/%(domain_name)s/%(setup_name)s/%(user_name)s
+; dfgdir: %(rootdir)s/dfgs/vuzix_hmd/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+; resultsdir: %(data_directory)s/vuzix_hmd/%(setup_name)s/%(user_name)s
+
+; [vc.vuzix_hmd.modules.calibration_start]
+; enabled: True
+; name: Start Vuzix HMD Calibration
+
+; [vc.vuzix_hmd.modules.camera_intrinsics_left]
+; enabled: True
+; dfg_filename: camera_intrinsics_vuzix_left.dfg
+; name: Camera Intrinsics Left
+; dependencies: calibration_start
+; calib_files: vuzix_left_intrinsics.calib,vuzix_left_distortion.calib
+
+; [vc.vuzix_hmd.modules.camera_intrinsics_right]
+; enabled: True
+; dfg_filename: camera_intrinsics_vuzix_right.dfg
+; name: Camera Intrinsics Right
+; dependencies: camera_intrinsics_left
+; calib_files: vuzix_right_intrinsics.calib,vuzix_right_distortion.calib
+
+; [vc.vuzix_hmd.modules.camera_handeye]
+; enabled: True
+; dfg_filename: camera_handeye_calibration_vuzix.dfg
+; name: Camera Hand-Eye
+; dependencies: camera_intrinsics_left,camera_intrinsics_right
+; calib_files: vuzix_hand_eye_calibration.calib,tracker_marker_transform.calib
+
+; [vc.vuzix_hmd.modules.camera_stereo]
+; enabled: True
+; dfg_filename: camera_stereocalib_vuzix.dfg
+; name: Camera Stereo Transform
+; dependencies: camera_intrinsics_left,camera_intrinsics_right,camera_handeye
+; calib_files: vuzix_stereo_transform.calib
+
+; [vc.vuzix_hmd.modules.calibration_result]
+; enabled: True
+; name: Vuxiz HMD Calibration Result
+; dependencies: camera_intrinsics_left,camera_intrinsics_right,camera_handeye,camera_stereo
+; report_filename: calibration_report.yaml
+
+;
+;
+; Time-Delay Estimation Calibration
+;
+;
+; [vc.time_delay_estimation]
+; name: Time-Delay Estimation
+; rootdir: %(config_directory)s/vharcalibration
+; calibdir: %(rootdir)s/calib/time_delay_estimation/%(domain_name)s/%(setup_name)s/%(user_name)s
+; dfgdir: %(rootdir)s/dfgs/time_delay_estimation/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+; resultsdir: %(data_directory)s/time_delay_estimation/%(setup_name)s/%(user_name)s
+; facade_handler: inprocess
+; ;livepreview: time_delay_estimation_preview
+
+; ;[vc.time_delay_estimation.preview]
+; ;dfg_filename: vhar_timedelay_livepreview.dfg
+; ;sync_source: camera_image
+; ;shared_calibdir: %(config_directory)s/vharcalibration/calib/shared/%(domain_name)s/%(setup_name)s/%(user_name)s
+
+; [vc.time_delay_estimation.initialize_files]
+; absolute_orientation_calibration.calib: %(config_directory)s/vharcalibration/calib/init/absolute_orientation_calibration.calib
+; tooltip_calibration.calib: %(config_directory)s/vharcalibration/calib/init/tooltip_calibration.calib
+; delay_haptic_to_external_tracker.calib: %(config_directory)s/vharcalibration/calib/init/delay_haptic_to_external_tracker.calib
+
+; [vc.time_delay_estimation.modules.calibration_start]
+; enabled: True
+; name: Start Time-Delay Estimation
+
+; [vc.time_delay_estimation.modules.tooltip_calibration]
+; enabled: True
+; name: Tooltip Calibration
+; dependencies: calibration_start
+; dfg_filename: calibration_tooltip.dfg
+; calib_files: tooltip_calibration.calib
+; recorddir: %(record_directory)s/tooltip
+
+; [vc.time_delay_estimation.modules.absolute_orientation_calibration]
+; enabled: True
+; name: Absolute Orientation
+; dependencies: tooltip_calibration
+; dfg_filename: calibration_absolute_orientation_init.dfg
+; calib_files: absolute_orientation_calibration.calib
+; recorddir: %(record_directory)s/absolute_orientation
+
+; [vc.time_delay_estimation.modules.timedelay_estimation_calibration]
+; enabled: True
+; name: Time-Delay Estimation
+; dependencies: tooltip_calibration,absolute_orientation_calibration
+; calib_files: delay_haptic_to_external_tracker.calib
+; dfg_filename: calibration_timedelay.dfg
+
+; [vc.time_delay_estimation.modules.calibration_result]
+; enabled: True
+; name: Time-Delay Estimation Result
+; dependencies: tooltip_calibration,absolute_orientation_calibration,timedelay_estimation_calibration
+; report_filename: calibration_report.yaml
+
+;
+;
+; Phantom Co-Location Calibration
+;
+;
+; [vc.phantom_colocation]
+; name: Phantom Co-Location Calibration
+; rootdir: %(config_directory)s/vharcalibration
+; calibdir: %(rootdir)s/calib/phantom_colocation/%(domain_name)s/%(setup_name)s/%(user_name)s
+; dfgdir: %(rootdir)s/dfgs/phantom_colocation/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+; resultsdir: %(data_directory)s/phantom_colocation/%(setup_name)s/%(user_name)s
+; facade_handler: inprocess
+; haptic_device: phantom_omni
+
+; ; currently not implemented
+; ; use_2ndorder_model: true
+
+; ; no livepreview since it's now connected to the H3D Host
+; ;livepreview: phantom_colocation
+
+; ;[vc.phantom_colocation.preview]
+; ;dfg_filename: vhar_calibration_host_flea2.dfg
+; ;shared_calibdir: %(config_directory)s/vharcalibration/calib/shared/%(domain_name)s/%(setup_name)s/%(user_name)s
+
+; [vc.phantom_colocation.initialize_files]
+; absolute_orientation_calibration.calib: %(config_directory)s/vharcalibration/calib/init/absolute_orientation_calibration.calib
+; phantom_jointangle_correction.calib: %(config_directory)s/vharcalibration/calib/init/phantom_jointangle_correction.calib
+; phantom_gimbalangle_correction.calib: %(config_directory)s/vharcalibration/calib/init/phantom_gimbalangle_correction.calib
+; tooltip_calibration.calib: %(config_directory)s/vharcalibration/calib/init/tooltip_calibration.calib
+; zref_axis.calib: %(config_directory)s/vharcalibration/calib/init/zref_axis.calib
+
+
+; [vc.phantom_colocation.modules.calibration_start]
+; enabled: True
+; name: Start Phantom Co-Location Calibration
+
+; [vc.phantom_colocation.modules.tooltip_calibration]
+; enabled: True
+; name: Tooltip Calibration
+; dependencies: calibration_start
+; dfg_filename: calibration_tooltip.dfg
+; calib_files: tooltip_calibration.calib
+; recorddir: %(record_directory)s/tooltip
+; autocomplete_enable: True
+; ; maximum distance between consecutive results as euclidean norm
+; autocomplete_maxerror: 0.0001
+
+; [vc.phantom_colocation.modules.absolute_orientation_calibration]
+; enabled: True
+; name: Absolute Orientation
+; dependencies: tooltip_calibration
+; dfg_filename: calibration_absolute_orientation.dfg
+; calib_files: absolute_orientation_calibration.calib
+; recorddir: %(record_directory)s/absolute_orientation
+; autocomplete_enable: True
+; ; maximum distance between consecutive results as euclidean norm for translation and angle for rotation
+; autocomplete_maxerror: 0.001, 0.1
+
+; [vc.phantom_colocation.modules.hapticworkspace_calibration]
+; enabled: True
+; name: Joint-Angle Calibration
+; dependencies: tooltip_calibration,absolute_orientation_calibration
+; dfg_filename: calibration_haptic_workspace.dfg
+; calib_files: phantom_jointangle_correction.calib
+; recorddir: %(record_directory)s/haptic_workspace_position
+; ; currently we cannot determine if enough samples and coverage was provided
+; autocomplete_enable: False
+; ; maximum change occuring between optimization runs (for each param p: abs(p[i] - p[i-1]) < e)
+; autocomplete_maxerror: 0.001
+
+; [vc.phantom_colocation.modules.hapticgimbal_init_calibration]
+; enabled: True
+; name: Gimbal Reference-Axis Initialization
+; dependencies: tooltip_calibration,absolute_orientation_calibration,hapticworkspace_calibration
+; dfg_filename: calibration_hapticgimbal_initialization.dfg
+; calib_files: zref_axis.calib
+; recorddir: %(record_directory)s/haptic_workspace_initialize_orientation
+
+; [vc.phantom_colocation.modules.hapticgimbal_calibration]
+; enabled: True
+; name: Gimbal-Angle Calibration
+; dependencies: tooltip_calibration,absolute_orientation_calibration,hapticworkspace_calibration,hapticgimbal_init_calibration
+; dfg_filename: calibration_hapticgimbal_workspace.dfg
+; calib_files: phantom_gimbalangle_correction.calib
+; recorddir: %(record_directory)s/haptic_workspace_orientation
+
+; [vc.phantom_colocation.modules.calibration_result]
+; enabled: True
+; name: Phantom Co-Location Result
+; dependencies: tooltip_calibration,absolute_orientation_calibration,hapticworkspace_calibration,hapticgimbal_init_calibration,hapticgimbal_calibration
+; report_filename: calibration_report.yaml
+
+;
+;
+; ISMAR 14 Demo
+;
+;
+; [vc.ismar14]
+; name: ISMAR 2014
+; rootdir: %(config_directory)s/vharcalibration
+; calibdir: %(rootdir)s/calib/ismar14/%(domain_name)s/%(setup_name)s/%(user_name)s
+; dfgdir: %(rootdir)s/dfgs/ismar14/%(domain_name)s/%(setup_name)s/%(user_name)s/%(platform_name)s
+; resultsdir: %(data_directory)s/ismar14/%(setup_name)s/%(user_name)s
+; facade_handler: inprocess
+; haptic_device: phantom_omni
+
+; [vc.ismar14.modules.calibration_start]
+; enabled: True
+; name: Start ISMAR14 Demo
+
+; [vc.ismar14.modules.tooltip_calibration.fwkbase_position]
+; enabled: True
+; name: Phantom FWK Base Position
+; dependencies: calibration_start
+; dfg_filename: calibration_fwkbase_position.dfg
+; calib_files: phantom_fwkbase_position_calibration.calib
+; recorddir: %(record_directory)s/fwkbase_position
+
+; [vc.ismar14.modules.tooltip_calibration.fwkbase_position2]
+; enabled: True
+; name: Phantom FWK Base Position2
+; dependencies: tooltip_calibration.fwkbase_position
+; dfg_filename: calibration_fwkbase_position2.dfg
+; calib_files: phantom_fwkbase_position2_calibration.calib
+; recorddir: %(record_directory)s/fwkbase_position2
+
+; [vc.ismar14.modules.offline_datacollection.step01]
+; enabled: True
+; dfg_filename: ismar14_step01.dfg
+; name: Data Collection Step 01
+; dependencies: tooltip_calibration.fwkbase_position2
+; recorddir: %(record_directory)s/ismar14_step01
+; taskdescription: <h1>Data Collection - Step 01</h1>
+;                  <p>Please fix the PHANToM arm on the stand and attach the external tracker target.</p>
+;                  <p>Then start the calibration and rotate the target slowly around the gimbal center to cover all possible angles.</p>
+
+; [vc.ismar14.modules.offline_datacollection.step02]
+; enabled: True
+; dfg_filename: ismar14_step02.dfg
+; name: Data Collection Step 02
+; dependencies: offline_datacollection.step01
+; recorddir: %(record_directory)s/ismar14_step02
+; taskdescription: <h1>Data Collection - Step 02</h1>
+;                  <p>Position the stylus so that its orientation is roughly on a 90 degrees angle to the second joint, then start the calibration.</p>
+;                  <p>Rotate the stylus around its longitudinal axis while covering the complete range from left to right several times.</p>
+
+; [vc.ismar14.modules.offline_datacollection.step03]
+; enabled: True
+; dfg_filename: ismar14_step03.dfg
+; name: Data Collection Step 03
+; dependencies: offline_datacollection.step02
+; recorddir: %(record_directory)s/ismar14_step03
+; taskdescription: <h1>Data Collection - Step 03</h1>
+;                  <p>Remove the stand and position the stylus in the workspace center and start the calibration.</p>
+;                  <p>Move the stylus slowly in the workspace. First, keep close to the workspace center, then work your way out up to a maximum of 50%
+;                     of the maximum workspace boundaries.</p>
+
+; [vc.ismar14.modules.offline_datacollection.step04]
+; enabled: True
+; dfg_filename: ismar14_step04.dfg
+; name: Data Collection Step 04
+; dependencies: offline_datacollection.step03
+; recorddir: %(record_directory)s/ismar14_step04
+; taskdescription: <h1>Data Collection - Step 04</h1>
+;                  <p>Position the stylus in the workspace center and start the calibration.</p>
+;                  <p>Move the stylus slowly in the workspace. First, keep close to the workspace center, then work your way out to cover the complete
+;                     workspace. Trace all extreme positions while drawing vertical eight figures.</p>
+
+; [vc.ismar14.datasources.ismar14_fwkbase_position]
+; data_directory: %(record_directory)s/fwkbase_position
+; reference: externaltracker_pose
+; item.externaltracker_pose: fwkbase_target_pose.log,pose,matching
+
+; [vc.ismar14.datasources.ismar14_fwkbase_position2]
+; data_directory: %(record_directory)s/fwkbase_position2
+; reference: externaltracker_pose
+; item.externaltracker_pose: fwkbase_target2_pose.log,pose,matching
+
+; [vc.ismar14.datasources.ismar14_datacollection_step01]
+; data_directory: %(record_directory)s/ismar14_step01
+; reference: externaltracker_pose
+; item.externaltracker_pose: externaltracker_hiptarget_pose.log,pose,matching
+; item.jointangles: phantom_joint_angles.log,position3d,interpolate
+; item.gimbalangles: phantom_gimbal_angles.log,position3d,interpolate
+
+; [vc.ismar14.datasources.ismar14_datacollection_step02]
+; data_directory: %(record_directory)s/ismar14_step02
+; reference: externaltracker_pose
+; item.externaltracker_pose: externaltracker_hiptarget_pose.log,pose,matching
+; item.jointangles: phantom_joint_angles.log,position3d,interpolate
+; item.gimbalangles: phantom_gimbal_angles.log,position3d,interpolate
+; item.externaltracker_markers: externaltracker_hiptarget_markers.log,position3d-list,matching
+
+; [vc.ismar14.datasources.ismar14_datacollection_step03]
+; data_directory: %(record_directory)s/ismar14_step03
+; reference: externaltracker_pose
+; item.externaltracker_pose: externaltracker_hiptarget_pose.log,pose,matching
+; item.jointangles: phantom_joint_angles.log,position3d,interpolate
+; item.gimbalangles: phantom_gimbal_angles.log,position3d,interpolate
+
+; [vc.ismar14.datasources.ismar14_datacollection_step04]
+; data_directory: %(record_directory)s/ismar14_step04
+; reference: externaltracker_pose
+; item.externaltracker_pose: externaltracker_hiptarget_pose.log,pose,matching
+; item.jointangles: phantom_joint_angles.log,position3d,interpolate
+; item.gimbalangles: phantom_gimbal_angles.log,position3d,interpolate
+
+; [vc.ismar14.datasources.ismar14_datacollection_evaluation]
+; data_directory: %(record_directory)s/ismar14_evaluation
+; reference: externaltracker_pose
+; item.externaltracker_pose: externaltracker_hiptarget_pose.log,pose,matching
+; item.jointangles: phantom_joint_angles.log,position3d,interpolate
+; item.gimbalangles: phantom_gimbal_angles.log,position3d,interpolate
+
+; [vc.ismar14.modules.offline_calibration]
+; enabled: True
+; dfg_filename: ismar14_calibration.dfg
+; name: Compute Calibration
+; dependencies: offline_datacollection.step01,offline_datacollection.step02,offline_datacollection.step03,offline_datacollection.step04
+; calib_files: tooltip_calibration.calib,absolute_orientation_calibration.calib,phantom_jointangle_correction.calib,phantom_gimbalangle_correction.calib,zref_axis_points.calib,zref_axis_reference.calib
+
+
+; [vc.ismar14.parameters.offline_calibration]
+; ; tooltip calibration
+; tooltip_enabled: True
+; tooltip_datasource: ismar14_datacollection_step01
+; tt_minimal_angle_between_measurements: 0.1
+; tt_use_pose: False
+
+; ; fwkbase_position
+; fwkbase_position_enabled: True
+; fwkbase_position_datasource = ismar14_fwkbase_position
+
+; ; fwkbase_position2
+; fwkbase_position2_enabled: True
+; fwkbase_position2_datasource = ismar14_fwkbase_position2
+
+; ; absolute orientation calibration
+; absolute_orientation_enabled: True
+; absolute_orientation_datasource: ismar14_datacollection_step03
+; ao_inital_maxdistance_from_origin: 0.1
+; ao_minimal_distance_between_measurements: 0.01
+; ao_refinement_expand_coverage: 1.5
+; ao_refinement_shrink_distance: 1.0
+; ;ao_method: fwkpose
+; ao_method: fwkbase
+; ao_negate_upvector: False
+
+; ; joint angles calibration
+; joint_angle_calibration_enabled: True
+; joint_angle_calibration_datasource: ismar14_datacollection_step04
+; ja_minimal_distance_between_measurements: 0.01
+; ja_maximum_distance_to_reference: 0.02
+; ja_refinement_min_difference: 0.00001
+; ja_refinement_max_iterations: 3
+; ja_refinement_shrink_distance: 0.9
+
+; ; reference orientation
+; reference_orientation_enabled: True
+; reference_orientation_datasource: ismar14_datacollection_step02
+; ro_minimal_angle_between_measurements: 0.1
+
+; ; gimbal angles calibration
+; gimbal_angle_calibration_enabled: True
+; gimbal_angle_calibration_datasource: ismar14_datacollection_step01
+; ga_minimal_angle_between_measurements: 0.1
+; ga_use_tooltip_offset: False
+
+; [vc.ismar14.modules.offline_datacollection.evaluation]
+; enabled: True
+; dfg_filename: ismar14_evaluation.dfg
+; name: Data Collection Evaluation
+; dependencies: offline_calibration
+; recorddir: %(record_directory)s/ismar14_evaluation
+; taskdescription: <h1>Data Collection - Evaluation</h1>
+;                  <p>Move the stylus slowly in the workspace. First, keep close to the workspace center, then work your way out to cover the complete
+;                     workspace. Trace all extreme positions while drawing vertical eight figures.</p>
+
+; [vc.ismar14.modules.calibration_result]
+; enabled: True
+; name: ISMAR14 Calibration Results
+; dependencies: offline_datacollection.evaluation
+; report_filename: calibration_report.yaml
+
+
+[recorder]
+sessions: naist_vhar_performance
+
+[recorder.naist_vhar_performance]
+title: VHAR Evaluation ISMAR 15
+tasks: line_tracing,target_acquisition
+conditions: calib_cosco,calib_sandor,calib_eck
+repititions: 4
+min_participants: 10
+; source_directory: H:/userstudy/naist_study1
+; destination_directory: H:/results/naist_vhar_performance
+source_directory: /tmp/source
+destination_directory: /tmp/destination
+participant_properties: age,gender
+sample_properties: comment
+
+[recorder.naist_vhar_performance.participant_property.age]
+title: Age
+type: integer
+default:
+required: True
+
+[recorder.naist_vhar_performance.participant_property.gender]
+title: Gender
+type: enum
+options: Male,Female
+default:
+required: True
+
+[recorder.naist_vhar_performance.sample_property.comment]
+title: Comment
+type: string
+default:
+required: False
+
+[recorder.naist_vhar_performance.task.line_tracing]
+title: Line Tracing
+required_files: camera_pose.log,stylus_pose.log
+;optional_files: ...
+
+[recorder.naist_vhar_performance.task.target_acquisition]
+title: Target Acquisition
+required_files: camera_pose.log,stylus_pose.log,events.log
+;optional_files: ...
+
+[recorder.naist_vhar_performance.condition.calib_cosco]
+title: Cosco Calibration
+required_files: task.log
+;optional_files: ...
+
+[recorder.naist_vhar_performance.condition.calib_sandor]
+title: Sandor Calibration
+required_files: task.log
+;optional_files: ...
+
+[recorder.naist_vhar_performance.condition.calib_eck]
+title: Eck Calibration
+required_files: task.log, extra.log
+;optional_files: ...

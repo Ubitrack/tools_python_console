@@ -6,6 +6,7 @@ platform_name: win
 config_directory: H:\config
 data_directory: H:\vhardata
 record_directory: H:\record
+module_namespace: vharcalibration.plugin.modules
 
 [ubitrack]
 components_path = H:\Libraries\UbiTrack-build\bin\ubitrack
@@ -60,27 +61,22 @@ home: %(home_directory)s
 
 [calibration_wizard.default_camera]
 name: Default Camera
-module_namespace: vharcalibration.default_camera.module
 config_namespace: vc.default_camera
 
 [calibration_wizard.vuzix_hmd]
 name: Vuzix HMD
-module_namespace: vharcalibration.stereo_camera.module
 config_namespace: vc.vuzix_hmd
 
 [calibration_wizard.time_delay_estimation]
 name: Time-Delay Estimation
-module_namespace: vharcalibration.time_delay_estimation.module
 config_namespace: vc.time_delay_estimation
 
 [calibration_wizard.phantom_colocation]
 name: Phantom Co-Location
-module_namespace: vharcalibration.phantom_colocation.module
 config_namespace: vc.phantom_colocation
 
 [calibration_wizard.gui_test]
 name: Gui Test
-module_namespace: vharcalibration.gui_test.module
 config_namespace: vc.gui_test
 
 ;

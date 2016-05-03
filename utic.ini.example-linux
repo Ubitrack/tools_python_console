@@ -6,6 +6,7 @@ platform_name: linux
 config_directory: /opt/mvl/home/mvldata/config
 data_directory: /opt/mvl/home/mvldata/data
 record_directory: /opt/mvl/home/mvldata/config
+module_namespace: vharcalibration.plugin.modules
 
 [ubitrack]
 components_path = /usr/local/lib/ubitrack
@@ -60,22 +61,18 @@ home: %(home_directory)s
 
 [calibration_wizard.default_camera]
 name: Default Camera
-module_namespace: vharcalibration.default_camera.module
 config_namespace: vc.default_camera
 
 [calibration_wizard.vuzix_hmd]
 name: Vuzix HMD
-module_namespace: vharcalibration.stereo_camera.module
 config_namespace: vc.vuzix_hmd
 
 [calibration_wizard.time_delay_estimation]
 name: Time-Delay Estimation
-module_namespace: vharcalibration.time_delay_estimation.module
 config_namespace: vc.time_delay_estimation
 
 [calibration_wizard.phantom_colocation]
 name: Phantom Co-Location
-module_namespace: vharcalibration.phantom_colocation.module
 config_namespace: vc.phantom_colocation
 
 ;

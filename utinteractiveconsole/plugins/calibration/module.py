@@ -141,7 +141,7 @@ class ModuleBase(object):
 class ModuleManager(Atom):
     context = Value()
 
-    modules_ns = Str('calibration_wizard.modules')
+    modules_ns = Str('vharcalibration.plugin.modules')
     config_ns = Str('calibration_wizard.config')
     modules = Dict()
 
