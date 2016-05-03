@@ -1,0 +1,107 @@
+from enaml.layout.api import hbox, vbox, spacer, align
+from enaml.widgets.api import (
+    Container, Html, PushButton, MultilineField, ComboBox
+)
+import enaml
+with enaml.imports():
+    from utinteractiveconsole.plugins.calibration.views.module_templates import WizardPanel
+
+
+from enaml_opengl.widgets.opengl_widget import OpenGLWidget
+
+from enaml_opengl.renderer import MonoRenderer
+from enaml_opengl.camera import PinholeCamera
+from enaml_opengl.viewport import PerspectiveViewport
+
+from enaml_opengl.scenegraph_node import Scene3D
+
+from utinteractiveconsole.ui.background_texture import BackgroundTexture
+
+enamldef CameraIntrinsicsCalibrationNewPanel(WizardPanel): panel:
+
+    Scene3D: scene_video:
+        name = "scene_video"
+
+        BackgroundTexture: bgtexture_video:
+            name = "bgtexture_video"
+
+    PinholeCamera: camera_video:
+        viewport = PerspectiveViewport()
+
+
+    MonoRenderer: renderer_video:
+        camera = camera_video
+        scene << scene_video
+
+
+    Scene3D: scene_grid:
+        name = "scene_grid"
+
+        BackgroundTexture: bgtexture_grid:
+            name = "bgtexture_grid"
+
+    PinholeCamera: camera_grid:
+        viewport = PerspectiveViewport()
+
+
+    MonoRenderer: renderer_grid:
+        camera = camera_grid
+        scene << scene_grid
+
+    constraints = [
+        vbox( hbox(content, results_txt),
+              hbox(glview_video, glview_grid),
+              hbox( spacer, select_image, capture_image )
+        ),
+        content.width == results_txt.width,
+    ]
+
+    Html: content:
+        limit_height = 'strong'
+        source = """
+        <h1>%s</h1>
+        <p>Please use a calibration checkerboard to capture images from different viewpoints to
+           calibrate the camera intrinsics.</p>
+        """ % module.get_name()
+
+    MultilineField: results_txt:
+        limit_height = 'strong'
+        name = 'results_txt'
+        text = """No results."""
+
+    OpenGLWidget: glview_video:
+        minimum_size = (320, 240)
+        limit_width = 'weak'
+        limit_height = 'weak'
+        constraints = [width == (640./480.) * height,]
+        renderer = renderer_video
+        key_press_event::
+            v = change['value']
+            if module_controller.is_ready and v.key == 32:
+                module_controller.captureImage()
+
+    OpenGLWidget: glview_grid:
+        minimum_size = (320, 240)
+        limit_width = 'weak'
+        limit_height = 'weak'
+        constraints = [width == (640./480.) * height,]
+        renderer = renderer_grid
+        key_press_event::
+            v = change['value']
+            if module_controller.is_ready and v.key == 32:
+                module_controller.useMeasurements()
+
+    ComboBox: select_image:
+        items = ['calibration', 'verification']
+        index = items.index('calibration')
+        index:: module_controller.image_selector = items[index]
+
+    PushButton: capture_image:
+        text = "Capture Image"
+        clicked :: module_controller.captureImage()
+        enabled := module_controller.is_ready
+
+    PushButton: use_measurements:
+        text = "Use Measurements"
+        clicked :: module_controller.useMeasurement()
+        enabled := module_controller.is_ready
