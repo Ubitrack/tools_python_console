@@ -51,7 +51,7 @@ enamldef CameraIntrinsicsCalibrationNewPanel(WizardPanel): panel:
     constraints = [
         vbox( hbox(content, results_txt),
               hbox(glview_video, glview_grid),
-              hbox( spacer, select_image, capture_image )
+              hbox( spacer, select_image, capture_image, use_measurement )
         ),
         content.width == results_txt.width,
     ]
@@ -101,7 +101,7 @@ enamldef CameraIntrinsicsCalibrationNewPanel(WizardPanel): panel:
         clicked :: module_controller.captureImage()
         enabled := module_controller.is_ready
 
-    PushButton: use_measurements:
-        text = "Use Measurements"
+    PushButton: use_measurement:
+        text = "Use Measurement"
         clicked :: module_controller.useMeasurement()
         enabled := module_controller.is_ready
