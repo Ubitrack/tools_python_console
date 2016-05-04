@@ -33,16 +33,17 @@ class ModuleBase(object):
         # starting at version 2 multiple instances of a module can be created
         # this is backwards incompatible, so you need to update all wizard entries
         if self.parent.config_version >= 2:
-            log.info('Loading Module with config V2')
+            #log.info('Loading Module with config V2')
             cfg = self.context.get("config")
             sections = cfg.sections()
 
             sname = self.config_ns
             instances = []
+            sname_prefix = "%s." % sname
             for section in sections:
-                if section.startswith(sname):
+                if section.startswith(sname_prefix) or section == sname:
                     module_name = section.replace(self.config_module_prefix, "")
-                    log.info("Create instance for module %s with id %s" % (self.module_name, module_name))
+                    log.info("From section: %s - create instance for module %s with id %s" % (section, self.module_name, module_name))
                     instances.append(self.__class__(self.parent, self.context, module_name=module_name))
             return instances
         else:
@@ -177,9 +178,10 @@ class ModuleManager(Atom):
             mod.set_module_name(ext.name)
             # if not mod.is_enabled():
             #     continue
-
+            log.info("processing extension: %s" % ext.name)
             # XXX hack to enable multiple instances of a module via configuration
             for m in mod.make_instances():
+                log.info("Found module: %s with type: %s" % (m.get_module_name(), str(type(m))))
                 modules[m.get_module_name()] = m
 
         return modules
