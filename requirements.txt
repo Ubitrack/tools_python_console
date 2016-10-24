@@ -1,0 +1,12 @@
+lxml==3.3.5
+enaml==0.9.7
+atom==0.3.9
+PyOpenGL==3.1.0
+PyOpenGL-accelerate==3.1.0
+ipython==2.1.0
+stevedore==0.15
+pygments==1.6
+pyzmq>=2.1
+networkx==1.9
+pyyaml==3.11
+twisted>=14.0
