@@ -33,7 +33,7 @@ class CameraIntrinsicsCalibrationNewController(LiveCalibrationController):
 
         # needs to match the SRG !!
         self.sync_source = 'distorted_image'
-        self.required_sinks = ['distorted_image', 'corner_image', 'undistorted_image', 'camera_intrinsics', 'camera_distortion',]
+        self.required_sinks = ['distorted_image', 'corner_image', 'undistorted_image', 'camera_intrinsics',]
 
         if self.facade is not None:
             self.facade.observe("is_loaded", self.connector_setup)
@@ -67,8 +67,6 @@ class CameraIntrinsicsCalibrationNewController(LiveCalibrationController):
         results = []
         if self.connector.camera_intrinsics is not None:
             results.append(self.connector.camera_intrinsics)
-        if self.connector.camera_distortion is not None:
-            results.append(self.connector.camera_distortion)
 
         if results:
             self.state.result.value = [str(i) for i in results]
