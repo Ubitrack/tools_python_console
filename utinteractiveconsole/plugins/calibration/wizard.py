@@ -294,6 +294,16 @@ class WizardController(Atom):
         if self.module_graph is None:
             self.module_graph = self.module_manager.graph
 
+        modules_ok = True
+        for m in nx.topological_sort(self.module_manager.graph):
+            if not m in self.module_manager.modules:
+                log.warn("Invalid configuration - Missing module: %s" % m)
+                modules_ok = False
+
+        if not modules_ok:
+            log.warn("Available modules: %s" % ",".join(self.module_manager.modules.keys()))
+            return False
+
         if self.current_state is None:
             self.current_state = WizardState(task_idx=0,
                                              task_list=[m for m in nx.topological_sort(self.module_manager.graph)

@@ -8,30 +8,16 @@ It builds upon ubitrack_python and the Qt framework.
 Requirements:
 ==============
 
-- ubitrack (use cmake/build/install)
-
-- atom (install from github.com/nucleic/atom, checkout master, python setup.py install)
-- enaml (install from github.com/nucleic/enaml, checkout master, python setup.py install)
-
+- ubitrack (use cmake/build/install from github.com/Ubitrack/tools_python_console)
+- atom (conda install atom)
+- enaml (conda install enaml)
 - stevedore (pip install stevedore)
-- pyqtgraph (pip install pyqtgraph)
-- networkx (pip install networkx)
-- pyopengl (pip install pyopengl)
-- lxml (part of Anaconda, otherwise pip install lxml)
+- pyqtgraph (conda install pyqtgraph)
+- networkx (conda install networkx)
+- pyopengl (conda install pyopengl)
+- lxml (conda install lxml)
 - setuptools (should be on any uptodate system ..)
-
-
-Anaconda:
-=========
-
-conda install enaml -c ecpy
-conda install PyOpenGL
-conda install PyOpenGL-accelerate
-conda install lxml
-conda install pyqtgraph
-
-pip install stevedore
-
+- twisted (conda install twisted)
 
 Installation:
 ==============
@@ -39,11 +25,10 @@ Installation:
 use the following command for a local developer installation::
   python setup.py develop
 
-
 otherwise::
   python setup.py install
 
-the installation might not install all requirements automatically. Typically requirements are installed like::
+the installation does not install requirements automatically. Typically requirements are installed like::
 
   pip install <name>
 
@@ -56,7 +41,7 @@ please copy utic.ini.example to some/path utic.ini and set the environment varia
 Required sections are::
 
     [ubitrack]
-    components_path = H:\Libraries\UbiTrack-build\bin\ubitrack
+    components_path = H:\UbiTrack\install\bin\ubitrack
 
 
 
