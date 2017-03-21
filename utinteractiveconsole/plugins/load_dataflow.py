@@ -86,7 +86,7 @@ class LoadDataflowWidget(QtGui.QWidget):
 
         self.is_loaded = False
         self.dataflow_graph = None
-        self.emit(QtCore.SIGNAL('extensionChanged()'))
+        self.extensionChanged.emit()
         self.hide()
 
     def load_dataflow(self, fname):
