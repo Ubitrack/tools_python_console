@@ -45,6 +45,8 @@ class NoValueException(ValueError):
 
 class PushSinkAdapter(QtCore.QObject):
 
+    dataReady = QtCore.Signal(['PyQt_PyObject'], name='dataReady')
+
     def __init__(self, sink):
         super(PushSinkAdapter, self).__init__()
 
@@ -57,17 +59,17 @@ class PushSinkAdapter(QtCore.QObject):
         try:
             self._time = m.time()
             self._value = m
-            self.emit(QtCore.SIGNAL('dataReady(PyQt_PyObject)'), self._time)
+            self.dataReady.emit(self._time)
         except Exception, e:
             log.exception(e)
 
     def connect(self, handler):
         self.sink.setCallback(self.cb_handler)
-        return super(PushSinkAdapter, self).connect(self, QtCore.SIGNAL('dataReady(PyQt_PyObject)'), handler, QtCore.Qt.QueuedConnection)
+        return self.dataReady.connect(handler, QtCore.Qt.QueuedConnection)
 
     def disconnect(self, handler):
         self.sink.setCallback(None)
-        return super(PushSinkAdapter, self).disconnect(self, QtCore.SIGNAL('dataReady(PyQt_PyObject)'), handler)
+        return self.dataReady.disconnect(handler)
 
     def get(self, ts=None):
         if (ts is not None and ts != self._time) or self._value is None:

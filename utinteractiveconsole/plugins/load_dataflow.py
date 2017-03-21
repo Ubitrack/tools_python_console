@@ -35,16 +35,16 @@ class LoadDataflowWidget(QtGui.QWidget):
 
         self.start_button = QtGui.QPushButton("Start")
         grid.addWidget(self.start_button, 0, 0)
-        self.connect(self.start_button, QtCore.SIGNAL('clicked()'), self.handle_start_dataflow)
+        self.start_button.clicked.connect(self.handle_start_dataflow)
 
         self.stop_button = QtGui.QPushButton("Stop")
         grid.addWidget(self.stop_button, 0, 1)
-        self.connect(self.stop_button, QtCore.SIGNAL('clicked()'), self.handle_stop_dataflow)
+        self.stop_button.clicked.connect(self.handle_stop_dataflow)
         self.stop_button.setEnabled(False)
 
         self.close_button = QtGui.QPushButton("Close")
         grid.addWidget(self.close_button, 0, 3)
-        self.connect(self.close_button, QtCore.SIGNAL('clicked()'), self.handle_unload_dataflow)
+        self.close_button.clicked.connect(self.handle_unload_dataflow)
 
         self.setLayout(grid)
         self.setWindowTitle('Dataflow')
@@ -96,7 +96,7 @@ class LoadDataflowWidget(QtGui.QWidget):
             self.df.loadDataflow(name, True)
             self.setWindowTitle('Dataflow: %s' % os.path.basename(name))
             self.is_loaded = True
-            self.emit(QtCore.SIGNAL('extensionChanged()'))
+            self.extensionChanged.emit()
             self.show()
 
     def parseUTQL(self, name):

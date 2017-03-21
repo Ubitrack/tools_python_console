@@ -41,18 +41,20 @@ class InPort(Port):
 
 class OutPort(Port):
 
+    dataReady = QtCore.Signal(['PyQt_PyObject'], name='dataReady')
+
     def __init__(self, parent, name):
         super(Port, self).__init__(parent, name)
 
     def send(self, value):
-         self.emit(QtCore.SIGNAL('dataReady(PyQt_PyObject)'), value)
+         self.dataReady.emit(value)
 
     def subscribe(self, inport):
         info = inport.get_info()
         if info.queued:
-            return super(OutPort, self).connect(self, QtCore.SIGNAL('dataReady(PyQt_PyObject)'), inport.handle_receive, QtCore.Qt.QueuedConnection)
+            return self.dataReady.connect(inport.handle_receive, QtCore.Qt.QueuedConnection)
         else:
-            return super(OutPort, self).connect(self, QtCore.SIGNAL('dataReady(PyQt_PyObject)'), inport.handle_receive)
+            return self.dataReady.connect(inport.handle_receive)
 
 
     def unsubscribe(self, inport):
@@ -182,7 +184,7 @@ class WorkspaceExtensionManager(Atom):
 
         for name, result in results:
             if result.widget is not None:
-                result.widget.connect(result.widget, QtCore.SIGNAL('extensionChanged()'), self.updateExtensionInfo)
+                result.widget.extensionChanged.connect(self.updateExtensionInfo)
 
     def updateExtensionInfo(self):
 
