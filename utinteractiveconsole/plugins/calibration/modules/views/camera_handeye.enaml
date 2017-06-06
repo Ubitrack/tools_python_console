@@ -51,7 +51,7 @@ enamldef CameraHandEyeCalibrationPanel(WizardPanel):
 
     constraints = [
         vbox( hbox(content, results_txt),
-              hbox(glview),
+              hbox(glview, spacer),
               hbox(spacer, select_image, capture_pose_he, capture_pose_align,
               )
         ),
