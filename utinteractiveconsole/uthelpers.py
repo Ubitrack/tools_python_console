@@ -340,7 +340,10 @@ def ubitrack_connector_class(dfg_filename):
             else:
                 attrs[k] = Value()
 
-    attrs["ports"] = List(default=ports)
+    # needed to mitigiate a strange error that weakreferences are not supported
+    attrs['__slots__'] = ('__weakref__',)
+    attrs["ports"] = List()
+    attrs["_default_ports"] = lambda s: ports
 
     return new.classobj("UbitrackConnector", (UbitrackConnectorBase,), attrs)
 
