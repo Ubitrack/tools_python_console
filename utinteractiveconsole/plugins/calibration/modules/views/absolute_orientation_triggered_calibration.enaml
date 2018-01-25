@@ -9,7 +9,7 @@ with enaml.imports():
 enamldef AbsoluteOrientationTriggeredCalibrationPanel(WizardPanel):
     constraints = [
         hbox(content, vbox(progress, results_txt)),
-        hbox(spacer, capture_pose_ao,
+        hbox(spacer, capture_pose_ao),
         content.width == results_txt.width,
     ]
     Html: content:
